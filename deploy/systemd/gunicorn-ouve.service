@@ -1,0 +1,20 @@
+[Unit]
+Description=M.Ouve API (Django Gunicorn)
+After=network.target
+
+[Service]
+User=gabinete
+Group=www-data
+WorkingDirectory=/var/www/ouve/backend
+EnvironmentFile=/var/www/ouve/backend/.env
+ExecStart=/var/www/ouve/backend/.venv/bin/gunicorn ouvia_core.wsgi:application \
+    --bind 127.0.0.1:8765 \
+    --workers 3 \
+    --timeout 120 \
+    --access-logfile - \
+    --error-logfile -
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

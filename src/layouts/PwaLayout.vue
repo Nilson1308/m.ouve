@@ -1,0 +1,171 @@
+<template>
+  <div class="min-h-screen" :class="{ 'pb-20': showBottomNav }">
+    <a href="#conteudo-principal" class="skip-link">Pular para o conteúdo principal</a>
+    <!-- Header PWA com Glassmorphism (oculto em sub-telas com cabeçalho próprio) -->
+    <header
+      v-if="showShellHeader"
+      class="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 high-contrast:bg-black border-b border-gray-200/50 dark:border-gray-800/50 high-contrast:border-yellow-300 shadow-soft"
+    >
+      <div class="px-6 py-4 safe-area-inset">
+        <div class="flex items-center justify-between mb-3">
+          <!-- Logo -->
+          <router-link to="/app/dashboard" class="flex items-center gap-3">
+            <img
+              v-if="themeStore.currentTheme === 'light'"
+              :src="BRAND.logos.light"
+              :alt="BRAND.name"
+              class="h-10 w-auto object-contain"
+            />
+            <img
+              v-else
+              :src="BRAND.logos.dark"
+              :alt="BRAND.name"
+              class="h-10 w-auto object-contain"
+            />
+          </router-link>
+
+          <!-- Actions -->
+          <div class="flex items-center gap-2">
+            <NotificacoesCidadaoBell />
+            <PwaA11yMenu />
+            <ThemeToggle surface="light" />
+            <button
+              type="button"
+              @click="handleLogout"
+              class="btn-icon group"
+              aria-label="Sair da conta"
+            >
+              <ArrowRightOnRectangleIcon class="w-5 h-5 text-gray-600 dark:text-gray-300 high-contrast:text-yellow-300 group-hover:text-red-600 dark:group-hover:text-red-400" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+        
+        <!-- User Greeting -->
+        <p class="text-sm text-gray-600 dark:text-gray-400 high-contrast:text-white high-contrast:font-bold">
+          Olá, <span class="font-semibold text-gray-900 dark:text-white high-contrast:text-yellow-300">{{ authStore.userName }}</span>
+        </p>
+      </div>
+    </header>
+
+    <!-- Área de conteúdo (landmark principal nas sub-rotas) -->
+    <div
+      :id="showShellHeader ? 'conteudo-principal' : undefined"
+      :tabindex="showShellHeader ? -1 : undefined"
+      class="animate-fade-in motion-reduce:animate-none"
+    >
+      <router-view />
+    </div>
+
+    <!-- Bottom Navigation (PWA) -->
+    <nav
+      v-if="showBottomNav"
+      aria-label="Navegação principal do aplicativo"
+      class="fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-gray-900 high-contrast:bg-black border-t border-gray-200 dark:border-gray-800 high-contrast:border-yellow-300 shadow-float dark:shadow-float-dark safe-area-inset-bottom"
+    >
+      <div class="flex items-center justify-around py-2">
+        <!-- Home -->
+        <router-link 
+          to="/app/dashboard" 
+          class="nav-item"
+          :class="{ 'nav-item-active': $route.path.includes('/dashboard') }"
+        >
+          <HomeIcon class="w-6 h-6" aria-hidden="true" />
+          <span class="text-xs mt-1">Início</span>
+        </router-link>
+
+        <!-- Nova Solicitação -->
+        <router-link 
+          to="/app/nova-solicitacao" 
+          class="nav-item"
+          :class="{ 'nav-item-active': $route.path.includes('/nova-solicitacao') || $route.path.includes('/chat') }"
+        >
+          <PlusCircleIcon class="w-6 h-6" aria-hidden="true" />
+          <span class="text-xs mt-1">Nova</span>
+        </router-link>
+
+        <!-- Perfil -->
+        <router-link 
+          to="/app/perfil" 
+          class="nav-item"
+          :class="{ 'nav-item-active': $route.path.includes('/perfil') }"
+        >
+          <UserCircleIcon class="w-6 h-6" aria-hidden="true" />
+          <span class="text-xs mt-1">Perfil</span>
+        </router-link>
+      </div>
+    </nav>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useThemeStore } from '@/stores/theme'
+import { BRAND } from '@/constants/brand'
+import ThemeToggle from '@/components/shared/ThemeToggle.vue'
+import PwaA11yMenu from '@/components/pwa/PwaA11yMenu.vue'
+import NotificacoesCidadaoBell from '@/components/pwa/NotificacoesCidadaoBell.vue'
+import { useNotificacoesCidadaoStore } from '@/stores/notificacoesCidadao'
+import {
+  HomeIcon,
+  PlusCircleIcon,
+  UserCircleIcon,
+  ArrowRightOnRectangleIcon
+} from '@heroicons/vue/24/outline'
+
+const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+const themeStore = useThemeStore()
+
+const notificacoesStore = useNotificacoesCidadaoStore()
+
+const showShellHeader = computed(() => !route.meta.pwaHideShellHeader)
+const showBottomNav = computed(() => !route.meta.pwaHideBottomNav)
+
+let pollInterval = null
+
+function atualizarNotificacoes() {
+  if (!authStore.isAuthenticated || authStore.isBackoffice) return
+  notificacoesStore.carregar({ silencioso: true, limit: 15 }).catch(() => null)
+}
+
+function onWindowFocus() {
+  atualizarNotificacoes()
+}
+
+onMounted(() => {
+  atualizarNotificacoes()
+  pollInterval = window.setInterval(atualizarNotificacoes, 2 * 60 * 1000)
+  window.addEventListener('focus', onWindowFocus)
+})
+
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval)
+  window.removeEventListener('focus', onWindowFocus)
+})
+
+async function handleLogout() {
+  notificacoesStore.reset()
+  await authStore.logout()
+  router.push('/login')
+}
+</script>
+
+<style scoped>
+.nav-item {
+  @apply flex flex-col items-center justify-center;
+  @apply px-4 py-2 min-h-[44px] rounded-button;
+  @apply text-gray-600 dark:text-gray-400 high-contrast:text-white;
+  @apply transition-all duration-200 motion-reduce:transition-none;
+  @apply hover:bg-gray-100 dark:hover:bg-gray-800 high-contrast:hover:bg-yellow-300/20;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2;
+}
+
+.nav-item-active {
+  @apply text-primary-600 dark:text-primary-400 high-contrast:text-yellow-300;
+  @apply font-semibold;
+  @apply bg-primary-50 dark:bg-primary-900/20 high-contrast:bg-yellow-300/20;
+}
+</style>

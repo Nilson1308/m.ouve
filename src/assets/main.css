@@ -1,0 +1,477 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tokens usados com @apply — devem existir em @layer utilities */
+@layer utilities {
+  .rounded-card { border-radius: theme('borderRadius.card'); }
+  .rounded-button { border-radius: theme('borderRadius.button'); }
+  .rounded-input { border-radius: theme('borderRadius.input'); }
+  .rounded-badge { border-radius: theme('borderRadius.badge'); }
+  .rounded-modal { border-radius: theme('borderRadius.modal'); }
+  .rounded-l-card {
+    border-top-left-radius: theme('borderRadius.card');
+    border-bottom-left-radius: theme('borderRadius.card');
+  }
+
+  .shadow-card { box-shadow: theme('boxShadow.card'); }
+  .shadow-card-hover { box-shadow: theme('boxShadow.card-hover'); }
+  .shadow-card-dark { box-shadow: theme('boxShadow.card-dark'); }
+  .shadow-soft { box-shadow: theme('boxShadow.soft'); }
+  .shadow-soft-lg { box-shadow: theme('boxShadow.soft-lg'); }
+  .shadow-button { box-shadow: theme('boxShadow.button'); }
+  .shadow-button-hover { box-shadow: theme('boxShadow.button-hover'); }
+  .shadow-float { box-shadow: theme('boxShadow.float'); }
+  .shadow-float-dark { box-shadow: theme('boxShadow.float-dark'); }
+  .shadow-glow-blue { box-shadow: theme('boxShadow.glow-blue'); }
+  .shadow-glow-green { box-shadow: theme('boxShadow.glow-green'); }
+  .shadow-inner-soft { box-shadow: theme('boxShadow.inner-soft'); }
+
+  .ease-smooth { transition-timing-function: theme('transitionTimingFunction.smooth'); }
+}
+
+/* ==========================================
+   🎨 DESIGN SYSTEM MODERNO - M.Ouve
+   ========================================== */
+
+@layer base {
+  html.text-scale-normal {
+    font-size: 100%;
+  }
+  html.text-scale-large {
+    font-size: 112.5%;
+  }
+  html.text-scale-xlarge {
+    font-size: 125%;
+  }
+
+  body {
+    @apply bg-gradient-to-br from-gray-50 via-white to-gray-100;
+    @apply dark:from-gray-950 dark:via-gray-900 dark:to-gray-950;
+    @apply high-contrast:from-black high-contrast:via-black high-contrast:to-black;
+    @apply text-gray-900 dark:text-gray-100 high-contrast:text-white;
+    @apply transition-colors duration-300;
+  }
+}
+
+@layer components {
+  /* ==========================================
+     💎 CARDS MODERNOS
+     ========================================== */
+  .card {
+    @apply bg-white dark:bg-gray-800 high-contrast:bg-black;
+    @apply rounded-card shadow-card hover:shadow-card-hover;
+    @apply dark:shadow-card-dark;
+    @apply border border-gray-100 dark:border-gray-700 high-contrast:border-yellow-300;
+    @apply p-6;
+    @apply transition-all duration-300 ease-smooth;
+    @apply backdrop-blur-sm;
+  }
+
+  .card-interactive {
+    @apply card cursor-pointer;
+    @apply hover:scale-[1.02] active:scale-[0.98];
+    @apply hover:border-primary-200 dark:hover:border-primary-700;
+    @apply high-contrast:hover:border-yellow-400 high-contrast:hover:shadow-glow-blue;
+  }
+
+  .card-glass {
+    @apply bg-white/70 dark:bg-gray-800/70 high-contrast:bg-black/90;
+    @apply backdrop-blur-xl backdrop-saturate-150;
+    @apply border border-white/20 dark:border-gray-700/30;
+    @apply shadow-soft-lg;
+  }
+
+  /* ==========================================
+     🎯 BOTÕES MODERNOS COM HIERARQUIA
+     ========================================== */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2;
+    @apply px-6 py-3 rounded-button;
+    @apply font-medium text-sm;
+    @apply transition-all duration-300 ease-smooth;
+    @apply focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 motion-reduce:transition-none;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none;
+    @apply transform active:scale-95;
+  }
+
+  /* Primary - Principal action */
+  .btn-primary {
+    @apply btn;
+    @apply bg-gradient-to-r from-primary-600 to-primary-500;
+    @apply hover:from-primary-700 hover:to-primary-600;
+    @apply text-white shadow-button hover:shadow-button-hover;
+    @apply focus:ring-primary-300 dark:focus:ring-primary-800;
+    @apply high-contrast:from-yellow-300 high-contrast:to-yellow-400;
+    @apply high-contrast:text-black high-contrast:font-bold;
+    @apply high-contrast:border-2 high-contrast:border-black;
+    @apply dark:from-primary-500 dark:to-primary-600;
+    @apply dark:hover:from-primary-600 dark:hover:to-primary-700;
+  }
+
+  /* Secondary - Alternative action */
+  .btn-secondary {
+    @apply btn;
+    @apply bg-white dark:bg-gray-800 high-contrast:bg-transparent;
+    @apply border-2 border-primary-300 dark:border-primary-600;
+    @apply high-contrast:border-yellow-300;
+    @apply text-primary-700 dark:text-primary-300 high-contrast:text-yellow-300;
+    @apply hover:bg-primary-50 dark:hover:bg-primary-900/20;
+    @apply high-contrast:hover:bg-yellow-300/20;
+    @apply shadow-soft hover:shadow-card;
+    @apply focus:ring-primary-300 dark:focus:ring-primary-800;
+    @apply high-contrast:font-bold;
+  }
+
+  /* Success - Confirmar / Enviar */
+  .btn-success {
+    @apply btn;
+    @apply bg-gradient-to-r from-success-600 to-success-500;
+    @apply hover:from-success-700 hover:to-success-600;
+    @apply text-white shadow-button hover:shadow-glow-green;
+    @apply focus:ring-success-300 dark:focus:ring-success-800;
+    @apply high-contrast:from-yellow-300 high-contrast:to-yellow-400;
+    @apply high-contrast:text-black high-contrast:font-bold;
+    @apply high-contrast:border-2 high-contrast:border-black;
+  }
+
+  /* Danger - Excluir / Cancelar */
+  .btn-danger {
+    @apply btn;
+    @apply bg-gradient-to-r from-danger-600 to-danger-500;
+    @apply hover:from-danger-700 hover:to-danger-600;
+    @apply text-white shadow-button;
+    @apply focus:ring-danger-300 dark:focus:ring-danger-800;
+    @apply high-contrast:from-red-600 high-contrast:to-red-700;
+    @apply high-contrast:border-2 high-contrast:border-yellow-300;
+  }
+
+  /* Ghost - Ações terciárias */
+  .btn-ghost {
+    @apply btn;
+    @apply bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800;
+    @apply high-contrast:hover:bg-yellow-300/20;
+    @apply text-gray-700 dark:text-gray-300 high-contrast:text-white;
+    @apply shadow-none;
+    @apply high-contrast:border high-contrast:border-gray-600;
+    @apply high-contrast:hover:border-yellow-300;
+  }
+
+  /* Icon Button */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[1000];
+    @apply focus:px-4 focus:py-3 focus:rounded-button focus:bg-primary-600 focus:text-white focus:font-semibold;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 focus-visible:ring-offset-2;
+    @apply high-contrast:focus:bg-yellow-300 high-contrast:focus:text-black;
+  }
+
+  .btn-icon {
+    @apply inline-flex items-center justify-center;
+    @apply w-11 h-11 min-w-[44px] min-h-[44px] rounded-button;
+    @apply bg-white dark:bg-gray-800 high-contrast:bg-transparent;
+    @apply border border-gray-200 dark:border-gray-700 high-contrast:border-yellow-300;
+    @apply hover:bg-gray-50 dark:hover:bg-gray-700;
+    @apply high-contrast:hover:bg-yellow-300/20;
+    @apply shadow-soft hover:shadow-card;
+    @apply transition-all duration-300;
+    @apply focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2;
+    @apply motion-reduce:transition-none;
+  }
+
+  /* ==========================================
+     📝 INPUTS MODERNOS
+     ========================================== */
+  .input {
+    @apply w-full px-4 py-3 rounded-input;
+    @apply bg-white dark:bg-gray-800 high-contrast:bg-black;
+    @apply border-2 border-gray-200 dark:border-gray-700 high-contrast:border-gray-600;
+    @apply text-gray-900 dark:text-gray-100 high-contrast:text-white;
+    @apply placeholder-gray-400 dark:placeholder-gray-500 high-contrast:placeholder-gray-500;
+    @apply focus:border-primary-500 dark:focus:border-primary-400;
+    @apply high-contrast:focus:border-yellow-300 high-contrast:focus:shadow-glow-blue;
+    @apply focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2;
+    @apply high-contrast:focus:ring-yellow-300/30;
+    @apply transition-all duration-300;
+    @apply shadow-inner-soft;
+    @apply high-contrast:font-bold;
+  }
+
+  .input:disabled {
+    @apply bg-gray-50 dark:bg-gray-900 cursor-not-allowed opacity-60;
+  }
+
+  .input-error {
+    @apply border-danger-500 dark:border-danger-400 focus:border-danger-500 focus:ring-danger-100 dark:focus:ring-danger-900/40;
+  }
+
+  /* Select */
+  select.input {
+    @apply pr-10 appearance-none bg-no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1.25rem;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  }
+
+  /* Textarea */
+  textarea.input {
+    @apply min-h-[120px] resize-y;
+  }
+
+  /* ==========================================
+     🏷️ BADGES MODERNOS
+     ========================================== */
+  .badge {
+    @apply inline-flex items-center gap-1.5;
+    @apply px-3 py-1.5 rounded-badge;
+    @apply text-xs font-semibold;
+    @apply border;
+    @apply transition-all duration-200;
+  }
+
+  /* Status Badges - Zeladoria */
+  .badge-status-triagem {
+    @apply bg-blue-50 text-blue-700 border-blue-200;
+    @apply dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800;
+    @apply high-contrast:bg-transparent high-contrast:text-yellow-300 high-contrast:border-yellow-300 high-contrast:font-bold;
+  }
+
+  .badge-status-execucao {
+    @apply bg-teal-50 text-teal-700 border-teal-200;
+    @apply dark:bg-teal-900/20 dark:text-teal-300 dark:border-teal-800;
+    @apply high-contrast:bg-transparent high-contrast:text-yellow-300 high-contrast:border-yellow-300 high-contrast:font-bold;
+  }
+
+  .badge-status-concluido {
+    @apply bg-green-50 text-green-700 border-green-200;
+    @apply dark:bg-green-900/20 dark:text-green-300 dark:border-green-800;
+    @apply high-contrast:bg-transparent high-contrast:text-yellow-300 high-contrast:border-yellow-300 high-contrast:font-bold;
+  }
+
+  .badge-status-pendente {
+    @apply bg-amber-50 text-amber-700 border-amber-200;
+    @apply dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800;
+    @apply high-contrast:bg-transparent high-contrast:text-yellow-300 high-contrast:border-yellow-300 high-contrast:font-bold;
+  }
+
+  .badge-status-arquivado {
+    @apply bg-gray-50 text-gray-700 border-gray-200;
+    @apply dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700;
+    @apply high-contrast:bg-transparent high-contrast:text-white high-contrast:border-gray-500 high-contrast:font-bold;
+  }
+
+  /* Badge sobre hero azul (tema claro: texto legível; escuro mantém contraste) */
+  .badge-on-primary-surface {
+    @apply bg-white/20 text-white border-white/45 backdrop-blur-sm;
+    @apply dark:bg-white/15 dark:text-white dark:border-white/35;
+    @apply high-contrast:bg-yellow-300 high-contrast:text-black high-contrast:border-yellow-300;
+  }
+
+  /* Urgência Badges */
+  .badge-urgencia-baixa {
+    @apply bg-green-50 text-green-700 border-green-200;
+    @apply dark:bg-green-900/20 dark:text-green-300 dark:border-green-800;
+  }
+
+  .badge-urgencia-media {
+    @apply bg-amber-50 text-amber-700 border-amber-200;
+    @apply dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800;
+  }
+
+  .badge-urgencia-alta {
+    @apply bg-red-50 text-red-700 border-red-200;
+    @apply dark:bg-red-900/20 dark:text-red-300 dark:border-red-800;
+  }
+
+  .badge-urgencia-critica {
+    @apply bg-red-100 text-red-800 border-red-300;
+    @apply dark:bg-red-900/30 dark:text-red-200 dark:border-red-700;
+    @apply animate-pulse;
+  }
+
+  /* ==========================================
+     ⚠️ ALERTAS MODERNOS
+     ========================================== */
+  .alert {
+    @apply flex items-start gap-3 p-4 rounded-card;
+    @apply border-l-4;
+    @apply shadow-soft;
+  }
+
+  .alert-info {
+    @apply alert;
+    @apply bg-blue-50 border-blue-500 text-blue-900;
+    @apply dark:bg-blue-900/20 dark:border-blue-600 dark:text-blue-100;
+    @apply high-contrast:bg-transparent high-contrast:border-yellow-300 high-contrast:text-white high-contrast:font-bold;
+  }
+
+  .alert-success {
+    @apply alert;
+    @apply bg-green-50 border-green-500 text-green-900;
+    @apply dark:bg-green-900/20 dark:border-green-600 dark:text-green-100;
+    @apply high-contrast:bg-transparent high-contrast:border-yellow-300 high-contrast:text-white high-contrast:font-bold;
+  }
+
+  .alert-warning {
+    @apply alert;
+    @apply bg-amber-50 border-amber-500 text-amber-900;
+    @apply dark:bg-amber-900/20 dark:border-amber-600 dark:text-amber-100;
+    @apply high-contrast:bg-transparent high-contrast:border-yellow-300 high-contrast:text-white high-contrast:font-bold;
+  }
+
+  .alert-danger {
+    @apply alert;
+    @apply bg-red-50 border-red-500 text-red-900;
+    @apply dark:bg-red-900/20 dark:border-red-600 dark:text-red-100;
+    @apply high-contrast:bg-transparent high-contrast:border-red-600 high-contrast:text-white high-contrast:font-bold;
+  }
+
+  /* ==========================================
+     🎭 MODAL MODERNO
+     ========================================== */
+  dialog {
+    @apply rounded-modal shadow-float dark:shadow-float-dark;
+    @apply bg-white dark:bg-gray-800 high-contrast:bg-black;
+    @apply border border-gray-100 dark:border-gray-700 high-contrast:border-yellow-300 high-contrast:border-4;
+    @apply backdrop:bg-black/50 backdrop:backdrop-blur-sm;
+    @apply p-6 max-w-md;
+    @apply transition-all duration-300;
+  }
+
+  dialog::backdrop {
+    @apply bg-black/60 backdrop-blur-md;
+    @apply high-contrast:bg-black/90;
+  }
+
+  /* ==========================================
+     📊 CARDS DE PROTOCOLO
+     ========================================== */
+  .protocol-card {
+    @apply card-interactive;
+    @apply relative overflow-hidden;
+  }
+
+  .protocol-card::before {
+    content: '';
+    @apply absolute top-0 left-0 h-full w-1.5 rounded-l-card;
+    @apply transition-all duration-300;
+  }
+
+  .protocol-card:hover::before {
+    @apply w-2;
+  }
+
+  /* ==========================================
+     🎨 GRADIENTES DE FUNDO
+     ========================================== */
+  .bg-gradient-primary {
+    @apply bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700;
+    @apply dark:from-primary-600 dark:via-primary-700 dark:to-primary-800;
+    @apply high-contrast:from-black high-contrast:via-black high-contrast:to-black;
+  }
+
+  .bg-gradient-success {
+    @apply bg-gradient-to-br from-success-500 via-success-600 to-success-700;
+    @apply dark:from-success-600 dark:via-success-700 dark:to-success-800;
+  }
+
+  /* ==========================================
+     ⚡ ANIMAÇÕES SUAVES
+     ========================================== */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-smooth;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-smooth;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* ==========================================
+     📱 SAFE AREA (PWA)
+     ========================================== */
+  .safe-area-inset {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ==========================================
+   🎯 SCROLLBAR PERSONALIZADA
+   ========================================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+  @apply hover:bg-gray-400 dark:hover:bg-gray-600;
+}
+
+.high-contrast ::-webkit-scrollbar-thumb {
+  @apply bg-yellow-300;
+}
+
+/* ==========================================
+   🌙 TRANSIÇÕES DE TEMA
+   ========================================== */
+* {
+  @apply transition-colors duration-300;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

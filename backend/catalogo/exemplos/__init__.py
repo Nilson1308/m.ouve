@@ -1,0 +1,1 @@
+"""Exemplos de configuração de catálogo para documentação e comandos de carga."""

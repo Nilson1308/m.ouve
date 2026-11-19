@@ -1,0 +1,171 @@
+from django.contrib import admin
+
+from atendimentos.models import (
+    AnexoChatSessao,
+    AnexoOrdemServico,
+    AnexoProtocolo,
+    AvaliacaoProtocolo,
+    ConfiguracaoSistema,
+    MensagemChat,
+    NotificacaoCidadao,
+    NotificacaoInterna,
+    PushSubscription,
+    OrdemServico,
+    Protocolo,
+    ProtocoloComentario,
+    ProtocoloHistorico,
+    SessaoChat,
+    SolicitacaoAssinatura,
+    SuperOS,
+    TextoPadraoDespacho,
+)
+
+
+@admin.register(TextoPadraoDespacho)
+class TextoPadraoDespachoAdmin(admin.ModelAdmin):
+    list_display = ("titulo", "unidade", "ativo", "atualizado_em")
+    list_filter = ("ativo", "unidade")
+    search_fields = ("titulo", "texto")
+
+
+@admin.register(SolicitacaoAssinatura)
+class SolicitacaoAssinaturaAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "ordem_servico",
+        "solicitante",
+        "assinante_destino",
+        "status",
+        "criado_em",
+    )
+    list_filter = ("status",)
+    raw_id_fields = ("ordem_servico", "solicitante", "assinante_destino")
+    search_fields = ("despacho_tecnico", "hash_assinatura")
+
+
+@admin.register(NotificacaoCidadao)
+class NotificacaoCidadaoAdmin(admin.ModelAdmin):
+    list_display = ("titulo", "usuario", "protocolo", "lida", "criada_em")
+    list_filter = ("lida",)
+    raw_id_fields = ("usuario", "protocolo")
+    search_fields = ("titulo", "mensagem")
+
+
+@admin.register(PushSubscription)
+class PushSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ("usuario", "endpoint", "atualizado_em")
+    raw_id_fields = ("usuario",)
+    search_fields = ("endpoint",)
+
+
+@admin.register(NotificacaoInterna)
+class NotificacaoInternaAdmin(admin.ModelAdmin):
+    list_display = ("titulo", "usuario_destino", "lida", "data_criacao")
+    list_filter = ("lida",)
+    raw_id_fields = ("usuario_destino",)
+
+
+@admin.register(AvaliacaoProtocolo)
+class AvaliacaoProtocoloAdmin(admin.ModelAdmin):
+    list_display = ("protocolo", "nota", "criada_em")
+    list_filter = ("nota",)
+    raw_id_fields = ("protocolo",)
+
+
+@admin.register(ConfiguracaoSistema)
+class ConfiguracaoSistemaAdmin(admin.ModelAdmin):
+    list_display = (
+        "singleton_id",
+        "dias_busca_cluster_ia",
+        "notificar_novos_despachos",
+        "notificar_sla_vencido",
+        "notificar_novas_super_os",
+        "atualizado_em",
+    )
+    fields = (
+        "dias_busca_cluster_ia",
+        "notificar_novos_despachos",
+        "notificar_sla_vencido",
+        "notificar_novas_super_os",
+        "atualizado_em",
+    )
+    readonly_fields = ("atualizado_em",)
+
+    def has_add_permission(self, request):
+        return not ConfiguracaoSistema.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(SuperOS)
+class SuperOSAdmin(admin.ModelAdmin):
+    list_display = ("codigo", "titulo_resumo", "status", "criado_em")
+    list_filter = ("status",)
+    search_fields = ("codigo", "titulo_resumo")
+
+
+@admin.register(Protocolo)
+class ProtocoloAdmin(admin.ModelAdmin):
+    list_display = ("codigo", "servico", "status", "super_os", "usuario", "data_criacao")
+    list_filter = ("status", "servico__categoria")
+    raw_id_fields = ("servico", "usuario", "super_os")
+    search_fields = ("codigo", "descricao")
+
+
+class AnexoOrdemServicoInline(admin.TabularInline):
+    model = AnexoOrdemServico
+    extra = 0
+    readonly_fields = ("criado_em",)
+
+
+@admin.register(OrdemServico)
+class OrdemServicoAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "protocolo",
+        "unidade",
+        "status",
+        "magic_link_token",
+        "nome_equipe",
+        "prazo_horas",
+    )
+    list_filter = ("status", "unidade")
+    raw_id_fields = ("protocolo", "unidade", "formalizado_por")
+    autocomplete_fields = ("unidade",)
+    inlines = [AnexoOrdemServicoInline]
+    readonly_fields = ("magic_link_gerado_em", "magic_link_expira_em", "magic_link_acessos")
+
+
+admin.site.register(AnexoProtocolo)
+admin.site.register(ProtocoloHistorico)
+admin.site.register(ProtocoloComentario)
+
+
+class MensagemChatInline(admin.TabularInline):
+    model = MensagemChat
+    extra = 0
+    readonly_fields = ("autor", "conteudo_texto", "tipo_acao", "criado_em")
+    can_delete = False
+
+
+@admin.register(AnexoChatSessao)
+class AnexoChatSessaoAdmin(admin.ModelAdmin):
+    list_display = ("id", "sessao", "nome_original", "tipo_mime", "criado_em")
+    raw_id_fields = ("sessao", "mensagem")
+
+
+@admin.register(SessaoChat)
+class SessaoChatAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "usuario",
+        "categoria_inicial",
+        "servico_identificado",
+        "status",
+        "atualizado_em",
+    )
+    list_filter = ("status", "categoria_inicial")
+    search_fields = ("id", "usuario__cpf", "categoria_inicial")
+    raw_id_fields = ("usuario", "servico_identificado", "protocolo_final")
+    inlines = [MensagemChatInline]

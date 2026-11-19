@@ -1,0 +1,34 @@
+{
+  "_comentario": "Referência — Agendamento de Castração (Proteção Animal). Fonte: catalogo/exemplos/protecao_animal_castracao.py",
+  "servico": "Agendamento de Castração de Animais",
+  "formulario_schema_resumo": [
+    "tipo (select)",
+    "idade (text) + regra_elegibilidade interpretação",
+    "doencas (select) + regra_elegibilidade interpretação",
+    "porte (select)",
+    "localizacao (geo)"
+  ],
+  "regras_elegibilidade": [
+    {
+      "escopo": "campo",
+      "campo": "idade",
+      "tipo": "interpretacao",
+      "condicao": "Bloquear se a idade informada for menor que 12 meses ou maior que 9 anos (incluindo respostas como \"8 meses\", \"10 anos\", \"filhote recém-nascido\").",
+      "mensagem": "Para castração, o animal precisa ter entre 12 meses e 9 anos. Para outros casos, entre em contato com a Proteção Animal do município."
+    },
+    {
+      "escopo": "campo",
+      "campo": "doencas",
+      "tipo": "interpretacao",
+      "condicao": "Bloquear se o cidadão indicar que o animal está doente, com sintomas, em tratamento, ou responder \"Sim\" à pergunta sobre doença.",
+      "mensagem": "Não é possível agendar castração para animal doente ou com sintomas neste canal. Procure a Proteção Animal ou um veterinário antes de novo agendamento."
+    },
+    {
+      "escopo": "protocolo",
+      "tipo": "interpretacao",
+      "condicao": "Bloquear se, considerando idade e estado de saúde já informados, o animal estiver fora da faixa de 12 meses a 9 anos OU estiver doente/com sintomas, inclusive quando as duas condições aparecem juntas no protocolo.",
+      "mensagem": "Pelas informações que você passou, este agendamento não pode seguir aqui. A Proteção Animal pode orientar o melhor caminho para o seu animal."
+    }
+  ],
+  "comando_aplicar": "python manage.py aplicar_exemplo_protecao_animal"
+}

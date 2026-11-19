@@ -1,0 +1,153 @@
+{
+  "_comment": "Exemplo de resposta da API GET /api/v1/backoffice/dashboard/eficiencia/",
+  "_description": "Dados analíticos para o Dashboard de Eficiência executivo",
+  
+  "tma_global_horas": 132.5,
+  "_tma_global_horas_comment": "TMA (Tempo Médio de Atendimento) global em horas. 132.5h = 5d 12h",
+  
+  "tma_variacao": -12.5,
+  "_tma_variacao_comment": "Variação percentual do TMA em relação ao período anterior. Negativo = melhora (menos tempo)",
+  
+  "taxa_sla_cumprido": 87.3,
+  "_taxa_sla_cumprido_comment": "Percentual de protocolos cumprindo SLA (0-100)",
+  
+  "sla_variacao": 5.2,
+  "_sla_variacao_comment": "Variação percentual da taxa de SLA. Positivo = melhora (mais protocolos no prazo)",
+  
+  "total_protocolos": 6423,
+  "_total_protocolos_comment": "Total de protocolos ativos no período",
+  
+  "total_no_prazo": 5189,
+  "_total_no_prazo_comment": "Protocolos cumprindo SLA",
+  
+  "total_vencido": 1234,
+  "_total_vencido_comment": "Protocolos com SLA vencido",
+  
+  "meta_tma_dias": 5,
+  "_meta_tma_dias_comment": "Meta de TMA estabelecida pela prefeitura (em dias)",
+  
+  "ranking_unidades": [
+    {
+      "id": 1,
+      "nome": "Secretaria de Mobilidade Urbana",
+      "sigla": "SEMOB",
+      "tma_horas": 197,
+      "_tma_horas_comment": "197h = 8d 5h",
+      "total": 850,
+      "no_prazo": 510,
+      "vencido": 340,
+      "_percentual_vencido": 40.0,
+      "_criticidade": "alta",
+      "_posicao": "1º - Mais crítica"
+    },
+    {
+      "id": 2,
+      "nome": "Secretaria de Infraestrutura",
+      "sigla": "SEINFRA",
+      "tma_horas": 170,
+      "_tma_horas_comment": "170h = 7d 2h",
+      "total": 1200,
+      "no_prazo": 960,
+      "vencido": 240,
+      "_percentual_vencido": 20.0,
+      "_criticidade": "média",
+      "_posicao": "2º"
+    },
+    {
+      "id": 3,
+      "nome": "Secretaria de Educação",
+      "sigla": "SEDUC",
+      "tma_horas": 96,
+      "_tma_horas_comment": "96h = 4d",
+      "total": 450,
+      "no_prazo": 405,
+      "vencido": 45,
+      "_percentual_vencido": 10.0,
+      "_criticidade": "baixa",
+      "_posicao": "3º"
+    },
+    {
+      "id": 4,
+      "nome": "Secretaria de Saúde",
+      "sigla": "SESAU",
+      "tma_horas": 120,
+      "_tma_horas_comment": "120h = 5d",
+      "total": 980,
+      "no_prazo": 784,
+      "vencido": 196,
+      "_percentual_vencido": 20.0,
+      "_criticidade": "média",
+      "_posicao": "4º"
+    },
+    {
+      "id": 5,
+      "nome": "Secretaria de Meio Ambiente",
+      "sigla": "SEMA",
+      "tma_horas": 88,
+      "_tma_horas_comment": "88h = 3d 16h",
+      "total": 320,
+      "no_prazo": 280,
+      "vencido": 40,
+      "_percentual_vencido": 12.5,
+      "_criticidade": "baixa",
+      "_posicao": "5º"
+    },
+    {
+      "id": 6,
+      "nome": "Secretaria de Cultura",
+      "sigla": "SECULT",
+      "tma_horas": 72,
+      "_tma_horas_comment": "72h = 3d",
+      "total": 180,
+      "no_prazo": 162,
+      "vencido": 18,
+      "_percentual_vencido": 10.0,
+      "_criticidade": "baixa",
+      "_posicao": "6º"
+    },
+    {
+      "id": 7,
+      "nome": "Secretaria de Obras",
+      "sigla": "SEOBRAS",
+      "tma_horas": 156,
+      "_tma_horas_comment": "156h = 6d 12h",
+      "total": 1100,
+      "no_prazo": 880,
+      "vencido": 220,
+      "_percentual_vencido": 20.0,
+      "_criticidade": "média",
+      "_posicao": "7º"
+    },
+    {
+      "id": 8,
+      "nome": "Secretaria de Desenvolvimento Social",
+      "sigla": "SEDES",
+      "tma_horas": 104,
+      "_tma_horas_comment": "104h = 4d 8h",
+      "total": 543,
+      "no_prazo": 489,
+      "vencido": 54,
+      "_percentual_vencido": 9.9,
+      "_criticidade": "baixa",
+      "_posicao": "8º - Menos crítica"
+    }
+  ],
+  
+  "_notas_backend": {
+    "ordenacao": "ranking_unidades já vem ordenado do backend por percentual de vencido (decrescente)",
+    "calculo_percentual": "(vencido / total) * 100",
+    "calculo_tma": "Média ponderada dos tempos de atendimento dos protocolos",
+    "periodo_analise": "Últimos 30 dias (configurável)",
+    "cache": "Recomendado cache de 5 minutos devido ao custo computacional",
+    "performance": "Query otimizada com índices em created_at, status, unidade_id"
+  },
+  
+  "_thresholds_frontend": {
+    "unidade_critica": ">30% vencido",
+    "situacao_critica": ">50% vencido",
+    "sla_excelente": ">=90%",
+    "sla_bom": ">=80%",
+    "sla_atencao": ">=60%",
+    "sla_critico": "<60%"
+  }
+}

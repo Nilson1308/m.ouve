@@ -1,0 +1,15 @@
+[Unit]
+Description=M.Ouve Celery worker (fila ouve)
+After=network.target redis-server.service
+
+[Service]
+User=gabinete
+Group=www-data
+WorkingDirectory=/var/www/ouve/backend
+EnvironmentFile=/var/www/ouve/backend/.env
+ExecStart=/var/www/ouve/backend/.venv/bin/celery -A ouvia_core worker -l info -n ouve@%h -Q ouve --concurrency=4
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,321 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "2.0.0",
+  "name": "M.Ouve Design System",
+  "description": "Sistema de cores semântico para Ouvidoria e Zeladoria Urbana",
+  "lastUpdated": "2024-11-09",
+  
+  "colors": {
+    "primary": {
+      "50": "#eff6ff",
+      "100": "#dbeafe",
+      "200": "#bfdbfe",
+      "300": "#93c5fd",
+      "400": "#60a5fa",
+      "500": "#3b82f6",
+      "600": "#2563eb",
+      "700": "#1d4ed8",
+      "800": "#1e40af",
+      "900": "#1e3a8a",
+      "950": "#172554",
+      "DEFAULT": "#3b82f6"
+    },
+    
+    "semantic": {
+      "danger": {
+        "light": "#ef4444",
+        "dark": "#dc2626",
+        "DEFAULT": "#ef4444"
+      },
+      "success": {
+        "light": "#10b981",
+        "dark": "#059669",
+        "DEFAULT": "#10b981"
+      },
+      "warning": {
+        "light": "#f59e0b",
+        "dark": "#d97706",
+        "DEFAULT": "#f59e0b"
+      },
+      "info": {
+        "light": "#3b82f6",
+        "dark": "#2563eb",
+        "DEFAULT": "#3b82f6"
+      }
+    },
+    
+    "zeladoria": {
+      "triagem_ia": {
+        "hex": "#3b82f6",
+        "rgb": "59, 130, 246",
+        "description": "Triagem automática pela IA"
+      },
+      "validacao": {
+        "hex": "#8b5cf6",
+        "rgb": "139, 92, 246",
+        "description": "Em validação humana"
+      },
+      "aguardando_equipe": {
+        "hex": "#f59e0b",
+        "rgb": "245, 158, 11",
+        "description": "Aguardando designação de equipe"
+      },
+      "em_deslocamento": {
+        "hex": "#f59e0b",
+        "rgb": "245, 158, 11",
+        "description": "Equipe em deslocamento para o local"
+      },
+      "em_execucao": {
+        "hex": "#14b8a6",
+        "rgb": "20, 184, 166",
+        "description": "Serviço em execução"
+      },
+      "concluido": {
+        "hex": "#10b981",
+        "rgb": "16, 185, 129",
+        "description": "Serviço concluído"
+      },
+      "nao_procedente": {
+        "hex": "#6b7280",
+        "rgb": "107, 114, 128",
+        "description": "Solicitação não procedente"
+      }
+    },
+    
+    "ouvidoria": {
+      "triagem": {
+        "hex": "#3b82f6",
+        "rgb": "59, 130, 246",
+        "description": "Em triagem inicial"
+      },
+      "analise": {
+        "hex": "#8b5cf6",
+        "rgb": "139, 92, 246",
+        "description": "Em análise detalhada"
+      },
+      "encaminhado": {
+        "hex": "#f59e0b",
+        "rgb": "245, 158, 11",
+        "description": "Encaminhado para setor responsável"
+      },
+      "respondido": {
+        "hex": "#10b981",
+        "rgb": "16, 185, 129",
+        "description": "Cidadão recebeu resposta"
+      },
+      "arquivado": {
+        "hex": "#6b7280",
+        "rgb": "107, 114, 128",
+        "description": "Manifestação arquivada"
+      }
+    },
+    
+    "manifestacao": {
+      "denuncia": {
+        "hex": "#ef4444",
+        "rgb": "239, 68, 68",
+        "icon": "🚨",
+        "description": "Denúncia de irregularidade"
+      },
+      "reclamacao": {
+        "hex": "#f59e0b",
+        "rgb": "245, 158, 11",
+        "icon": "😤",
+        "description": "Reclamação sobre serviço"
+      },
+      "sugestao": {
+        "hex": "#3b82f6",
+        "rgb": "59, 130, 246",
+        "icon": "💡",
+        "description": "Sugestão de melhoria"
+      },
+      "elogio": {
+        "hex": "#10b981",
+        "rgb": "16, 185, 129",
+        "icon": "👏",
+        "description": "Elogio ao serviço"
+      }
+    },
+    
+    "urgencia": {
+      "baixa": {
+        "hex": "#10b981",
+        "rgb": "16, 185, 129",
+        "prioridade": 1,
+        "prazo_dias": 15,
+        "description": "Pode ser resolvido em até 15 dias"
+      },
+      "media": {
+        "hex": "#f59e0b",
+        "rgb": "245, 158, 11",
+        "prioridade": 2,
+        "prazo_dias": 7,
+        "description": "Deve ser resolvido em até 7 dias"
+      },
+      "alta": {
+        "hex": "#ef4444",
+        "rgb": "239, 68, 68",
+        "prioridade": 3,
+        "prazo_horas": 48,
+        "description": "Requer atenção em 48 horas"
+      },
+      "critica": {
+        "hex": "#dc2626",
+        "rgb": "220, 38, 38",
+        "prioridade": 4,
+        "prazo_horas": 4,
+        "description": "Requer atenção imediata"
+      }
+    },
+    
+    "categoria": {
+      "via_publica": {
+        "hex": "#3b82f6",
+        "icon": "🛣️",
+        "label": "Via Pública"
+      },
+      "iluminacao": {
+        "hex": "#f59e0b",
+        "icon": "💡",
+        "label": "Iluminação Pública"
+      },
+      "limpeza": {
+        "hex": "#10b981",
+        "icon": "🧹",
+        "label": "Limpeza Urbana"
+      },
+      "calcada": {
+        "hex": "#8b5cf6",
+        "icon": "🚶",
+        "label": "Calçadas"
+      },
+      "arborizacao": {
+        "hex": "#059669",
+        "icon": "🌳",
+        "label": "Arborização"
+      },
+      "sinalizacao": {
+        "hex": "#dc2626",
+        "icon": "🚦",
+        "label": "Sinalização"
+      }
+    },
+    
+    "defaults": {
+      "entityColor": "#3b82f6",
+      "moduloCorBackend": "#6b7280",
+      "avatarBackground": "#3b82f6",
+      "avatarForeground": "#ffffff",
+      "logoCropBackground": "#ffffff"
+    },
+    
+    "govbr": {
+      "blue": {
+        "warm": "#1351B4",
+        "vivid": "#155BCB",
+        "deep": "#0C326F"
+      },
+      "green": {
+        "cool": "#168821",
+        "vivid": "#1B7D28"
+      },
+      "yellow": {
+        "vivid": "#FFCD07"
+      },
+      "gray": {
+        "light": "#F8F8F8",
+        "medium": "#E5E5E5",
+        "dark": "#333333"
+      }
+    }
+  },
+  
+  "fluxos": {
+    "zeladoria": {
+      "estados": [
+        "triagem_ia",
+        "validacao",
+        "aguardando_equipe",
+        "em_deslocamento",
+        "em_execucao",
+        "concluido"
+      ],
+      "alternativo": ["nao_procedente"],
+      "ordem": [
+        "triagem_ia → validacao → aguardando_equipe → em_deslocamento → em_execucao → concluido"
+      ]
+    },
+    "ouvidoria": {
+      "estados": [
+        "triagem",
+        "analise",
+        "encaminhado",
+        "respondido",
+        "arquivado"
+      ],
+      "ordem": [
+        "triagem → analise → encaminhado → respondido → arquivado"
+      ]
+    }
+  },
+  
+  "mapping": {
+    "legacyToNew": {
+      "em_analise": "triagem_ia",
+      "em_andamento": "em_deslocamento",
+      "resolvido": "concluido",
+      "rejeitado": "nao_procedente"
+    },
+    "newToLegacy": {
+      "triagem_ia": "em_analise",
+      "em_deslocamento": "em_andamento",
+      "concluido": "resolvido",
+      "nao_procedente": "rejeitado"
+    }
+  },
+  
+  "typography": {
+    "fontFamily": {
+      "sans": ["Rawline", "Roboto", "system-ui", "sans-serif"]
+    },
+    "fontSize": {
+      "xs": "12px",
+      "sm": "14px",
+      "base": "16px",
+      "lg": "18px",
+      "xl": "20px",
+      "2xl": "24px",
+      "3xl": "30px"
+    }
+  },
+  
+  "spacing": {
+    "xs": "4px",
+    "sm": "8px",
+    "md": "16px",
+    "lg": "24px",
+    "xl": "32px",
+    "2xl": "48px"
+  },
+  
+  "borderRadius": {
+    "sm": "4px",
+    "md": "8px",
+    "lg": "12px",
+    "xl": "16px",
+    "2xl": "24px",
+    "full": "9999px"
+  },
+  
+  "shadows": {
+    "gov": "0 2px 8px rgba(0, 0, 0, 0.15)",
+    "govLg": "0 4px 16px rgba(0, 0, 0, 0.2)"
+  },
+  
+  "breakpoints": {
+    "mobile": "< 640px",
+    "tablet": "640px",
+    "laptop": "1024px",
+    "desktop": "1280px"
+  }
+}
