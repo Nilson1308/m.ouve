@@ -5,6 +5,7 @@ from catalogo.governanca_views import (
     CategoriaCatalogoGovernancaViewSet,
     ServicoCatalogoGovernancaViewSet,
 )
+from catalogo.lookup_views import CatalogoLookupUnidadesView
 from catalogo.views import CategoriaCatalogoListView, ServicoCatalogoListView
 
 governanca_router = DefaultRouter(trailing_slash=False)
@@ -22,5 +23,7 @@ governanca_router.register(
 urlpatterns = [
     path("catalogo-categorias", CategoriaCatalogoListView.as_view()),
     path("catalogo-servicos", ServicoCatalogoListView.as_view()),
+    path("catalogo/lookup/unidades", CatalogoLookupUnidadesView.as_view()),
+    path("catalogo/lookup/unidades/", CatalogoLookupUnidadesView.as_view()),
     path("", include(governanca_router.urls)),
 ]

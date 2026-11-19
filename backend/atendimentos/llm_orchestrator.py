@@ -294,6 +294,21 @@ def _permite_outro_campo(prop: dict, enum_vals: list | None) -> bool:
 
 def _montar_config_escolha(servico: ServicoCatalogo, campo: str) -> dict | None:
     prop = _propriedade_campo(servico, campo)
+    datasource = (prop.get("x-ouvia-datasource") or "").strip()
+    if datasource == "unidades_administrativas":
+        titulo = (
+            prop.get("x-ouvia-ui-pergunta")
+            or prop.get("description")
+            or prop.get("title")
+            or campo.replace("_", " ")
+        ).strip()
+        return {
+            "campo": campo,
+            "titulo": titulo,
+            "modo": "single",
+            "datasource": datasource,
+            "dica": "Selecione a unidade na lista. Os dados vêm do cadastro municipal.",
+        }
     enum_vals = _enum_do_campo(prop)
     if not enum_vals:
         return None

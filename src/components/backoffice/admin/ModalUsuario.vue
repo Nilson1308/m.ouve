@@ -261,7 +261,7 @@
                 Cancelar
               </button>
               <button
-                @click="salvar"
+                type="submit"
                 :disabled="!formularioValido || salvando"
                 class="flex-1 sm:flex-none px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
@@ -391,22 +391,17 @@ function formatarCPF() {
   formulario.value.cpf = cpf
 }
 
-async function salvar() {
-  if (!formularioValido.value) return
+function salvar() {
+  if (!formularioValido.value || salvando.value) return
 
   salvando.value = true
 
-  try {
-    // Preparar dados (sem unidade_id se não requer vínculo)
-    const dados = { ...formulario.value }
-    if (!perfilSelecionado.value?.requer_vinculo) {
-      dados.unidade_id = null
-    }
-    
-    emit('salvar', dados)
-  } finally {
-    salvando.value = false
+  const dados = { ...formulario.value }
+  if (!perfilSelecionado.value?.requer_vinculo) {
+    dados.unidade_id = null
   }
+
+  emit('salvar', dados)
 }
 
 function formatarData(data) {
@@ -420,4 +415,10 @@ function formatarData(data) {
     minute: '2-digit'
   })
 }
+
+function resetSalvando() {
+  salvando.value = false
+}
+
+defineExpose({ resetSalvando })
 </script>

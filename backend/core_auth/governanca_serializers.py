@@ -4,6 +4,7 @@ import secrets
 import string
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import IntegrityError
 from rest_framework import serializers
 
 from catalogo.models import UnidadeAdministrativa
@@ -21,6 +22,16 @@ from core_auth.utils import normalizar_cpf
 def gerar_senha_aleatoria(tamanho: int = 14) -> str:
     alfabeto = string.ascii_letters + string.digits
     return "".join(secrets.choice(alfabeto) for _ in range(tamanho))
+
+
+def integrity_error_usuario(exc: IntegrityError) -> serializers.ValidationError:
+    """Converte violação de unicidade (CPF/e-mail) em 400 legível — ex. POST duplicado."""
+    texto = str(exc).lower()
+    if "cpf" in texto:
+        return serializers.ValidationError({"cpf": "Já existe um usuário com este CPF."})
+    if "email" in texto:
+        return serializers.ValidationError({"email": "Já existe um usuário com este e-mail."})
+    return serializers.ValidationError("Já existe um cadastro com estes dados.")
 
 
 class PerfilAcessoSerializer(serializers.ModelSerializer):
@@ -309,6 +320,8 @@ class UsuarioGovernancaSerializer(serializers.ModelSerializer):
         usuario.set_password(senha)
         try:
             usuario.save()
+        except IntegrityError as exc:
+            raise integrity_error_usuario(exc) from exc
         except DjangoValidationError as exc:
             raise serializers.ValidationError(
                 exc.message_dict if hasattr(exc, "message_dict") else str(exc)
@@ -328,6 +341,8 @@ class UsuarioGovernancaSerializer(serializers.ModelSerializer):
                 setattr(instance, field, validated_data[field])
         try:
             instance.save()
+        except IntegrityError as exc:
+            raise integrity_error_usuario(exc) from exc
         except DjangoValidationError as exc:
             raise serializers.ValidationError(
                 exc.message_dict if hasattr(exc, "message_dict") else str(exc)

@@ -121,6 +121,7 @@
                     {{ textoPreview(item) }}
                   </p>
                   <p v-if="item.type === 'select'" class="text-[10px] text-primary-600 mt-1">+ botões de escolha</p>
+                  <p v-else-if="item.type === 'lookup'" class="text-[10px] text-primary-600 mt-1">+ lista de unidades (API)</p>
                   <p v-else-if="item.type === 'geo'" class="text-[10px] text-primary-600 mt-1">+ mapa de localização</p>
                   <p v-else-if="item.type === 'image'" class="text-[10px] text-primary-600 mt-1">+ envio de foto</p>
                 </div>
@@ -138,7 +139,7 @@
                   :key="t.value"
                   type="button"
                   :class="tipoCardClass(item.type === t.value)"
-                  @click="patch(index, { type: t.value })"
+                  @click="selecionarTipo(index, t.value)"
                 >
                   <component :is="t.icon" class="w-5 h-5 mb-1" :class="item.type === t.value ? 'text-primary-600' : 'text-gray-500'" />
                   <span class="text-xs font-semibold block">{{ t.label }}</span>
@@ -152,6 +153,14 @@
               class="text-xs text-cyan-800 dark:text-cyan-200 bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-800 rounded-lg px-3 py-2"
             >
               O cidadão verá o <strong>mapa</strong>. A resposta por texto não encerra este passo — só «Confirmar Local».
+            </p>
+
+            <p
+              v-if="item.type === 'lookup'"
+              class="text-xs text-cyan-800 dark:text-cyan-200 bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-800 rounded-lg px-3 py-2"
+            >
+              O PWA carrega as <strong>unidades administrativas ativas</strong> via API
+              (<code class="text-[10px]">/catalogo/lookup/unidades</code>). O valor salvo é o UUID da unidade.
             </p>
 
             <div v-if="item.type === 'select'">
@@ -337,6 +346,8 @@ import {
   PencilSquareIcon
 } from '@heroicons/vue/24/outline'
 import { labelParaName } from '@/utils/catalogoMappers'
+import { LOOKUP_DATASOURCE_UNIDADES } from '@/constants/fluxoTramitacao'
+import { BuildingOffice2Icon } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
   modelValue: {
@@ -352,6 +363,12 @@ let seq = 0
 const tiposDado = [
   { value: 'text', label: 'Texto', dica: 'Resposta digitada', icon: PencilSquareIcon },
   { value: 'select', label: 'Lista', dica: 'Botões de escolha', icon: ListBulletIcon },
+  {
+    value: 'lookup',
+    label: 'Unidades',
+    dica: 'Lista do sistema',
+    icon: BuildingOffice2Icon
+  },
   { value: 'geo', label: 'Mapa', dica: 'Card de localização', icon: MapPinIcon },
   { value: 'image', label: 'Foto', dica: 'Anexo de imagem', icon: PhotoIcon }
 ]
@@ -368,6 +385,7 @@ function placeholderPergunta(type) {
   const map = {
     text: 'Ex.: Qual a idade aproximada do animal?',
     select: 'Ex.: Qual o porte do animal?',
+    lookup: 'Ex.: Qual secretaria está relacionada à sua manifestação?',
     geo: 'Ex.: Onde o problema está acontecendo?',
     image: 'Ex.: Pode enviar uma foto do local ou do animal?'
   }
@@ -379,6 +397,7 @@ function textoPreview(item) {
   base = base.replace(/^qual é o\s+/i, '').trim()
   if (base && !/[?.!]$/.test(base)) base = `${base}?`
   if (item.type === 'select') return base
+  if (item.type === 'lookup') return base
   if (item.type === 'geo' && !/mapa|local/i.test(base)) return `${base} (com mapa abaixo)`
   if (item.type === 'image' && !/foto|imagem/i.test(base)) return `${base} (com envio de foto)`
   return base
@@ -434,6 +453,16 @@ function placeholderRegra(item) {
     return 'Mensagem exibida quando a condição acima for considerada verdadeira.'
   }
   return 'Este canal não realiza este tipo de atendimento. Orientação alternativa...'
+}
+
+function selecionarTipo(index, tipo) {
+  const extra = {}
+  if (tipo === 'lookup') {
+    extra.datasource = LOOKUP_DATASOURCE_UNIDADES
+    extra.ui_widget = 'searchable_select'
+    extra.optionsText = ''
+  }
+  patch(index, { type: tipo, ...extra })
 }
 
 function patch(index, partial) {

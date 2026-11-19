@@ -2523,7 +2523,8 @@ Perfis customizados combinam módulos livremente (padrão GLPI).
 | `descricao` | `descricao` | Texto para o cidadão |
 | `icone` | `icone` | Nome lógico do ícone ou URL |
 | `sla_padrao_horas` | `sla_horas` | SLA padrão (int, ex. 48, 72) |
-| `unidade_responsavel_id` | `unidade_responsavel` | Unidade padrão de encaminhamento (`SET_NULL`) |
+| `fluxo_tramitacao` | `fluxo_tramitacao` | `direto_secretaria` (default), `ouvidoria_encaminha`, `hibrido` — ver § Fluxo de tramitação |
+| `unidade_responsavel_id` | `unidade_responsavel` | Papel depende do fluxo: executor padrão **ou** unidade do **canal** (`SET_NULL`) |
 | `categoria_id` | `categoria` | Agrupamento no app (obrigatório na criação se não houver categoria padrão) |
 | `formulario_schema` | `formulario_schema` | **Publicado** — Form Builder (PWA / chat em produção) |
 | `schema_formulario` | `schema_formulario` | **Publicado** — JSON Schema (chat/IA) |
@@ -2580,6 +2581,84 @@ Modelo de auditoria: `catalogo.ServicoCatalogoVersao` — um registro por public
 Sempre copia `descricao`, `icone`, `categoria`, `sla_horas`, `formulario_schema`, `schema_formulario`. Resposta = objeto completo do serviço criado (201).
 
 **Seed operacional:** `python manage.py seed_templates` — cria/atualiza modelos «Zeladoria: Tapa Buraco», «Iluminação: Lâmpada Queimada», «Saúde: Foco de Dengue».
+
+#### Fluxo de tramitação (`fluxo_tramitacao`) — v4.5
+
+| Valor | `unidade_responsavel` | Comportamento operacional |
+|-------|------------------------|---------------------------|
+| `direto_secretaria` | **Executor padrão** (secretaria de campo) | Zeladoria e serviços setoriais: encaminhamento direto; scatter opcional. |
+| `ouvidoria_encaminha` | **Unidade do canal** (Ouvidoria / E-SIC) | Protocolo titulado na ouvidoria; executores via despacho scatter + triagem (matriz/IA — ondas futuras). |
+| `hibrido` | **Canal titular** com executor sugerido | Recepção centralizada com destino padrão editável na mesa. |
+
+Retrocompatibilidade: serviços existentes permanecem `direto_secretaria`.
+
+#### Matriz de roteamento temático (triagem determinística)
+
+Modelo `catalogo.MatrizRoteamentoTematico` (admin Django na Onda 1; API CRUD governança em onda posterior):
+
+| Campo | Descrição |
+|-------|-----------|
+| `servico` | FK `ServicoCatalogo` |
+| `chave_schema` | Nome do campo (ex.: `categoria`) |
+| `valor_condicao` | Valor exato (ex.: `saude`) |
+| `unidade_sugerida` | FK `UnidadeAdministrativa` executora sugerida |
+
+Constraint: único por `(servico, chave_schema, valor_condicao)`.
+
+#### Lookup dinâmico — datasource de formulário
+
+**Endpoint público (PWA / chat):**
+
+| Método | Rota | Auth |
+|--------|------|------|
+| `GET` | `/api/v1/catalogo/lookup/unidades` | Nenhuma (`AllowAny`, como `catalogo-servicos`) |
+
+Query: `busca` (filtra nome/sigla), `limit` (1–500, default 200).
+
+**Resposta 200:**
+
+```json
+{
+  "datasource": "unidades_administrativas",
+  "items": [
+    { "id": "uuid", "nome": "Secretaria Municipal de Saúde" }
+  ]
+}
+```
+
+Rota com barra final (`.../unidades/`) é aceita. Apenas unidades **ativas**; retorno mínimo (`id`, `nome`) por privacidade.
+
+**`formulario_schema` — tipo `lookup`:**
+
+```json
+{
+  "name": "unidade_referencia",
+  "type": "lookup",
+  "label": "Secretaria relacionada",
+  "datasource": "unidades_administrativas",
+  "ui_widget": "searchable_select",
+  "required": false
+}
+```
+
+Datasources suportados: `unidades_administrativas`. Widgets: `searchable_select`, `select`.
+
+**Espelho em `schema_formulario.properties.<name>`:**
+
+```json
+{
+  "type": "string",
+  "format": "uuid",
+  "title": "Secretaria relacionada",
+  "x-ouvia-datasource": "unidades_administrativas",
+  "x-ouvia-ui-widget": "searchable_select",
+  "x-ouvia-tipo-campo": "lookup"
+}
+```
+
+Validação de protocolo: valores devem ser **UUID** válido referenciando unidade existente (extensão em `catalogo.validators`).
+
+Governança: `validate_schema_formulario` rejeita `x-ouvia-datasource` desconhecido.
 
 #### Estrutura `formulario_schema` (array)
 
@@ -2638,7 +2717,7 @@ Cada item define um campo renderizado no app:
 
 #### API pública (cidadão)
 
-`GET /api/v1/catalogo-servicos` passa a incluir `formulario_schema` e `icone` para o front PWA montar o formulário dinâmico.
+`GET /api/v1/catalogo-servicos` inclui `formulario_schema`, `schema_formulario`, `icone` e `fluxo_tramitacao` para o PWA montar o formulário e rotular o fluxo.
 
 ---
 
@@ -2654,7 +2733,9 @@ O assistente conversacional usa **`schema_formulario`** (JSON Schema + `$metadat
 | `x-ouvia-ui-pergunta` | Pergunta humanizada exibida no chat |
 | `x-ouvia-ia-extract` | Instrução de extração (equiv. `ia_instrucao` no Form Builder) |
 | `x-ouvia-ia-reprompt` | Repescagem quando a IA não entende (equiv. `ia_repescagem`) |
-| `x-ouvia-tipo-campo` | `geolocation`, `image`, etc. |
+| `x-ouvia-tipo-campo` | `geolocation`, `image`, `lookup`, etc. |
+| `x-ouvia-datasource` | `unidades_administrativas` (listas do sistema — ver § Lookup dinâmico) |
+| `x-ouvia-ui-widget` | `searchable_select` \| `select` (com datasource) |
 
 #### `$metadata` (nível serviço)
 
@@ -3112,6 +3193,7 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.8** (Nov 19, 2026): Catálogo — `fluxo_tramitacao`, `MatrizRoteamentoTematico`, tipo `lookup` + `GET /catalogo/lookup/unidades`; semântica de `unidade_responsavel` por fluxo
 - **v4.7.1** (Nov 19, 2026): `GET /app/notificacoes/vapid-public-key`; comando `manage.py generate_vapid`; derivação da chave pública a partir de PEM quando só `VAPID_PRIVATE_KEY` (caminho) está definido
 - **v4.7** (Nov 19, 2026): Onda 4 — `NotificacaoCidadao`, `PushSubscription`; `GET/PATCH /app/notificacoes`, `POST /app/notificacoes/push-subscribe`; Celery `enviar_notificacao_push_task` (pywebpush + VAPID); gatilhos status protocolo e resposta IA
 - **v4.6** (Nov 19, 2026): CSAT Onda 3B — `pode_avaliar`/`avaliacao` no detalhe PWA; dashboard qualidade com `AvaliacaoProtocolo` + `percentual_satisfeitos`; escopo `escopo_dados`

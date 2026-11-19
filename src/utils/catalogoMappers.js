@@ -1,11 +1,14 @@
 /** Catálogo de serviços — API ↔ Form Builder visual */
 
+import { LOOKUP_DATASOURCE_UNIDADES } from '@/constants/fluxoTramitacao'
+
 export const TIPOS_CAMPO_UI = [
   { value: 'text', label: 'Texto Curto' },
   { value: 'textarea', label: 'Texto Longo' },
   { value: 'number', label: 'Número' },
   { value: 'image', label: 'Imagem' },
-  { value: 'select', label: 'Seleção (Dropdown)' }
+  { value: 'select', label: 'Seleção (Dropdown)' },
+  { value: 'lookup', label: 'Lista do Sistema (Unidades)' }
 ]
 
 export function labelParaName(label, nomesUsados = new Set()) {
@@ -177,6 +180,10 @@ export function camposUiParaSchemaRequisitos(campos = []) {
         .filter(Boolean)
       item.options = partes.map((p) => ({ value: p, label: p }))
     }
+    if (c.type === 'lookup') {
+      item.datasource = c.datasource || LOOKUP_DATASOURCE_UNIDADES
+      item.ui_widget = c.ui_widget || 'searchable_select'
+    }
     return item
   })
 }
@@ -190,9 +197,12 @@ export function requisitosFromFormularioSchema(schema = []) {
         : ''
     let tipo = campo.type || 'text'
     if (tipo === 'location') tipo = 'geo'
+    if (campo.datasource === LOOKUP_DATASOURCE_UNIDADES || tipo === 'lookup') {
+      tipo = 'lookup'
+    }
     const pergunta = (campo.label || campo.title || '').trim() || humanizarName(campo.name || '')
     const regraUi = regraElegibilidadeApiParaUi(campo)
-    return {
+    const row = {
       _id: `req-${index}-${campo.name || index}`,
       name: campo.name || '',
       pergunta,
@@ -203,6 +213,11 @@ export function requisitosFromFormularioSchema(schema = []) {
       optionsText: options,
       ...regraUi
     }
+    if (tipo === 'lookup') {
+      row.datasource = campo.datasource || LOOKUP_DATASOURCE_UNIDADES
+      row.ui_widget = campo.ui_widget || 'searchable_select'
+    }
+    return row
   })
 }
 
@@ -282,6 +297,13 @@ export function buildSchemaFormularioRequisitos(campos = [], regrasProtocolo = [
         prop.enum = partes
         prop.enumNames = partes
       }
+    }
+    if (c.type === 'lookup') {
+      prop.type = 'string'
+      prop.format = 'uuid'
+      prop['x-ouvia-datasource'] = c.datasource || LOOKUP_DATASOURCE_UNIDADES
+      prop['x-ouvia-ui-widget'] = c.ui_widget || 'searchable_select'
+      prop['x-ouvia-tipo-campo'] = 'lookup'
     }
 
     const instrucao = (c.ia_instrucao || '').trim()
@@ -369,6 +391,7 @@ export function mapServicoCatalogo(api) {
     categoria_nome: api.categoria_nome || null,
     ativo: api.ativo !== false,
     permite_cluster: api.permite_cluster !== false,
+    fluxo_tramitacao: api.fluxo_tramitacao || 'direto_secretaria',
     formulario_schema: Array.isArray(api.formulario_schema) ? api.formulario_schema : [],
     schema_formulario:
       api.schema_formulario && typeof api.schema_formulario === 'object'
@@ -423,7 +446,8 @@ export function mapServicoCatalogoPublico(api) {
         ? api.schema_formulario
         : {},
     formulario_schema: Array.isArray(api.formulario_schema) ? api.formulario_schema : [],
-    exige_localizacao: Boolean(api.exige_localizacao)
+    exige_localizacao: Boolean(api.exige_localizacao),
+    fluxo_tramitacao: api.fluxo_tramitacao || 'direto_secretaria'
   }
 }
 
@@ -437,6 +461,7 @@ export function payloadServicoCatalogo(form, requisitos, regrasProtocolo = [], o
     categoria_id: form.categoria_id ?? form.categoriaId ?? null,
     unidade_responsavel_id:
       form.unidade_responsavel_id ?? form.unidadeResponsavelId ?? null,
+    fluxo_tramitacao: form.fluxo_tramitacao || 'direto_secretaria',
     ativo: form.ativo !== false,
     permite_cluster: form.permite_cluster !== false,
     formulario_schema: schemaLista,

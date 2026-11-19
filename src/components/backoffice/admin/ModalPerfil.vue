@@ -52,8 +52,12 @@
             </div>
           </div>
 
-          <!-- Formulário -->
-          <form @submit.prevent="salvar" class="p-6 space-y-6 max-h-[calc(100vh-16rem)] overflow-y-auto">
+          <!-- Formulário (footer dentro do form para o botão type="submit") -->
+          <form
+            @submit.prevent="salvar"
+            class="flex flex-col max-h-[calc(100vh-8rem)]"
+          >
+            <div class="flex-1 overflow-y-auto p-6 space-y-6">
             <!-- Seção: Informações Básicas -->
             <div class="pb-6 border-b border-gray-200 dark:border-gray-700">
               <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
@@ -243,10 +247,10 @@
                 </p>
               </div>
             </div>
-          </form>
+            </div>
 
-          <!-- Footer -->
-          <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <!-- Footer -->
+            <div class="shrink-0 px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <p class="text-xs text-gray-500 dark:text-gray-400">
                 * Campos obrigatórios
@@ -265,7 +269,7 @@
                 Cancelar
               </button>
               <button
-                @click="salvar"
+                type="submit"
                 :disabled="!formularioValido || salvando"
                 class="flex-1 sm:flex-none px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-purple-500/50"
               >
@@ -274,7 +278,8 @@
                 {{ salvando ? 'Salvando...' : perfil ? 'Salvar Alterações' : 'Criar Perfil' }}
               </button>
             </div>
-          </div>
+            </div>
+          </form>
         </div>
       </Transition>
     </div>
@@ -446,17 +451,18 @@ function onPermissaoChange(moduloKey, acaoKey) {
   }
 }
 
-async function salvar() {
-  if (!formularioValido.value) return
+function salvar() {
+  if (!formularioValido.value || salvando.value) return
 
   salvando.value = true
-
-  try {
-    emit('salvar', formulario.value)
-  } finally {
-    salvando.value = false
-  }
+  emit('salvar', formulario.value)
 }
+
+function resetSalvando() {
+  salvando.value = false
+}
+
+defineExpose({ resetSalvando })
 </script>
 
 <style scoped>

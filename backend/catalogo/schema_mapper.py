@@ -5,6 +5,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from catalogo.datasources import WIDGET_PADRAO
+
 
 def _tipo_json_campo(tipo: str) -> str:
     t = (tipo or "text").strip().lower()
@@ -59,6 +61,18 @@ def formulario_schema_para_schema_formulario(
         if tipo in ("geo", "geolocation"):
             prop["x-ouvia-tipo-campo"] = "geolocation"
             exige_localizacao = True
+        if tipo == "lookup":
+            ds = (campo.get("datasource") or campo.get("x-ouvia-datasource") or "").strip()
+            widget = (
+                campo.get("ui_widget")
+                or campo.get("x-ouvia-ui-widget")
+                or WIDGET_PADRAO
+            )
+            prop["type"] = "string"
+            prop["format"] = "uuid"
+            prop["x-ouvia-datasource"] = ds
+            prop["x-ouvia-ui-widget"] = str(widget).strip() or WIDGET_PADRAO
+            prop["x-ouvia-tipo-campo"] = "lookup"
         if tipo == "select":
             opcoes = campo.get("options") or []
             valores: list[str] = []

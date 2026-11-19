@@ -95,7 +95,17 @@ class ServicoCatalogo(models.Model):
     """
     Serviço ofertado ao cidadão. O ``schema_formulario`` define campos extras
     validados em ``Protocolo.dados_dinamicos``.
+
+    ``unidade_responsavel`` depende de ``fluxo_tramitacao``:
+    - ``direto_secretaria``: executor padrão ao abrir protocolo / OS.
+    - ``ouvidoria_encaminha``: **unidade do canal** (recebe e monitora); executores via despacho/triagem.
+    - ``hibrido``: canal titular com executor padrão opcional + encaminhamento.
     """
+
+    class FluxoTramitacao(models.TextChoices):
+        DIRETO_SECRETARIA = "direto_secretaria", "Direto à secretaria"
+        OUVIDORIA_ENCAMINHA = "ouvidoria_encaminha", "Ouvidoria encaminha"
+        HIBRIDO = "hibrido", "Híbrido"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     categoria = models.ForeignKey(
@@ -121,13 +131,27 @@ class ServicoCatalogo(models.Model):
             "Desative para atendimentos individuais ou sensíveis."
         ),
     )
+    fluxo_tramitacao = models.CharField(
+        max_length=32,
+        choices=FluxoTramitacao.choices,
+        default=FluxoTramitacao.DIRETO_SECRETARIA,
+        db_index=True,
+        help_text=(
+            "Define como o protocolo é titulado e encaminhado. "
+            "Em ouvidoria_encaminha, unidade_responsavel é a unidade do canal."
+        ),
+    )
     unidade_responsavel = models.ForeignKey(
         UnidadeAdministrativa,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="servicos_catalogo",
-        help_text="Secretaria/unidade padrão de encaminhamento ao abrir protocolo.",
+        help_text=(
+            "Unidade padrão vinculada ao serviço. "
+            "direto_secretaria: executor; ouvidoria_encaminha: unidade do canal (ouvidoria); "
+            "hibrido: canal titular com executor sugerido."
+        ),
     )
     formulario_schema = models.JSONField(
         default=formulario_schema_padrao,
@@ -238,3 +262,54 @@ class ServicoCatalogoVersao(models.Model):
 
     def __str__(self):
         return f"{self.servico.nome} v{self.numero_versao}"
+
+
+class MatrizRoteamentoTematico(models.Model):
+    """
+    Triagem determinística: valor de um campo do formulário (ex.: categoria=saude)
+    sugere unidade executora para despacho.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    servico = models.ForeignKey(
+        ServicoCatalogo,
+        on_delete=models.CASCADE,
+        related_name="matriz_roteamento_tematico",
+    )
+    chave_schema = models.CharField(
+        max_length=80,
+        help_text="Nome do campo no JSON Schema / formulario_schema (ex.: categoria).",
+    )
+    valor_condicao = models.CharField(
+        max_length=120,
+        help_text="Valor exato da resposta (ex.: saude, educacao).",
+    )
+    unidade_sugerida = models.ForeignKey(
+        UnidadeAdministrativa,
+        on_delete=models.PROTECT,
+        related_name="roteamentos_tematicos",
+        help_text="Unidade executora sugerida quando a condição é atendida.",
+    )
+    ativo = models.BooleanField(default=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["servico", "chave_schema", "valor_condicao"]
+        verbose_name = "matriz de roteamento temático"
+        verbose_name_plural = "matrizes de roteamento temático"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["servico", "chave_schema", "valor_condicao"],
+                name="catalogo_matriz_roteamento_unica",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["servico", "chave_schema"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.servico.nome}: {self.chave_schema}={self.valor_condicao} → "
+            f"{self.unidade_sugerida.sigla or self.unidade_sugerida.nome}"
+        )

@@ -38,6 +38,7 @@ class ServicoCatalogoSerializer(serializers.ModelSerializer):
             "icone",
             "categoria",
             "sla_horas",
+            "fluxo_tramitacao",
             "formulario_schema",
             "schema_formulario",
             "ativo",

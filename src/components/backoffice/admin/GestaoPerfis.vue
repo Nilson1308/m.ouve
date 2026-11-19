@@ -138,6 +138,7 @@
     <!-- Modal de Criação/Edição (A MATRIZ!) -->
     <ModalPerfil
       v-if="modalAberto"
+      ref="modalPerfilRef"
       :perfil="perfilSelecionado"
       @fechar="fecharModal"
       @salvar="salvarPerfil"
@@ -166,6 +167,7 @@ const adminStore = useAdminStore()
 const { perfisAcesso, loadingPerfis } = storeToRefs(adminStore)
 
 const modalAberto = ref(false)
+const modalPerfilRef = ref(null)
 const perfilSelecionado = ref(null)
 
 function contarModulosAtivos(permissoes) {
@@ -207,6 +209,7 @@ async function salvarPerfil(dados) {
   } catch (error) {
     console.error('Erro ao salvar perfil:', error)
     mostrarToast(adminStore.erro || 'Erro ao salvar perfil. Tente novamente.', true)
+    modalPerfilRef.value?.resetSalvando?.()
   }
 }
 

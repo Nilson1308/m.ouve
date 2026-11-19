@@ -2,10 +2,17 @@ from django.contrib import admin
 
 from catalogo.models import (
     CategoriaCatalogo,
+    MatrizRoteamentoTematico,
     ServicoCatalogo,
     ServicoCatalogoVersao,
     UnidadeAdministrativa,
 )
+
+
+class MatrizRoteamentoTematicoInline(admin.TabularInline):
+    model = MatrizRoteamentoTematico
+    extra = 0
+    autocomplete_fields = ("unidade_sugerida",)
 
 
 @admin.register(UnidadeAdministrativa)
@@ -30,11 +37,13 @@ class ServicoCatalogoAdmin(admin.ModelAdmin):
     list_display = (
         "nome",
         "categoria",
+        "fluxo_tramitacao",
         "unidade_responsavel",
         "sla_horas",
         "is_template",
         "ativo",
     )
+    inlines = (MatrizRoteamentoTematicoInline,)
     autocomplete_fields = ("categoria", "unidade_responsavel")
     list_filter = ("ativo", "is_template", "categoria")
     search_fields = ("nome",)
@@ -49,6 +58,7 @@ class ServicoCatalogoAdmin(admin.ModelAdmin):
                     "descricao",
                     "icone",
                     "sla_horas",
+                    "fluxo_tramitacao",
                     "unidade_responsavel",
                     "is_template",
                     "ativo",
@@ -95,3 +105,17 @@ class ServicoCatalogoVersaoAdmin(admin.ModelAdmin):
         "publicado_por",
         "publicado_em",
     )
+
+
+@admin.register(MatrizRoteamentoTematico)
+class MatrizRoteamentoTematicoAdmin(admin.ModelAdmin):
+    list_display = (
+        "servico",
+        "chave_schema",
+        "valor_condicao",
+        "unidade_sugerida",
+        "ativo",
+    )
+    list_filter = ("ativo", "chave_schema")
+    search_fields = ("servico__nome", "chave_schema", "valor_condicao")
+    autocomplete_fields = ("servico", "unidade_sugerida")

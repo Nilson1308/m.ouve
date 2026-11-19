@@ -72,8 +72,7 @@
                   <input v-model="form.icone" type="text" class="input font-mono text-sm" placeholder="ex.: wrench ou URL" />
                 </div>
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">SLA padrão (horas) *</label>
-                  <input v-model.number="form.sla_padrao_horas" type="number" min="1" max="8760" required class="input" />
+                  <SlaUnidadeInput v-model="form.sla_padrao_horas" label="SLA padrão *" />
                 </div>
               </div>
               <div>
@@ -235,6 +234,7 @@ import {
   Bars3Icon
 } from '@heroicons/vue/24/outline'
 import { TIPOS_CAMPO_UI, labelParaName, schemaParaCamposUi } from '@/utils/catalogoMappers'
+import SlaUnidadeInput from '@/components/backoffice/catalogo/SlaUnidadeInput.vue'
 
 const props = defineProps({
   servico: { type: Object, default: null },

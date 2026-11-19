@@ -214,6 +214,7 @@
     <!-- Modal de Criação/Edição -->
     <ModalUsuario
       v-if="modalAberto"
+      ref="modalUsuarioRef"
       :usuario="usuarioSelecionado"
       @fechar="fecharModal"
       @salvar="salvarUsuario"
@@ -258,6 +259,7 @@ const { usuarios, loading, perfisAcesso } = storeToRefs(adminStore)
 const perfisDisponiveis = computed(() => perfisAcesso.value)
 
 const modalAberto = ref(false)
+const modalUsuarioRef = ref(null)
 const usuarioSelecionado = ref(null)
 const filtroAtivo = ref(null)
 
@@ -311,6 +313,7 @@ async function salvarUsuario(dados) {
   } catch (error) {
     console.error('Erro ao salvar usuário:', error)
     mostrarToast(adminStore.erro || 'Erro ao salvar usuário. Tente novamente.', true)
+    modalUsuarioRef.value?.resetSalvando?.()
   }
 }
 

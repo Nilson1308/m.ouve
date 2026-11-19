@@ -10,7 +10,7 @@
         <div>
           <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Manual do Sistema</h1>
           <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
-            Guia operacional do M.Ouve (Ouv.IA) para gestores e servidores. Consulte quando precisar relembrar fluxos, painéis ou permissões.
+            Guia operacional do M.Ouve para gestores e servidores. Consulte quando precisar relembrar fluxos, painéis ou permissões.
           </p>
         </div>
       </div>

@@ -138,18 +138,7 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    SLA (horas) *
-                  </label>
-                  <input
-                    v-model.number="formulario.sla_padrao_horas"
-                    type="number"
-                    min="1"
-                    class="input"
-                  />
-                  <p v-if="textoSla" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {{ textoSla }}
-                  </p>
+                  <SlaUnidadeInput v-model="formulario.sla_padrao_horas" label="SLA *" />
                 </div>
 
                 <div>
@@ -171,8 +160,29 @@
 
                 <div class="md:col-span-2">
                   <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Unidade responsável *
+                    Fluxo de tramitação *
                   </label>
+                  <select v-model="formulario.fluxo_tramitacao" class="input">
+                    <option
+                      v-for="opt in fluxoTramitacaoOpcoes"
+                      :key="opt.value"
+                      :value="opt.value"
+                    >
+                      {{ opt.label }}
+                    </option>
+                  </select>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {{ descricaoFluxoAtual }}
+                  </p>
+                </div>
+
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    {{ rotuloUnidadeResponsavel }} *
+                  </label>
+                  <p v-if="formulario.fluxo_tramitacao === 'ouvidoria_encaminha'" class="text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 mb-2">
+                    Neste fluxo, esta unidade é o <strong>canal</strong> (ex.: Ouvidoria). As secretarias executoras recebem a demanda via despacho.
+                  </p>
                   <select v-model="formulario.unidade_responsavel_id" class="input" required>
                     <option :value="null" disabled>Selecione a secretaria...</option>
                     <option
@@ -421,6 +431,8 @@ import AiSchemaBuilder from './AiSchemaBuilder.vue'
 import RegrasElegibilidadeProtocolo from './RegrasElegibilidadeProtocolo.vue'
 import SandboxServicoDrawer from './SandboxServicoDrawer.vue'
 import CardSecao from './FormBuilderCardSecao.vue'
+import SlaUnidadeInput from './SlaUnidadeInput.vue'
+import { FLUXO_TRAMITACAO_OPCOES } from '@/constants/fluxoTramitacao'
 import {
   XMarkIcon,
   Cog6ToothIcon,
@@ -456,15 +468,34 @@ const baselineCarregado = ref(false)
 
 const categorias = computed(() => catalogoStore.categoriasCatalogo)
 
+const fluxoTramitacaoOpcoes = FLUXO_TRAMITACAO_OPCOES
+
 const formulario = reactive({
   nome: '',
   descricao: '',
   sla_padrao_horas: 72,
+  fluxo_tramitacao: 'direto_secretaria',
   categoria_id: null,
   unidade_responsavel_id: null,
   ativo: true,
   permite_cluster: true,
   icone: ''
+})
+
+const descricaoFluxoAtual = computed(() => {
+  return (
+    fluxoTramitacaoOpcoes.find((o) => o.value === formulario.fluxo_tramitacao)?.descricao || ''
+  )
+})
+
+const rotuloUnidadeResponsavel = computed(() => {
+  if (formulario.fluxo_tramitacao === 'ouvidoria_encaminha') {
+    return 'Unidade do canal (recebe e monitora)'
+  }
+  if (formulario.fluxo_tramitacao === 'hibrido') {
+    return 'Unidade titular / canal'
+  }
+  return 'Unidade responsável (executora)'
 })
 
 const unidadesParaSelect = computed(() => {
@@ -511,22 +542,13 @@ const formularioValido = computed(() => {
   )
 })
 
-const textoSla = computed(() => {
-  const h = Number(formulario.sla_padrao_horas) || 0
-  if (!h) return ''
-  const dias = Math.floor(h / 24)
-  const rest = h % 24
-  if (!dias) return `${h} horas`
-  if (!rest) return `${dias} dia${dias > 1 ? 's' : ''}`
-  return `${dias}d ${rest}h`
-})
-
 function preencherFormulario(servico) {
   baselineCarregado.value = false
   alteracoesLocais.value = false
   formulario.nome = servico?.nome || ''
   formulario.descricao = servico?.descricao || ''
   formulario.sla_padrao_horas = servico?.sla_padrao_horas ?? servico?.sla_horas ?? 72
+  formulario.fluxo_tramitacao = servico?.fluxo_tramitacao || 'direto_secretaria'
   formulario.categoria_id = servico?.categoria_id ? String(servico.categoria_id) : null
   formulario.unidade_responsavel_id = servico?.unidade_responsavel_id
     ? String(servico.unidade_responsavel_id)
@@ -581,6 +603,7 @@ function payloadForm() {
     descricao: formulario.descricao,
     icone: formulario.icone,
     sla_padrao_horas: formulario.sla_padrao_horas,
+    fluxo_tramitacao: formulario.fluxo_tramitacao,
     categoria_id: formulario.categoria_id,
     unidade_responsavel_id: formulario.unidade_responsavel_id,
     ativo: formulario.ativo,

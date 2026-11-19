@@ -110,6 +110,13 @@
               />
 
               <!-- Escolha de campo (single/multi/outro) -->
+              <ChatFieldLookupUnidades
+                v-else-if="mensagem.tipoAcao === 'escolha_campo' && escolhaLookupAtiva(mensagem)"
+                :config="configEscolhaMensagem(mensagem)"
+                :desabilitado="chatStore.isTyping"
+                @confirmar="handleEscolhaCampo"
+              />
+
               <ChatFieldChoices
                 v-else-if="mensagem.tipoAcao === 'escolha_campo' && escolhaCampoAtiva(mensagem)"
                 :config="configEscolhaMensagem(mensagem)"
@@ -384,6 +391,7 @@ import ChatReviewCard from '@/components/pwa/chat/ChatReviewCard.vue'
 import ChatPhotoPreview from '@/components/pwa/chat/ChatPhotoPreview.vue'
 import ChatSatisfacao from '@/components/pwa/chat/ChatSatisfacao.vue'
 import ChatFieldChoices from '@/components/pwa/chat/ChatFieldChoices.vue'
+import ChatFieldLookupUnidades from '@/components/pwa/chat/ChatFieldLookupUnidades.vue'
 import ThemeToggle from '@/components/shared/ThemeToggle.vue'
 import PwaA11yMenu from '@/components/pwa/PwaA11yMenu.vue'
 import {
@@ -509,9 +517,17 @@ async function handleQuickReply(valor) {
   await chatStore.enviarMensagem({ texto: valor })
 }
 
+function escolhaLookupAtiva(mensagem) {
+  const config = configEscolhaMensagem(mensagem)
+  if (!config?.campo || config?.datasource !== 'unidades_administrativas') return false
+  const ultimaIa = [...chatStore.mensagens].reverse().find((m) => m.tipo === 'ia')
+  return ultimaIa?.id === mensagem.id
+}
+
 function escolhaCampoAtiva(mensagem) {
   const config = configEscolhaMensagem(mensagem)
   if (!config?.campo) return false
+  if (config?.datasource === 'unidades_administrativas') return false
   const ultimaIa = [...chatStore.mensagens].reverse().find((m) => m.tipo === 'ia')
   return ultimaIa?.id === mensagem.id
 }

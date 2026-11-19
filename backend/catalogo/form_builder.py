@@ -5,12 +5,15 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from catalogo.datasources import LOOKUP_DATASOURCES, LOOKUP_UI_WIDGETS, WIDGET_PADRAO
+
 TIPOS_CAMPO_SUPORTADOS = frozenset(
     {
         "text",
         "textarea",
         "number",
         "select",
+        "lookup",
         "image",
         "geo",
         "location",
@@ -150,5 +153,24 @@ def normalizar_formulario_schema(payload: list | None) -> list[dict[str, Any]]:
                 for o in campo["options"]
                 if isinstance(o, dict)
             ]
+        if tipo == "lookup":
+            ds = (campo.get("datasource") or campo.get("x-ouvia-datasource") or "").strip()
+            if ds not in LOOKUP_DATASOURCES:
+                raise ValueError(
+                    f"Campo '{name}': datasource obrigatório e válido "
+                    f"({', '.join(sorted(LOOKUP_DATASOURCES))})."
+                )
+            widget = (
+                campo.get("ui_widget")
+                or campo.get("x-ouvia-ui-widget")
+                or WIDGET_PADRAO
+            )
+            widget = str(widget).strip()
+            if widget not in LOOKUP_UI_WIDGETS:
+                raise ValueError(
+                    f"Campo '{name}': ui_widget inválido ({', '.join(sorted(LOOKUP_UI_WIDGETS))})."
+                )
+            item["datasource"] = ds
+            item["ui_widget"] = widget
         normalizado.append(item)
     return normalizado

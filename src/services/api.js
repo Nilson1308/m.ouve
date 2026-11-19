@@ -327,6 +327,15 @@ export const catalogoService = {
   }
 }
 
+/** Lookup de listas do sistema para campos dinâmicos (PWA). */
+export const catalogoLookupService = {
+  async listarUnidades(params = {}) {
+    const response = await api.get('/catalogo/lookup/unidades', { params })
+    const data = response.data
+    return Array.isArray(data?.items) ? data.items : []
+  }
+}
+
 // ==================== ATENDIMENTOS (assistente + geocodificação) ====================
 
 export const atendimentosService = {

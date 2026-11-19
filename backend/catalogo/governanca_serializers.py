@@ -10,6 +10,7 @@ from catalogo.models import (
     ServicoCatalogoVersao,
     UnidadeAdministrativa,
 )
+from catalogo.schema_props import validar_schema_formulario_lookup
 from catalogo.versionamento_service import salvar_rascunho
 
 
@@ -97,6 +98,10 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
         read_only=True,
         default=None,
     )
+    fluxo_tramitacao = serializers.ChoiceField(
+        choices=ServicoCatalogo.FluxoTramitacao.choices,
+        required=False,
+    )
     exige_localizacao = serializers.BooleanField(read_only=True)
     is_template = serializers.BooleanField(read_only=True)
     tem_rascunho_pendente = serializers.BooleanField(read_only=True)
@@ -120,6 +125,7 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
             "categoria_nome",
             "unidade_responsavel_id",
             "unidade_responsavel_nome",
+            "fluxo_tramitacao",
             "formulario_schema",
             "schema_formulario",
             "formulario_schema_rascunho",
@@ -153,6 +159,17 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
             return normalizar_formulario_schema(value)
         except ValueError as exc:
             raise serializers.ValidationError(str(exc)) from exc
+
+    def validate_schema_formulario(self, value):
+        if value is None:
+            return value
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("schema_formulario deve ser um objeto JSON.")
+        try:
+            validar_schema_formulario_lookup(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        return value
 
     def validate(self, attrs):
         categoria = attrs.get("categoria")
