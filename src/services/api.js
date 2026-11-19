@@ -369,7 +369,7 @@ export const zeladoriaService = atendimentosService
 
 // ==================== NOTIFICAÇÕES SERVICES ====================
 
-/** Notificações internas (servidores / backoffice) — distinto de notificacoesService (cidadão) */
+/** Notificações internas (servidores / backoffice) — distinto de notificacoesCidadaoAppService (cidadão PWA) */
 export const notificacoesInternasService = {
   async listar(params = {}) {
     const response = await api.get('/backoffice/notificacoes', { params })
@@ -424,34 +424,6 @@ export const notificacoesCidadaoAppService = {
 
   async pushSubscribe(payload) {
     const response = await api.post('/app/notificacoes/push-subscribe', payload)
-    return response.data
-  }
-}
-
-export const notificacoesService = {
-  /**
-   * Lista notificações do usuário
-   */
-  async list(filters = {}) {
-    const response = await api.get('/notificacoes', { params: filters })
-    return response.data
-  },
-
-  /**
-   * Marca notificação como lida
-   */
-  async marcarComoLida(id) {
-    await api.patch(`/notificacoes/${id}/ler`)
-  },
-
-  /**
-   * Registra token FCM para push notifications
-   */
-  async registrarTokenPush(token, plataforma = 'web') {
-    const response = await api.post('/notificacoes/registro-push', {
-      token,
-      plataforma
-    })
     return response.data
   }
 }

@@ -69,7 +69,7 @@ const router = createRouter({
           name: 'pwa-chat-solicitacao',
           component: () => import('@/views/pwa/ChatSolicitacaoView.vue'),
           props: true,
-          meta: { pwaHideShellHeader: true, pwaHideBottomNav: true }
+          meta: { pwaHideShellHeader: true }
         },
         {
           path: 'protocolo/:id',

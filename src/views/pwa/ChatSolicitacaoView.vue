@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col h-dvh max-h-dvh min-h-0 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 high-contrast:from-black high-contrast:to-black">
+  <div class="flex flex-col h-[calc(100dvh-5rem)] max-h-[calc(100dvh-5rem)] min-h-0 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 high-contrast:from-black high-contrast:to-black">
     <!-- Header -->
     <header class="flex-shrink-0 z-20 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 high-contrast:bg-black border-b border-gray-200/50 dark:border-gray-800/50 high-contrast:border-yellow-300 shadow-soft safe-area-inset-top">
       <div class="px-4 py-3 flex items-center gap-3">

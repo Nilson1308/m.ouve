@@ -26,7 +26,7 @@
 
           <!-- Actions -->
           <div class="flex items-center gap-2">
-            <NotificacoesCidadaoBell />
+            <NotificacoesCidadaoBell class="hidden md:block" />
             <PwaA11yMenu />
             <ThemeToggle surface="light" />
             <button
@@ -83,6 +83,25 @@
           <span class="text-xs mt-1">Nova</span>
         </router-link>
 
+        <!-- Notificações -->
+        <router-link
+          to="/app/notificacoes"
+          class="nav-item relative"
+          :class="{ 'nav-item-active': $route.path.includes('/notificacoes') }"
+          :aria-label="notificacoesNavAriaLabel"
+        >
+          <span class="relative inline-flex" aria-hidden="true">
+            <BellIcon class="w-6 h-6" />
+            <span
+              v-if="notificacoesStore.temNaoLidas"
+              class="absolute -top-1.5 -right-2 min-w-[1.125rem] h-[1.125rem] px-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none flex items-center justify-center"
+            >
+              {{ badgeCount }}
+            </span>
+          </span>
+          <span class="text-xs mt-1" aria-hidden="true">Avisos</span>
+        </router-link>
+
         <!-- Perfil -->
         <router-link 
           to="/app/perfil" 
@@ -111,6 +130,7 @@ import {
   HomeIcon,
   PlusCircleIcon,
   UserCircleIcon,
+  BellIcon,
   ArrowRightOnRectangleIcon
 } from '@heroicons/vue/24/outline'
 
@@ -123,6 +143,18 @@ const notificacoesStore = useNotificacoesCidadaoStore()
 
 const showShellHeader = computed(() => !route.meta.pwaHideShellHeader)
 const showBottomNav = computed(() => !route.meta.pwaHideBottomNav)
+
+const badgeCount = computed(() => {
+  const n = notificacoesStore.naoLidas
+  return n > 99 ? '99+' : String(n)
+})
+
+const notificacoesNavAriaLabel = computed(() => {
+  const base = 'Notificações'
+  if (!notificacoesStore.temNaoLidas) return base
+  const q = notificacoesStore.naoLidas
+  return `${base}, ${q} não lida${q === 1 ? '' : 's'}`
+})
 
 let pollInterval = null
 
