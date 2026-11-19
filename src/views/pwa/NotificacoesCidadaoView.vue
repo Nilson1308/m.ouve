@@ -12,32 +12,11 @@
     </header>
 
     <main id="conteudo-principal" tabindex="-1" class="px-4 sm:px-6 py-6 max-w-2xl mx-auto space-y-5">
-      <section
-        v-if="mostrarBannerPush"
-        class="card border border-primary-200 dark:border-primary-800 bg-primary-50/60 dark:bg-primary-950/30 p-4"
-        aria-labelledby="titulo-ativar-push"
-      >
-        <h2 id="titulo-ativar-push" class="text-sm font-bold text-gray-900 dark:text-white mb-1">
-          Fique por dentro
-        </h2>
-        <p class="text-sm text-gray-700 dark:text-gray-300 mb-4">
-          Ative as notificações para ser avisado quando seu protocolo for atualizado.
-        </p>
-        <button
-          type="button"
-          class="btn-primary w-full sm:w-auto min-h-[44px] disabled:opacity-50"
-          :disabled="ativandoPush || pushAtivo"
-          @click="ativarPush"
-        >
-          {{ pushAtivo ? 'Notificações push ativas' : ativandoPush ? 'Ativando…' : 'Ativar notificações' }}
-        </button>
-        <p v-if="erroPush" class="text-sm text-red-600 dark:text-red-400 mt-2" role="alert">
-          {{ erroPush }}
-        </p>
-        <p v-if="sucessoPush" class="text-sm text-green-700 dark:text-green-400 mt-2" role="status">
-          {{ sucessoPush }}
-        </p>
-      </section>
+      <PwaWebPushNudge
+        heading-suffix="central"
+        @ativado="onPushAtivado"
+        @erro="onPushErro"
+      />
 
       <div v-if="store.loading && !store.items.length" class="py-12 text-center text-sm text-gray-500" role="status">
         Carregando notificações…
@@ -83,22 +62,24 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ChevronLeftIcon, BellIcon } from '@heroicons/vue/24/outline'
 import { useNotificacoesCidadaoStore } from '@/stores/notificacoesCidadao'
 import { formatarQuandoNotificacao } from '@/utils/notificacaoLink'
-import { ativarWebPush, pushJaInscrito, pushSuportado } from '@/utils/webPush'
+import PwaWebPushNudge from '@/components/pwa/PwaWebPushNudge.vue'
 
 const router = useRouter()
 const store = useNotificacoesCidadaoStore()
-const ativandoPush = ref(false)
-const pushAtivo = ref(false)
-const erroPush = ref('')
-const sucessoPush = ref('')
 const anuncioLive = ref('')
 
-const mostrarBannerPush = computed(() => pushSuportado() && !pushAtivo.value)
+function onPushAtivado() {
+  anuncioLive.value = 'Notificações push ativadas neste dispositivo.'
+}
+
+function onPushErro(msg) {
+  anuncioLive.value = msg || 'Não foi possível ativar as notificações.'
+}
 
 function formatarQuando(iso) {
   return formatarQuandoNotificacao(iso) || ''
@@ -123,25 +104,7 @@ async function abrirItem(item) {
   }
 }
 
-async function ativarPush() {
-  erroPush.value = ''
-  sucessoPush.value = ''
-  ativandoPush.value = true
-  try {
-    await ativarWebPush()
-    pushAtivo.value = true
-    sucessoPush.value = 'Pronto! Você receberá avisos neste dispositivo.'
-    anuncioLive.value = sucessoPush.value
-  } catch (err) {
-    erroPush.value = err?.message || 'Não foi possível ativar as notificações.'
-    anuncioLive.value = erroPush.value
-  } finally {
-    ativandoPush.value = false
-  }
-}
-
 onMounted(async () => {
   await store.carregar({ limit: 50 })
-  pushAtivo.value = await pushJaInscrito()
 })
 </script>

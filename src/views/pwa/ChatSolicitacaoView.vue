@@ -183,27 +183,51 @@
         </div>
       </div>
 
-    </div>
-
-      <!-- Indicador de digitação -->
+      <!-- Aguardando resposta da IA (in-app + Celery) -->
       <div
-        v-if="chatStore.isTyping"
+        v-if="aguardandoRespostaIA"
         role="status"
         aria-live="polite"
-        class="flex items-start gap-2 max-w-[85%] px-4 pb-2 animate-fade-in motion-reduce:animate-none"
+        aria-busy="true"
+        class="flex items-start gap-2 max-w-[92%] pb-2 animate-fade-in motion-reduce:animate-none"
       >
-        <span class="sr-only">Assistente está digitando...</span>
-        <div class="flex-shrink-0 w-8 h-8 rounded-avatar bg-gradient-to-br from-primary-500 to-primary-600 high-contrast:from-yellow-300 high-contrast:to-yellow-400 flex items-center justify-center" aria-hidden="true">
+        <span class="sr-only">{{ textoAguardandoIA }}</span>
+        <div
+          class="flex-shrink-0 w-8 h-8 rounded-avatar bg-gradient-to-br from-primary-500 to-primary-600 high-contrast:from-yellow-300 high-contrast:to-yellow-400 flex items-center justify-center"
+          aria-hidden="true"
+        >
           <SparklesIcon class="w-4 h-4 text-white high-contrast:text-black" />
         </div>
-        <div class="bg-white dark:bg-gray-800 high-contrast:bg-gray-900 high-contrast:border high-contrast:border-yellow-300 rounded-bubble-left px-4 py-3 shadow-soft" aria-hidden="true">
-          <div class="flex items-center gap-1">
-            <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce motion-reduce:animate-none" style="animation-delay: 0ms"></span>
-            <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce motion-reduce:animate-none" style="animation-delay: 150ms"></span>
-            <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce motion-reduce:animate-none" style="animation-delay: 300ms"></span>
+        <div
+          class="bg-white dark:bg-gray-800 high-contrast:bg-gray-900 high-contrast:border high-contrast:border-yellow-300 rounded-bubble-left px-4 py-3 shadow-soft min-w-[12rem]"
+        >
+          <div class="flex items-center gap-2" aria-hidden="true">
+            <svg
+              class="w-4 h-4 text-primary-500 dark:text-primary-400 high-contrast:text-yellow-300 animate-spin motion-reduce:animate-none shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" />
+              <path
+                class="opacity-90"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"
+              />
+            </svg>
+            <div class="flex items-center gap-1">
+              <span class="w-2 h-2 bg-primary-400/80 rounded-full animate-bounce motion-reduce:animate-none" style="animation-delay: 0ms" />
+              <span class="w-2 h-2 bg-primary-400/80 rounded-full animate-bounce motion-reduce:animate-none" style="animation-delay: 150ms" />
+              <span class="w-2 h-2 bg-primary-400/80 rounded-full animate-bounce motion-reduce:animate-none" style="animation-delay: 300ms" />
+            </div>
           </div>
+          <p class="text-xs text-gray-600 dark:text-gray-300 high-contrast:text-white mt-2 leading-snug">
+            {{ textoAguardandoIA }}
+          </p>
         </div>
       </div>
+
+    </div>
+
   </main>
 
     <!-- Barra de Input -->
@@ -380,6 +404,17 @@ import { useAudioRecorder } from '@/composables/useAudioRecorder'
 const route = useRoute()
 const router = useRouter()
 const chatStore = useChatStore()
+
+const aguardandoRespostaIA = computed(
+  () => chatStore.isTyping || (chatStore.loading && chatStore.mensagens.length === 0)
+)
+
+const textoAguardandoIA = computed(() => {
+  if (chatStore.loading && chatStore.mensagens.length === 0) {
+    return 'Conectando com a assistente...'
+  }
+  return 'A IA está analisando sua solicitação...'
+})
 const dialog = useDialog()
 
 const categoriaNome = computed(() => route.params.categoriaNome)
@@ -778,7 +813,7 @@ watch(
   () => [
     chatStore.mensagens.length,
     chatStore.mensagens.at(-1)?.id,
-    chatStore.isTyping
+    aguardandoRespostaIA.value
   ],
   () => {
     scrollToBottom()

@@ -1,8 +1,10 @@
 """Onda 4 — Notificações cidadão (in-app) e Web Push."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -186,3 +188,71 @@ class NotificacoesCidadaoTaskTests(TestCase):
         stats = enviar_push_para_notificacao(str(notif.id))
         self.assertEqual(stats["enviados"], 1)
         webpush_mock.assert_called_once()
+
+
+class PushCooldownProtocoloTests(TestCase):
+    """Anti-fadiga: várias notificações in-app, um único push por janela de cooldown."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.cidadao = User.objects.create_user(
+            cpf="39053344706",
+            password="x",
+            nome="Cidadão Cooldown",
+            email="cooldown@test.local",
+        )
+        unidade = UnidadeAdministrativa.objects.create(nome="UC", sigla="UC", ativo=True)
+        cat = CategoriaCatalogo.objects.create(nome="CatCD", slug="cat-cd", ativo=True)
+        servico = ServicoCatalogo.objects.create(
+            categoria=cat,
+            nome="ServCD",
+            unidade_responsavel=unidade,
+            ativo=True,
+        )
+        cls.protocolo = Protocolo.objects.create(
+            codigo="PROT-CD-1",
+            usuario=cls.cidadao,
+            servico=servico,
+            descricao="Cooldown",
+            status=Protocolo.Status.EM_ANDAMENTO,
+        )
+
+    def setUp(self):
+        cache.clear()
+
+    @patch("atendimentos.tasks.enviar_notificacao_push_task.delay")
+    def test_cooldown_enfileira_push_apenas_uma_vez(self, delay_mock):
+        base_count = NotificacaoCidadao.objects.filter(protocolo=self.protocolo).count()
+        with patch("django.core.cache.cache.add", wraps=cache.add) as add_mock:
+            with self.captureOnCommitCallbacks(execute=True):
+                for i in range(3):
+                    criar_notificacao_cidadao(
+                        usuario=self.cidadao,
+                        titulo=f"Msg {i}",
+                        mensagem=f"Corpo {i}",
+                        protocolo=self.protocolo,
+                    )
+
+        self.assertEqual(
+            NotificacaoCidadao.objects.filter(protocolo=self.protocolo).count(),
+            base_count + 3,
+        )
+        delay_mock.assert_called_once()
+        self.assertEqual(add_mock.call_count, 3)
+        chave = f"cooldown_push_protocolo_{self.protocolo.pk}"
+        add_mock.assert_any_call(
+            chave, 1, timeout=settings.PUSH_COOLDOWN_PROTOCOLO_SEGUNDOS
+        )
+
+    @patch("atendimentos.tasks.enviar_notificacao_push_task.delay")
+    def test_sem_protocolo_nao_aplica_cooldown_por_protocolo(self, delay_mock):
+        cache.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            for i in range(2):
+                criar_notificacao_cidadao(
+                    usuario=self.cidadao,
+                    titulo=f"Avulsa {i}",
+                    mensagem="Sem protocolo",
+                    protocolo=None,
+                )
+        self.assertEqual(delay_mock.call_count, 2)

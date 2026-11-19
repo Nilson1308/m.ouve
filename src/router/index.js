@@ -89,6 +89,12 @@ const router = createRouter({
           name: 'pwa-notificacoes',
           component: () => import('@/views/pwa/NotificacoesCidadaoView.vue'),
           meta: { pwaHideShellHeader: true }
+        },
+        {
+          path: 'ajuda',
+          name: 'pwa-ajuda',
+          component: () => import('@/views/pwa/AjudaCidadaoView.vue'),
+          meta: { pwaHideShellHeader: true, pageTitle: 'Central de Ajuda' }
         }
       ]
     },
@@ -173,6 +179,12 @@ const router = createRouter({
           name: 'backoffice-notificacoes',
           component: () => import('@/views/backoffice/NotificacoesInternasView.vue'),
           meta: { requirePermission: 'mesa_trabalho.ler', pageTitle: 'Notificações' }
+        },
+        {
+          path: 'manual',
+          name: 'backoffice-manual',
+          component: () => import('@/views/backoffice/ManualSistemaView.vue'),
+          meta: { pageTitle: 'Manual do Sistema' }
         }
       ]
     },

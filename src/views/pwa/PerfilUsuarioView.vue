@@ -39,6 +39,20 @@
         </p>
       </div>
 
+      <router-link
+        to="/app/ajuda"
+        class="card p-4 flex items-center gap-4 hover:shadow-soft transition-shadow border border-primary-200/60 dark:border-primary-800/50 bg-primary-50/40 dark:bg-primary-950/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+      >
+        <div class="w-11 h-11 rounded-xl bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center shrink-0">
+          <QuestionMarkCircleIcon class="w-6 h-6 text-primary-600 dark:text-primary-400" aria-hidden="true" />
+        </div>
+        <div class="flex-1 min-w-0 text-left">
+          <p class="text-sm font-bold text-gray-900 dark:text-white high-contrast:text-yellow-300">Central de Ajuda</p>
+          <p class="text-xs text-gray-600 dark:text-gray-400 high-contrast:text-white mt-0.5">Como usar o M.Ouve — perguntas frequentes</p>
+        </div>
+        <ChevronRightIcon class="w-5 h-5 text-gray-400 shrink-0" aria-hidden="true" />
+      </router-link>
+
       <!-- Navegação por Abas -->
       <div class="card p-1 flex gap-1">
         <button
@@ -454,6 +468,8 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { useDialog } from '@/composables/useDialog'
 import {
   ChevronLeftIcon,
+  ChevronRightIcon,
+  QuestionMarkCircleIcon,
   CameraIcon,
   UserIcon,
   MapPinIcon,

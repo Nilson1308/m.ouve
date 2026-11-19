@@ -106,7 +106,7 @@
         <router-link 
           to="/app/perfil" 
           class="nav-item"
-          :class="{ 'nav-item-active': $route.path.includes('/perfil') }"
+          :class="{ 'nav-item-active': $route.path.includes('/perfil') || $route.path.includes('/ajuda') }"
         >
           <UserCircleIcon class="w-6 h-6" aria-hidden="true" />
           <span class="text-xs mt-1">Perfil</span>

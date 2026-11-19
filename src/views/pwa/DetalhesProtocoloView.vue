@@ -177,6 +177,11 @@
         </div>
       </section>
 
+      <PwaWebPushNudge
+        heading-suffix="protocolo"
+        descricao="Ative as notificações para ser avisado sobre o andamento desta solicitação."
+      />
+
       <ProtocoloCsatCard
         v-if="exibirCsat"
         :protocolo-id="props.id"
@@ -472,6 +477,7 @@ import LocationMap from '@/components/pwa/LocationMap.vue'
 import ThemeToggle from '@/components/shared/ThemeToggle.vue'
 import PwaA11yMenu from '@/components/pwa/PwaA11yMenu.vue'
 import ProtocoloCsatCard from '@/components/pwa/protocolo/ProtocoloCsatCard.vue'
+import PwaWebPushNudge from '@/components/pwa/PwaWebPushNudge.vue'
 import {
   ChevronLeftIcon,
   ExclamationCircleIcon,

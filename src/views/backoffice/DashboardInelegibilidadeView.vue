@@ -123,8 +123,12 @@
                     <ShieldCheckIcon class="w-16 h-16 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div>
-                    <h2 class="text-lg font-semibold text-gray-600 dark:text-gray-400 mb-1">
-                      Atendimentos Barrados pela IA
+                    <h2 class="text-lg font-semibold text-gray-600 dark:text-gray-400 mb-1 flex items-center gap-2">
+                      <span>Atendimentos Barrados pela IA</span>
+                      <ContextualHelpIcon
+                        texto="Sessões de chat encerradas pela IA por inelegibilidade (fora do escopo ou regra do serviço) — reduz fila humana."
+                        label="Ajuda: atendimentos barrados pela IA"
+                      />
                     </h2>
                     <p class="text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
                       {{ formatarNumero(dados.total_sessoes_inelegiveis) }}
@@ -406,6 +410,7 @@ import {
   InformationCircleIcon,
   ExclamationCircleIcon
 } from '@heroicons/vue/24/outline'
+import ContextualHelpIcon from '@/components/shared/ContextualHelpIcon.vue'
 
 const dashboardStore = useDashboardStore()
 const adminStore = useAdminStore()

@@ -105,11 +105,26 @@
         {{ salvandoSenha ? 'Atualizando…' : 'Alterar senha' }}
       </button>
     </form>
+
+    <RouterLink
+      to="/backoffice/manual"
+      class="mt-10 flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 hover:border-primary-500/50 dark:hover:border-primary-500/40 transition-colors"
+    >
+      <div class="p-2.5 rounded-lg bg-primary-100 dark:bg-primary-900/40">
+        <BookOpenIcon class="w-6 h-6 text-primary-600 dark:text-primary-400" aria-hidden="true" />
+      </div>
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-semibold text-slate-900 dark:text-white">Manual do Sistema</p>
+        <p class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">Fluxos da mesa, dashboards, catálogo e permissões</p>
+      </div>
+    </RouterLink>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { RouterLink } from 'vue-router'
+import { BookOpenIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import { usuarioService } from '@/services/api'
 import { getApiErrorMessage } from '@/utils/apiError'

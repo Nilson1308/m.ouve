@@ -4,11 +4,29 @@ from __future__ import annotations
 
 import logging
 
+from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 
 from atendimentos.models import MensagemChat, NotificacaoCidadao, Protocolo, SessaoChat
 
 logger = logging.getLogger(__name__)
+
+PUSH_COOLDOWN_PROTOCOLO_SEGUNDOS = int(
+    getattr(settings, "PUSH_COOLDOWN_PROTOCOLO_SEGUNDOS", 150)
+)
+
+
+def _chave_cooldown_push_protocolo(protocolo_id) -> str:
+    return f"cooldown_push_protocolo_{protocolo_id}"
+
+
+def _pode_disparar_push_protocolo(protocolo: Protocolo | None) -> bool:
+    """Anti-fadiga: apenas o primeiro push no intervalo; in-app sempre grava."""
+    if not protocolo:
+        return True
+    chave = _chave_cooldown_push_protocolo(protocolo.pk)
+    return cache.add(chave, 1, timeout=PUSH_COOLDOWN_PROTOCOLO_SEGUNDOS)
 
 STATUS_NOTIFICAVEIS = frozenset(
     {
@@ -62,10 +80,17 @@ def criar_notificacao_cidadao(
         titulo=titulo.strip()[:255],
         mensagem=mensagem.strip(),
     )
-    if enfileirar_push:
+    if enfileirar_push and _pode_disparar_push_protocolo(protocolo):
         from atendimentos.tasks import enviar_notificacao_push_task
 
-        transaction.on_commit(lambda: enviar_notificacao_push_task.delay(str(notif.id)))
+        notif_id = str(notif.id)
+        transaction.on_commit(lambda nid=notif_id: enviar_notificacao_push_task.delay(nid))
+    elif enfileirar_push and protocolo:
+        logger.debug(
+            "Push suprimido por cooldown (protocolo=%s); notificação in-app %s criada.",
+            protocolo.pk,
+            notif.id,
+        )
     return notif
 
 
@@ -100,11 +125,13 @@ def notificar_resposta_ia_chat(sessao: SessaoChat, mensagem: MensagemChat) -> No
     if protocolo_id:
         protocolo = Protocolo.objects.filter(pk=protocolo_id).first()
 
-    titulo = "Nova mensagem na conversa"
     if protocolo:
-        titulo = f"Atualização — protocolo {protocolo.codigo}"
-        mensagem_corpo = f"Assistente M.Ouve: {preview}"
+        titulo = "Nova mensagem no seu protocolo"
+        mensagem_corpo = (
+            f"Assistente M.Ouve respondeu no protocolo {protocolo.codigo}. {preview}"
+        )
     else:
+        titulo = "Nova mensagem na conversa"
         mensagem_corpo = f"Assistente M.Ouve: {preview}"
 
     return criar_notificacao_cidadao(

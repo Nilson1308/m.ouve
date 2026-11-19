@@ -165,6 +165,16 @@ if DEBUG:
 
 CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://127.0.0.1:6379/0")
 CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default="redis://127.0.0.1:6379/0")
+
+# DB /2 do Redis (Celery usa /0): compartilha cooldown entre workers Gunicorn/Celery.
+CACHE_REDIS_URL = config("CACHE_REDIS_URL", default="redis://127.0.0.1:6379/2")
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": CACHE_REDIS_URL,
+        "KEY_PREFIX": "ouve",
+    }
+}
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -224,3 +234,7 @@ VAPID_PUBLIC_KEY = config("VAPID_PUBLIC_KEY", default="")
 VAPID_PRIVATE_KEY = config("VAPID_PRIVATE_KEY", default="")
 VAPID_ADMIN_EMAIL = config("VAPID_ADMIN_EMAIL", default="mailto:admin@ouve.local")
 PWA_FRONTEND_BASE_URL = config("PWA_FRONTEND_BASE_URL", default="")
+# Anti-fadiga Web Push: 1 alerta por protocolo neste intervalo (segundos); in-app ignora o throttle.
+PUSH_COOLDOWN_PROTOCOLO_SEGUNDOS = config(
+    "PUSH_COOLDOWN_PROTOCOLO_SEGUNDOS", default=150, cast=int
+)

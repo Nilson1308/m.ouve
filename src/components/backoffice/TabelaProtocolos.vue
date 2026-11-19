@@ -1,7 +1,18 @@
 <template>
   <div class="card overflow-hidden">
+    <div
+      v-if="!protocolos.length"
+      class="flex flex-col items-center justify-center py-16 px-6 text-center"
+      role="status"
+    >
+      <InboxIcon class="w-14 h-14 text-gray-300 dark:text-gray-600 opacity-75 mb-4" aria-hidden="true" />
+      <p class="text-base font-semibold text-gray-800 dark:text-gray-200">Nenhum protocolo nesta lista</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 max-w-md">
+        Ajuste os filtros ou aguarde novos despachos — os registros aparecerão na tabela assim que forem atribuídos à sua mesa.
+      </p>
+    </div>
     <!-- Tabela -->
-    <div class="overflow-x-auto">
+    <div v-else class="overflow-x-auto">
       <table class="w-full">
         <thead class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <tr>
@@ -246,7 +257,8 @@ import {
   WrenchScrewdriverIcon,
   LightBulbIcon,
   TrashIcon,
-  SparklesIcon
+  SparklesIcon,
+  InboxIcon
 } from '@heroicons/vue/24/outline'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import { useSuperOSStore } from '@/stores/super_os'

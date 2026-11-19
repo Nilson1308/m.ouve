@@ -170,6 +170,7 @@ import {
   ArrowRightOnRectangleIcon,
   BellAlertIcon,
   DocumentTextIcon,
+  BookOpenIcon,
   ChevronDoubleLeftIcon,
   ChevronRightIcon
 } from '@heroicons/vue/24/outline'
@@ -235,6 +236,13 @@ const menuDef = computed(() => [
           : String(notificacoesStore.naoLidas)
         : null
   },
+  {
+    key: 'manual',
+    to: '/backoffice/manual',
+    icon: BookOpenIcon,
+    label: 'Manual do Sistema',
+    sempreVisivel: true
+  },
   { type: 'divider' },
   {
     key: 'inelegibilidade',
@@ -263,6 +271,7 @@ const menuDef = computed(() => [
 const itensMenuVisiveis = computed(() =>
   menuDef.value.filter((item) => {
     if (item.type === 'divider') return true
+    if (item.sempreVisivel) return true
     if (item.key === 'config') {
       return can('configuracoes.ler') || isSuperAdmin.value
     }
@@ -280,6 +289,7 @@ function rotaAtiva(item) {
 
 const pageTitle = computed(() => {
   if (route.meta?.pageTitle) return route.meta.pageTitle
+  if (route.path.includes('/manual')) return 'Manual do Sistema'
   if (route.path.includes('/perfil')) return 'Meu perfil'
   if (route.path.includes('/acesso-negado')) return 'Acesso negado'
   return 'Backoffice'

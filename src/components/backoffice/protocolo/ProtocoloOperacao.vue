@@ -59,21 +59,16 @@
     </p>
   </div>
 
-    <section class="card">
-      <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-warning-100 dark:bg-warning-900 flex items-center justify-center">
-            <ClipboardDocumentListIcon class="w-6 h-6 text-warning-600 dark:text-warning-400" />
-          </div>
-          <div>
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-              Ordens de Serviço
-            </h2>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
-              Scatter-Gather · {{ nosResumo.fechados }}/{{ nosResumo.total }} nós encerrados
-            </p>
-          </div>
-        </div>
+    <BackofficeAccordion
+      titulo="Ordens de Serviço"
+      :subtitulo="`Scatter-Gather · ${nosResumo.fechados}/${nosResumo.total} nós encerrados`"
+      :icon="ClipboardDocumentListIcon"
+      icon-wrapper-class="bg-warning-100 dark:bg-warning-900"
+      icon-class="text-warning-600 dark:text-warning-400"
+      :default-open="false"
+      ajuda="Cada nó representa uma secretaria acionada. Acompanhe formalização e execução aqui."
+    >
+      <div class="flex justify-end mb-4">
         <button
           v-if="!prontoParaValidacao"
           type="button"
@@ -123,13 +118,15 @@
           variant="revisao"
         />
       </div>
-    </section>
+    </BackofficeAccordion>
 
-    <section class="card bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-750 border-2 border-gray-200 dark:border-gray-700">
-      <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-        Resumo Executivo
-      </h3>
-      <div class="space-y-2">
+    <BackofficeAccordion
+      titulo="Resumo executivo"
+      subtitulo="Indicadores rápidos do protocolo"
+      :default-open="false"
+      ajuda="Visão condensada de status, SLA e nós — ideal para checagem rápida."
+    >
+      <div class="space-y-2 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-750 border border-gray-200 dark:border-gray-700 p-4">
         <div class="flex items-center justify-between gap-3 text-sm">
           <span class="text-gray-600 dark:text-gray-400 shrink-0">Status Geral:</span>
           <StatusBadge :status="protocolo.status" tipo="zeladoria" :show-icon="true" />
@@ -157,7 +154,7 @@
           <span class="font-medium" :class="slaResumo.classe">{{ slaResumo.texto }}</span>
         </div>
       </div>
-    </section>
+    </BackofficeAccordion>
     </template>
   </div>
 </template>
@@ -168,6 +165,7 @@ import { ClipboardDocumentListIcon, PlusIcon, LockClosedIcon } from '@heroicons/
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import AcoesValidacao from './AcoesValidacao.vue'
 import OrdemServicoItem from './OrdemServicoItem.vue'
+import BackofficeAccordion from '@/components/backoffice/BackofficeAccordion.vue'
 import {
   resumoNos,
   noFechado,

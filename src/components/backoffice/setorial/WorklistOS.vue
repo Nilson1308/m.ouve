@@ -227,13 +227,17 @@
             Nova ({{ ordensNovas.length }})
           </h3>
         </div>
-        <div class="space-y-3">
+        <div class="space-y-3 min-h-[8rem]">
           <CardOrdemKanban
             v-for="ordem in ordensNovas"
             :key="ordem.id"
             :ordem="ordem"
             @click="$emit('abrir-os', ordem)"
           />
+          <div v-if="!ordensNovas.length" class="text-center py-8 px-2 text-sm text-gray-500 dark:text-gray-400" role="status">
+            <InboxIcon class="w-10 h-10 mx-auto mb-2 opacity-50" aria-hidden="true" />
+            Nenhuma OS nova para o setor.
+          </div>
         </div>
       </div>
 
@@ -244,13 +248,21 @@
             Aguardando Campo ({{ ordensAguardando.length }})
           </h3>
         </div>
-        <div class="space-y-3">
+        <div class="space-y-3 min-h-[8rem]">
           <CardOrdemKanban
             v-for="ordem in ordensAguardando"
             :key="ordem.id"
             :ordem="ordem"
             @click="$emit('abrir-os', ordem)"
           />
+          <div
+            v-if="!ordensAguardando.length"
+            class="text-center py-8 px-2 text-sm text-gray-500 dark:text-gray-400"
+            role="status"
+          >
+            <ClockIcon class="w-10 h-10 mx-auto mb-2 opacity-50" aria-hidden="true" />
+            Nenhuma OS aguardando campo.
+          </div>
         </div>
       </div>
 
@@ -261,13 +273,17 @@
             Em Execução ({{ ordensEmExecucao.length }})
           </h3>
         </div>
-        <div class="space-y-3">
+        <div class="space-y-3 min-h-[8rem]">
           <CardOrdemKanban
             v-for="ordem in ordensEmExecucao"
             :key="ordem.id"
             :ordem="ordem"
             @click="$emit('abrir-os', ordem)"
           />
+          <div v-if="!ordensEmExecucao.length" class="text-center py-8 px-2 text-sm text-gray-500 dark:text-gray-400" role="status">
+            <WrenchScrewdriverIcon class="w-10 h-10 mx-auto mb-2 opacity-50" aria-hidden="true" />
+            Nenhuma OS em execução.
+          </div>
         </div>
       </div>
 
@@ -278,13 +294,17 @@
             Concluída ({{ ordensConcluidas.length }})
           </h3>
         </div>
-        <div class="space-y-3">
+        <div class="space-y-3 min-h-[8rem]">
           <CardOrdemKanban
             v-for="ordem in ordensConcluidas"
             :key="ordem.id"
             :ordem="ordem"
             @click="$emit('abrir-os', ordem)"
           />
+          <div v-if="!ordensConcluidas.length" class="text-center py-8 px-2 text-sm text-gray-500 dark:text-gray-400" role="status">
+            <CheckCircleIcon class="w-10 h-10 mx-auto mb-2 opacity-50" aria-hidden="true" />
+            Nenhuma OS concluída no período.
+          </div>
         </div>
       </div>
     </div>
@@ -302,7 +322,9 @@ import {
   PhotoIcon,
   LinkIcon,
   PencilSquareIcon,
-  EyeIcon
+  EyeIcon,
+  WrenchScrewdriverIcon,
+  CheckCircleIcon
 } from '@heroicons/vue/24/outline'
 import CardOrdemKanban from './CardOrdemKanban.vue'
 import BadgeSuperOS from './BadgeSuperOS.vue'

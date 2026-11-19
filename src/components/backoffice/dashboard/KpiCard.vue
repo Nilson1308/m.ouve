@@ -10,8 +10,9 @@
           <component :is="icon" class="w-6 h-6" :class="iconClass" />
         </div>
         <div>
-          <p class="text-sm font-medium text-gray-600 dark:text-gray-400">
-            {{ titulo }}
+          <p class="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1.5 flex-wrap">
+            <span>{{ titulo }}</span>
+            <ContextualHelpIcon v-if="ajuda" :texto="ajuda" :label="`Ajuda: ${titulo}`" />
           </p>
           <slot name="subtitulo">
             <p v-if="subtitulo" class="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
@@ -49,11 +50,12 @@
 
 <script setup>
 import { computed } from 'vue'
-import { 
-  ArrowTrendingUpIcon, 
+import {
+  ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
   MinusIcon
 } from '@heroicons/vue/24/outline'
+import ContextualHelpIcon from '@/components/shared/ContextualHelpIcon.vue'
 
 const props = defineProps({
   titulo: {
@@ -92,6 +94,10 @@ const props = defineProps({
   contextoIcon: {
     type: Object,
     default: null
+  },
+  ajuda: {
+    type: String,
+    default: ''
   }
 })
 

@@ -45,6 +45,7 @@
           <KpiCard
             titulo="TMA Global"
             subtitulo="Tempo Médio de Atendimento"
+            ajuda="TMA: tempo médio desde a abertura do protocolo até a conclusão — quanto menor, mais ágil a operação."
             :valor="formatarTMA(dados.tma_global_horas)"
             :icon="ClockIcon"
             :variacao="dados.tma_variacao"
@@ -57,6 +58,7 @@
           <KpiCard
             titulo="Taxa de SLA Cumprido"
             subtitulo="Protocolos no prazo"
+            ajuda="Percentual de protocolos encerrados dentro do prazo (SLA) definido para o serviço."
             :icon="CheckBadgeIcon"
             :variacao="dados.sla_variacao"
             :tipo="
@@ -78,6 +80,7 @@
           <KpiCard
             titulo="Protocolos em Atraso"
             subtitulo="Acima do prazo SLA"
+            ajuda="Demandas que ultrapassaram o prazo-regulamentar e exigem priorização na mesa."
             :valor="formatarNumero(dados.total_vencido)"
             :icon="ExclamationTriangleIcon"
             tipo="danger"
@@ -87,6 +90,7 @@
           <KpiCard
             titulo="Unidades com Gargalos"
             subtitulo="Secretarias problemáticas"
+            ajuda="Quantidade de secretarias com desempenho abaixo do esperado no ranking de TMA/SLA."
             :valor="contarUnidadesCriticas"
             :icon="BuildingOffice2Icon"
             tipo="warning"

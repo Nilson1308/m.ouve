@@ -298,6 +298,18 @@
         <p class="text-gray-600 dark:text-gray-400 text-sm">Carregando protocolos...</p>
       </div>
 
+      <div
+        v-else-if="!protocolosExibidos.length && (modoVisualizacao === 'kanban' || modoVisualizacao === 'lista')"
+        class="card flex flex-col items-center justify-center py-20 px-6 text-center min-h-[420px]"
+        role="status"
+      >
+        <InboxIcon class="w-16 h-16 text-gray-300 dark:text-gray-600 opacity-80 mb-4" aria-hidden="true" />
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Sua mesa está limpa</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 max-w-md leading-relaxed">
+          Não há protocolos neste recorte de filtros. Novas demandas despachadas para o seu setor aparecerão aqui automaticamente.
+        </p>
+      </div>
+
       <transition v-else name="fade" mode="out-in">
         <BoardKanban
           v-if="modoVisualizacao === 'kanban'"
@@ -395,7 +407,8 @@ import {
   ClockIcon,
   CheckCircleIcon,
   PencilSquareIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  InboxIcon
 } from '@heroicons/vue/24/outline'
 
 import BoardKanban from '@/components/backoffice/BoardKanban.vue'
