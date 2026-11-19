@@ -48,6 +48,7 @@ Materiais de apoio que **não substituem** o contrato da API. Úteis para onboar
 | Dashboards | `DASHBOARD_EFICIENCIA.md`, `DASHBOARD_MAPA_GIS.md`, `MATRIZ_QUALIDADE.md` |
 | Chat e IA | `INTEGRACAO_CHAT.md`, `COMPONENTES_CHAT.md`, `MAPA_IA_README.md` |
 | Arquitetura | `ARCHITECTURE.md`, `BACKEND_INTEGRATION.md` |
+| Comercial / vendas | [`docs/knowledge/comercial/`](docs/knowledge/comercial/) — one-pager, slides PDF, proposta modelo e Anexo I |
 | QA | [`docs/knowledge/qa/`](docs/knowledge/qa/) (cenários E2E documentados) |
 
 Índice da pasta knowledge: [`docs/knowledge/README.md`](docs/knowledge/README.md).

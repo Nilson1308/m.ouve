@@ -13,4 +13,6 @@ Esta pasta reúne **guias de negócio, fluxos operacionais, design e arquitetura
 - Design system, cores e wireframes
 - Integração conceitual do chat com IA
 
+Subpasta **`comercial/`**: one-pager, PDFs, slides Marp e [`PROPOSTA_MODELO_ANEXO_I_SERVICOS.md`](comercial/PROPOSTA_MODELO_ANEXO_I_SERVICOS.md) — ver [`comercial/README.md`](comercial/README.md).
+
 Subpasta **`qa/`**: roteiros de teste exploratório documentados.
