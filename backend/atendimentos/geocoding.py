@@ -1,6 +1,7 @@
 """Geocodificação gratuita via Nominatim (OpenStreetMap)."""
 
 import logging
+import re
 
 import requests
 from django.conf import settings
@@ -9,6 +10,9 @@ logger = logging.getLogger(__name__)
 
 NOMINATIM_BASE = "https://nominatim.openstreetmap.org"
 DEFAULT_TIMEOUT = 12
+CEP_RE = re.compile(r"\b\d{5}-?\d{3}\b")
+# Prioriza região metropolitana (Mogi e entorno) sem bloquear resultados distantes
+VIEWBOX_REGIAO_PADRAO = "-46.38,-23.40,-46.02,-23.68"
 
 
 def _headers():
@@ -74,9 +78,34 @@ def reverse_geocode(latitude: float, longitude: float) -> dict | None:
     }
 
 
-def search_address(query: str, limit: int = 5) -> list[dict]:
-    if not (query or "").strip():
+def _expand_search_queries(query: str) -> list[str]:
+    texto = (query or "").strip()
+    if not texto:
         return []
+    variantes: list[str] = []
+
+    def add(q: str) -> None:
+        q = (q or "").strip().strip(",")
+        if len(q) > 3 and q not in variantes:
+            variantes.append(q)
+
+    add(texto)
+    normalizado = re.sub(r"\s+-\s+", ", ", texto)
+    if normalizado != texto:
+        add(normalizado)
+
+    sem_cep = CEP_RE.sub("", texto).strip(" ,")
+    if sem_cep and sem_cep != texto:
+        add(sem_cep)
+        add(re.sub(r"\s+-\s+", ", ", sem_cep))
+
+    for base in list(variantes):
+        if "brasil" not in base.lower() and "brazil" not in base.lower():
+            add(f"{base}, Brasil")
+    return variantes
+
+
+def _nominatim_search(query: str, limit: int) -> list[dict]:
     try:
         response = requests.get(
             f"{NOMINATIM_BASE}/search",
@@ -86,6 +115,8 @@ def search_address(query: str, limit: int = 5) -> list[dict]:
                 "addressdetails": 1,
                 "limit": limit,
                 "countrycodes": "br",
+                "viewbox": VIEWBOX_REGIAO_PADRAO,
+                "bounded": "0",
             },
             headers=_headers(),
             timeout=DEFAULT_TIMEOUT,
@@ -93,7 +124,7 @@ def search_address(query: str, limit: int = 5) -> list[dict]:
         response.raise_for_status()
         items = response.json()
     except requests.RequestException as exc:
-        logger.warning("Nominatim search falhou: %s", exc)
+        logger.warning("Nominatim search falhou (%s): %s", query[:80], exc)
         return []
 
     resultados = []
@@ -107,3 +138,24 @@ def search_address(query: str, limit: int = 5) -> list[dict]:
             }
         )
     return resultados
+
+
+def search_address(query: str, limit: int = 5) -> list[dict]:
+    if not (query or "").strip():
+        return []
+
+    vistos: set[tuple[float, float]] = set()
+    agregado: list[dict] = []
+
+    for variante in _expand_search_queries(query):
+        for item in _nominatim_search(variante, limit):
+            chave = (round(item["latitude"], 5), round(item["longitude"], 5))
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            agregado.append(item)
+        if agregado:
+            break
+
+    agregado.sort(key=lambda x: x.get("relevancia", 0), reverse=True)
+    return agregado[:limit]

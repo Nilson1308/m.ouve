@@ -87,10 +87,10 @@
               <div>
                 <h3 id="equipamento-mapa-titulo" class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <MapPinIcon class="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
-                  Localização no mapa (PostGIS)
+                  Localização no mapa
                 </h3>
                 <p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                  Opcional — habilita mapas, clusters e herança de GPS no protocolo.
+                  Opcional — melhora mapas operacionais e localização automática em protocolos sobre o equipamento.
                 </p>
               </div>
               <button
@@ -108,6 +108,21 @@
             </div>
 
             <p v-if="erroGeo" class="text-xs text-amber-800 dark:text-amber-200">{{ erroGeo }}</p>
+
+            <ul
+              v-if="resultadosGeo.length"
+              class="max-h-36 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600 divide-y divide-gray-100 dark:divide-gray-700"
+            >
+              <li v-for="(item, idx) in resultadosGeo" :key="idx">
+                <button
+                  type="button"
+                  class="w-full text-left px-3 py-2.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700/80 min-h-[44px]"
+                  @click="selecionarResultadoGeo(item)"
+                >
+                  {{ item.endereco_completo }}
+                </button>
+              </li>
+            </ul>
 
             <div class="flex flex-wrap items-end gap-2">
               <div class="flex-1 min-w-[8.5rem]">
@@ -233,9 +248,11 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { BuildingStorefrontIcon, MapPinIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import LocationMap from '@/components/pwa/LocationMap.vue'
 import { atendimentosService } from '@/services/api'
+import { useCepLookup } from '@/composables/useCepLookup'
 import { useAdminStore } from '@/stores/admin'
 import { TIPOS_EQUIPAMENTO_PUBLICO } from '@/constants/equipamentosPublicos'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { resolverCoordenadasPorEndereco } from '@/utils/geocodificarEnderecoTexto'
 
 const props = defineProps({
   equipamento: { type: Object, default: null },
@@ -245,6 +262,7 @@ const props = defineProps({
 const emit = defineEmits(['fechar', 'salvo'])
 
 const adminStore = useAdminStore()
+const { buscarCepComGeocoding } = useCepLookup()
 const tituloId = `modal-equipamento-${Math.random().toString(36).slice(2, 8)}`
 const entradaApelido = ref('')
 const salvando = ref(false)
@@ -255,6 +273,7 @@ const mapaRef = ref(null)
 const latitudeInput = ref('')
 const longitudeInput = ref('')
 const limparGeorreferencia = ref(false)
+const resultadosGeo = ref([])
 
 const formulario = reactive({
   nome: '',
@@ -303,6 +322,7 @@ function limparPonto() {
   latitudeInput.value = ''
   longitudeInput.value = ''
   erroGeo.value = ''
+  resultadosGeo.value = []
 }
 
 function aplicarCoordenadasDosInputs() {
@@ -325,8 +345,9 @@ async function aoMoverMarcador({ latitude: lat, longitude: lng }) {
   if (!formulario.endereco?.trim() || !formulario.bairro?.trim()) {
     try {
       const data = await atendimentosService.geocodeReverso(lat, lng)
-      if (!formulario.endereco?.trim() && data.logradouro) {
-        const linha = [data.logradouro, data.numero].filter(Boolean).join(', ')
+      const rua = data.rua || data.logradouro
+      if (!formulario.endereco?.trim() && rua) {
+        const linha = [rua, data.numero].filter(Boolean).join(', ')
         if (linha) formulario.endereco = linha
       }
       if (!formulario.bairro?.trim() && data.bairro) {
@@ -338,33 +359,47 @@ async function aoMoverMarcador({ latitude: lat, longitude: lng }) {
   }
 }
 
-function montarQueryEndereco() {
-  const partes = [formulario.endereco, formulario.bairro, 'Brasil'].filter((p) => p && String(p).trim())
-  return partes.join(', ')
+function selecionarResultadoGeo(item) {
+  resultadosGeo.value = []
+  definirCoordenadas(item.latitude, item.longitude)
+  erroGeo.value = ''
 }
 
 async function localizarEnderecoNoMapa() {
-  const query = montarQueryEndereco()
-  if (!query || query === 'Brasil') {
+  const endereco = formulario.endereco?.trim()
+  const bairro = formulario.bairro?.trim()
+  if (!endereco && !bairro) {
     erroGeo.value = 'Informe endereço ou bairro antes de localizar no mapa.'
     return
   }
   geocodificando.value = true
   erroGeo.value = ''
+  resultadosGeo.value = []
   try {
-    const data = await atendimentosService.buscarEndereco(query)
-    const lista = data.resultados || []
-    if (!lista.length) {
-      erroGeo.value = data.mensagem || 'Endereço não encontrado. Ajuste o texto ou marque no mapa.'
+    const resolvido = await resolverCoordenadasPorEndereco(
+      { endereco: endereco || bairro, bairro },
+      {
+        buscarEndereco: (q) => atendimentosService.buscarEndereco(q),
+        buscarCepComGeocoding
+      }
+    )
+    if (!resolvido) {
+      erroGeo.value =
+        'Não encontramos esse endereço. Confira CEP e cidade, ou marque o ponto manualmente no mapa.'
       return
     }
-    const item = lista[0]
-    definirCoordenadas(item.latitude, item.longitude)
-    if (!formulario.endereco?.trim() && item.endereco_completo) {
-      formulario.endereco = item.endereco_completo
+    if (resolvido.multiplos?.length) {
+      resultadosGeo.value = resolvido.multiplos
+      erroGeo.value = 'Encontramos mais de um local. Escolha o correto na lista abaixo.'
+      return
+    }
+    definirCoordenadas(resolvido.latitude, resolvido.longitude)
+    if (resolvido.enderecoCompleto && !formulario.bairro?.trim()) {
+      const partes = resolvido.enderecoCompleto.split(',')
+      if (partes.length > 2) formulario.bairro = partes[1]?.trim() || formulario.bairro
     }
   } catch {
-    erroGeo.value = 'Não foi possível geocodificar. Tente marcar o ponto no mapa.'
+    erroGeo.value = 'Não foi possível localizar. Tente marcar o ponto no mapa.'
   } finally {
     geocodificando.value = false
   }

@@ -117,7 +117,7 @@
                 <span
                   v-if="eq.georreferenciado"
                   class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-800 dark:text-emerald-200"
-                  title="Coordenadas PostGIS cadastradas"
+                  title="Localização no mapa cadastrada"
                 >
                   <MapPinIcon class="w-4 h-4 text-emerald-500 shrink-0" aria-hidden="true" />
                   No mapa
