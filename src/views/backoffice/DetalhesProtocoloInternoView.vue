@@ -171,6 +171,7 @@ import { useNotificacoesInternasStore } from '@/stores/notificacoesInternas'
 import { useSuperOSStore } from '@/stores/super_os'
 import { useFormatacao } from '@/composables/useFormatacao'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { buildPrefillOrdensFromTriagem } from '@/utils/triagemEncaminhamento'
 
 const { formatarSLA } = useFormatacao()
 
@@ -290,19 +291,7 @@ function abrirDespachoContinuo() {
 function preencherDespachoComTriagem(unidades) {
   const lista = Array.isArray(unidades) ? unidades : []
   if (!lista.length) return
-  const prazo = protocolo.value?.sla?.slaHoras || 48
-  const jaDespachadas = new Set(
-    (protocolo.value?.ordens_servico || [])
-      .map((o) => String(o.unidade_id || o.unidade?.id || ''))
-      .filter(Boolean)
-  )
-  const ordens = lista
-    .filter((u) => u?.id && !jaDespachadas.has(String(u.id)))
-    .map((u) => ({
-      unidadeId: String(u.id),
-      instrucao: `Encaminhamento sugerido: ${(u.motivo || u.nome || '').trim()}`,
-      prazo_horas: prazo
-    }))
+  const ordens = buildPrefillOrdensFromTriagem(protocolo.value, lista)
   if (!ordens.length) {
     mostrarToast('As unidades sugeridas já possuem ordem neste protocolo.')
     return

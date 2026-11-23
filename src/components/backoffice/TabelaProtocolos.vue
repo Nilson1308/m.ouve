@@ -92,6 +92,11 @@
                     >
                       ✨ IA Cluster
                     </span>
+                    <TriagemSugeridaIndicador
+                      v-if="temTriagem(protocolo)"
+                      :triagem="protocolo.triagemSugerida"
+                      variante="badge"
+                    />
                   </div>
                   <div class="text-xs text-gray-500 dark:text-gray-400">
                     {{ formatarData(protocolo.criadoEm) }}
@@ -110,6 +115,12 @@
                   <div class="text-sm font-medium text-gray-900 dark:text-white">
                     {{ protocolo.servico }}
                   </div>
+                  <TriagemSugeridaIndicador
+                    v-if="temTriagem(protocolo)"
+                    :triagem="protocolo.triagemSugerida"
+                    variante="inline"
+                    class="mt-0.5"
+                  />
                   <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1">
                     <MapPinIcon class="w-3.5 h-3.5" />
                     {{ protocolo.endereco }}
@@ -261,7 +272,9 @@ import {
   InboxIcon
 } from '@heroicons/vue/24/outline'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
+import TriagemSugeridaIndicador from '@/components/backoffice/protocolo/TriagemSugeridaIndicador.vue'
 import { useSuperOSStore } from '@/stores/super_os'
+import { temTriagemEncaminhamento } from '@/utils/triagemEncaminhamento'
 
 const superOSStore = useSuperOSStore()
 const { idsComSugestaoIa } = storeToRefs(superOSStore)
@@ -270,6 +283,10 @@ const STATUS_PROTOCOLO_ENCERRADO = ['resolvido', 'rejeitado', 'aguardando_revisa
 
 function protocoloNaIa(id) {
   return idsComSugestaoIa.value.has(String(id))
+}
+
+function temTriagem(protocolo) {
+  return temTriagemEncaminhamento(protocolo)
 }
 
 function podeDespachar(protocolo) {

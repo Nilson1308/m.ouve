@@ -200,6 +200,7 @@ class BackofficeProtocoloKanbanSerializer(serializers.ModelSerializer):
     ordens_servico = BackofficeOrdemServicoSerializer(many=True, read_only=True)
     data_criacao = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%SZ")
     data_atualizacao = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%SZ")
+    triagem_sugerida = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Protocolo
@@ -222,6 +223,7 @@ class BackofficeProtocoloKanbanSerializer(serializers.ModelSerializer):
             "super_os_id",
             "super_os_codigo",
             "ordens_servico",
+            "triagem_sugerida",
         )
 
     def get_dados_dinamicos(self, obj):
@@ -347,8 +349,6 @@ class BackofficeProtocoloDetalheSerializer(BackofficeProtocoloKanbanSerializer):
     observacoes_internas = serializers.CharField(read_only=True)
     localizacao = serializers.SerializerMethodField()
 
-    triagem_sugerida = serializers.JSONField(read_only=True)
-
     class Meta(BackofficeProtocoloKanbanSerializer.Meta):
         fields = BackofficeProtocoloKanbanSerializer.Meta.fields + (
             "dados_coletados",
@@ -357,7 +357,6 @@ class BackofficeProtocoloDetalheSerializer(BackofficeProtocoloKanbanSerializer):
             "resposta_cidadao",
             "observacoes_internas",
             "localizacao",
-            "triagem_sugerida",
         )
 
     def get_dados_coletados(self, obj):

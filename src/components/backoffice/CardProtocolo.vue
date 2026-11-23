@@ -27,6 +27,11 @@
             <span aria-hidden="true">✨</span>
             IA Sugere Cluster
           </span>
+          <TriagemSugeridaIndicador
+            v-if="temTriagemEncaminhamento"
+            :triagem="protocolo.triagemSugerida"
+            variante="badge"
+          />
           <span
             v-if="protocolo.sla.vencido"
             class="badge badge-sm bg-danger-100 text-danger-700 dark:bg-danger-900 dark:text-danger-300"
@@ -39,6 +44,12 @@
         <h4 class="font-semibold text-gray-900 dark:text-white text-sm mb-1 line-clamp-2">
           {{ typeof protocolo.servico === 'string' ? protocolo.servico : protocolo.servico?.nome }}
         </h4>
+
+        <TriagemSugeridaIndicador
+          v-if="temTriagemEncaminhamento"
+          :triagem="protocolo.triagemSugerida"
+          variante="inline"
+        />
         
         <!-- Endereço -->
         <div class="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
@@ -119,6 +130,12 @@
         </span>
       </div>
     </div>
+
+    <TriagemSugeridaIndicador
+      v-if="temTriagemEncaminhamento && !protocolo.ordens_servico?.length"
+      :triagem="protocolo.triagemSugerida"
+      variante="card"
+    />
 
     <div
       v-if="temSugestaoClusterIa && resumoSugestaoIa"
@@ -235,6 +252,8 @@ import {
   ShieldCheckIcon
 } from '@heroicons/vue/24/outline'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
+import TriagemSugeridaIndicador from '@/components/backoffice/protocolo/TriagemSugeridaIndicador.vue'
+import { temTriagemEncaminhamento as protocoloTemTriagem } from '@/utils/triagemEncaminhamento'
 import {
   resumoNos,
   noFechado,
@@ -273,6 +292,8 @@ const protocoloEncerrado = computed(() =>
 const temSugestaoClusterIa = computed(() =>
   idsComSugestaoIa.value.has(String(props.protocolo.id))
 )
+
+const temTriagemEncaminhamento = computed(() => protocoloTemTriagem(props.protocolo))
 
 const resumoSugestaoIa = computed(() =>
   superOSStore.sugestaoResumoProtocolo(props.protocolo.id)

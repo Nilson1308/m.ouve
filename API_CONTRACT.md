@@ -2703,7 +2703,7 @@ Ordem de evidências: (1) lookup `unidades_administrativas` preenchido pelo cida
 
 `fluxo_tramitacao=direto_secretaria` → `{}` (sem sugestão de encaminhamento).
 
-**Backoffice:** campo `triagem_sugerida` em `GET /api/v1/backoffice/protocolos/<protocolo_id>` (respeita `escopo_dados` / IDOR).
+**Backoffice:** campo `triagem_sugerida` em `GET /api/v1/backoffice/protocolos` (lista/mesa) e em `GET /api/v1/backoffice/protocolos/<protocolo_id>` (detalhe; respeita `escopo_dados` / IDOR).
 
 **Despacho scatter:** quando há triagem, `ProtocoloHistorico` registra se as unidades despachadas **confirmaram** ou **divergiram** da sugestão (auditoria de acurácia).
 

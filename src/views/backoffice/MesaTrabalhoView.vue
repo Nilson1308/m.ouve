@@ -361,6 +361,7 @@
       :protocolo="protocoloSelecionado"
       :aberto="mostrarDespacho"
       :salvando="despachando"
+      :prefill-ordens="prefillOrdens"
       @fechar="fecharDespacho"
       @confirmar="confirmarDespacho"
     />
@@ -454,6 +455,7 @@ const mostrarFiltrosAvancados = ref(false)
 const modoVisualizacao = ref('kanban')
 const mostrarDespacho = ref(false)
 const protocoloSelecionado = ref(null)
+const prefillOrdens = ref([])
 const toastAberto = ref(false)
 const toastMensagem = ref('')
 let toastTimer = null
@@ -657,11 +659,13 @@ function abrirDespacho(item) {
   }
   despachoModoSuperOs.value = false
   protocoloSelecionado.value = item
+  prefillOrdens.value = []
   mostrarDespacho.value = true
 }
 
 function fecharDespacho() {
   mostrarDespacho.value = false
+  prefillOrdens.value = []
   setTimeout(() => {
     protocoloSelecionado.value = null
   }, 300)

@@ -75,6 +75,18 @@
               </div>
             </div>
 
+            <div v-if="mostrarPainelTriagem" class="space-y-2">
+              <p class="text-xs font-bold uppercase tracking-wide text-violet-700 dark:text-violet-300">
+                Sugestão de encaminhamento
+              </p>
+              <TriagemSugeridaIndicador
+                :triagem="protocolo.triagemSugerida"
+                variante="panel"
+                :mostrar-acao="podeAplicarTriagemNoModal"
+                @aplicar="aplicarSugestaoTriagem"
+              />
+            </div>
+
             <!-- Explicação do Scatter-Gather -->
             <div class="alert-info">
               <InformationCircleIcon class="w-5 h-5 flex-shrink-0" />
@@ -258,6 +270,12 @@ import {
   SparklesIcon
 } from '@heroicons/vue/24/outline'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
+import TriagemSugeridaIndicador from '@/components/backoffice/protocolo/TriagemSugeridaIndicador.vue'
+import {
+  buildPrefillOrdensFromTriagem,
+  temTriagemEncaminhamento,
+  unidadesTriagemSugeridas
+} from '@/utils/triagemEncaminhamento'
 
 const props = defineProps({
   protocolo: {
@@ -303,6 +321,20 @@ const formularioValido = computed(() => {
       Number(ordem.prazo_horas) >= 1
   )
 })
+
+const mostrarPainelTriagem = computed(
+  () => props.modo === 'protocolo' && temTriagemEncaminhamento(props.protocolo)
+)
+
+const ordensParecemVazias = computed(() =>
+  ordensServico.value.every(
+    (o) => !o.unidadeId && !(o.instrucao || '').trim()
+  )
+)
+
+const podeAplicarTriagemNoModal = computed(
+  () => ordensParecemVazias.value || ordensServico.value.length === 0
+)
 
 // Métodos
 function adicionarOrdem() {
@@ -353,15 +385,20 @@ function getIconeCategoria(categoria) {
   return icones[categoria] || WrenchScrewdriverIcon
 }
 
+function mapPrefillParaOrdens(ordens) {
+  const prazoPadrao = props.protocolo?.sla?.slaHoras || 48
+  ordensServico.value = ordens.map((ordem) => ({
+    id: proximoId++,
+    unidadeId: String(ordem.unidadeId || ordem.unidade_id || ''),
+    instrucao: ordem.instrucao || '',
+    prazo_horas: Number(ordem.prazo_horas) > 0 ? Number(ordem.prazo_horas) : prazoPadrao
+  }))
+}
+
 function montarOrdensIniciais() {
   const prazoPadrao = props.protocolo?.sla?.slaHoras || 48
   if (props.prefillOrdens?.length) {
-    ordensServico.value = props.prefillOrdens.map((ordem) => ({
-      id: proximoId++,
-      unidadeId: String(ordem.unidadeId || ordem.unidade_id || ''),
-      instrucao: ordem.instrucao || '',
-      prazo_horas: Number(ordem.prazo_horas) > 0 ? Number(ordem.prazo_horas) : prazoPadrao
-    }))
+    mapPrefillParaOrdens(props.prefillOrdens)
     return
   }
   ordensServico.value = [
@@ -372,6 +409,16 @@ function montarOrdensIniciais() {
       prazo_horas: prazoPadrao
     }
   ]
+}
+
+function aplicarSugestaoTriagem(unidades) {
+  const lista = Array.isArray(unidades) && unidades.length
+    ? unidades
+    : unidadesTriagemSugeridas(props.protocolo?.triagemSugerida)
+  const prefill = buildPrefillOrdensFromTriagem(props.protocolo, lista)
+  if (!prefill.length) return
+  proximoId = 1
+  mapPrefillParaOrdens(prefill)
 }
 
 // Inicializar quando o modal abre (com ou sem triagem)

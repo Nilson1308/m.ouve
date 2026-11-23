@@ -76,7 +76,8 @@ export function mapProtocoloBackoffice(api) {
     dadosDinamicos: api.dados_dinamicos || {},
     superOsId: api.super_os_id || null,
     superOsCodigo: api.super_os_codigo || null,
-    descricao: api.descricao || ''
+    descricao: api.descricao || '',
+    triagemSugerida: api.triagem_sugerida || null
   }
 }
 
