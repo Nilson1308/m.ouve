@@ -15,6 +15,7 @@
         <ol class="mt-3 space-y-1 text-xs text-gray-600 dark:text-gray-400 list-decimal list-inside">
           <li>Escreva a <strong>pergunta</strong> como se fosse um atendente humano.</li>
           <li>Escolha o <strong>tipo de resposta</strong> (texto, lista, mapa, imagem).</li>
+          <li>Use o <strong>ordenador</strong> (<code class="text-[10px]">≡</code>) para definir a sequência do chat.</li>
           <li>Opcional: <strong>regra de elegibilidade</strong> — encerrar com mensagem se a resposta não puder ser atendida.</li>
         </ol>
         <p class="mt-2 text-[11px] text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 max-w-2xl">
@@ -50,6 +51,69 @@
       v-else
       class="relative pl-0 sm:pl-3 space-y-5"
     >
+      <!-- Ordenador compacto do fluxo -->
+      <div
+        v-if="modelValue.length > 0"
+        class="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800/90 shadow-soft p-3 sm:p-4"
+      >
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <p class="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300 flex items-center gap-2">
+            <Bars3Icon class="w-4 h-4 text-primary-600" />
+            Ordem do fluxo
+          </p>
+          <span class="text-[10px] text-gray-500 dark:text-gray-400">
+            Arraste para reordenar · {{ modelValue.length }} passo(s)
+          </span>
+        </div>
+        <ol class="space-y-1.5" role="list" aria-label="Ordem dos passos da conversa">
+          <li
+            v-for="(item, index) in modelValue"
+            :key="`ordem-${item._id}`"
+            role="listitem"
+            class="flex items-center gap-2 rounded-lg border px-2 py-1.5 transition-all"
+            :class="[
+              dragFromIndex === index ? 'opacity-50 scale-[0.99]' : '',
+              dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index
+                ? 'border-primary-400 bg-primary-50/80 dark:bg-primary-950/30 ring-1 ring-primary-400/50'
+                : 'border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-900/40'
+            ]"
+            @dragover.prevent="onDragOver(index)"
+            @dragleave="onDragLeave(index)"
+            @drop.prevent="onDrop(index)"
+          >
+            <button
+              type="button"
+              class="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-200/80 dark:hover:bg-gray-700 cursor-grab active:cursor-grabbing touch-none shrink-0"
+              title="Arrastar para reordenar"
+              draggable="true"
+              :aria-label="`Arrastar passo ${index + 1}`"
+              @dragstart="onDragStart(index, $event)"
+              @dragend="onDragEnd"
+            >
+              <Bars3Icon class="w-4 h-4 pointer-events-none" aria-hidden="true" />
+            </button>
+            <span
+              class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-600 text-white text-xs font-bold shrink-0"
+            >
+              {{ index + 1 }}
+            </span>
+            <button
+              type="button"
+              class="min-w-0 flex-1 text-left text-xs text-gray-800 dark:text-gray-200 truncate hover:text-primary-700 dark:hover:text-primary-300"
+              :title="item.pergunta || 'Defina a pergunta…'"
+              @click="scrollParaPasso(item._id)"
+            >
+              {{ item.pergunta || 'Passo sem pergunta…' }}
+            </button>
+            <span
+              class="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 shrink-0 hidden sm:inline"
+            >
+              {{ rotuloTipo(item.type) }}
+            </span>
+          </li>
+        </ol>
+      </div>
+
       <div
         class="hidden sm:block absolute left-4 top-4 bottom-4 w-0.5 bg-gradient-to-b from-primary-300 via-cyan-300 to-transparent dark:from-primary-700 dark:via-cyan-800"
         aria-hidden="true"
@@ -58,13 +122,34 @@
       <TransitionGroup name="flow-list" tag="div" class="space-y-5">
         <article
           v-for="(item, index) in modelValue"
+          :id="passoDomId(item._id)"
           :key="item._id"
-          class="card !p-0 overflow-hidden border-primary-100 dark:border-gray-700 transition-all duration-300"
+          class="card !p-0 overflow-hidden border-primary-100 dark:border-gray-700 transition-all duration-300 scroll-mt-24"
+          :class="[
+            dragFromIndex === index ? 'opacity-60' : '',
+            dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index
+              ? 'ring-2 ring-primary-400/60 border-primary-300'
+              : ''
+          ]"
+          @dragover.prevent="onDragOver(index)"
+          @dragleave="onDragLeave(index)"
+          @drop.prevent="onDrop(index)"
         >
           <header
             class="flex items-start justify-between gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800"
           >
             <div class="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                class="p-1.5 -ml-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-grab active:cursor-grabbing touch-none shrink-0 hidden sm:flex"
+                title="Arrastar passo"
+                draggable="true"
+                :aria-label="`Arrastar passo ${index + 1}`"
+                @dragstart="onDragStart(index, $event)"
+                @dragend="onDragEnd"
+              >
+                <Bars3Icon class="w-5 h-5 pointer-events-none" />
+              </button>
               <span
                 class="flex h-9 w-9 items-center justify-center rounded-full bg-primary-600 text-white text-sm font-bold shadow-md shrink-0"
               >
@@ -80,10 +165,22 @@
               </div>
             </div>
             <div class="flex items-center gap-0.5 shrink-0">
-              <button type="button" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30" :disabled="index === 0" @click="mover(index, -1)">
+              <button
+                type="button"
+                class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30"
+                :disabled="index === 0"
+                title="Subir um passo"
+                @click="mover(index, -1)"
+              >
                 <ChevronUpIcon class="w-4 h-4" />
               </button>
-              <button type="button" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30" :disabled="index === modelValue.length - 1" @click="mover(index, 1)">
+              <button
+                type="button"
+                class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30"
+                :disabled="index === modelValue.length - 1"
+                title="Descer um passo"
+                @click="mover(index, 1)"
+              >
                 <ChevronDownIcon class="w-4 h-4" />
               </button>
               <button type="button" class="p-2 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30" @click="remover(index)">
@@ -331,11 +428,13 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import {
   PlusCircleIcon,
   TrashIcon,
   ChevronUpIcon,
   ChevronDownIcon,
+  Bars3Icon,
   CpuChipIcon,
   SparklesIcon,
   ChatBubbleLeftRightIcon,
@@ -359,6 +458,64 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 let seq = 0
+
+const dragFromIndex = ref(null)
+const dragOverIndex = ref(null)
+
+function passoDomId(id) {
+  return `passo-fluxo-${id}`
+}
+
+function scrollParaPasso(id) {
+  const el = document.getElementById(passoDomId(id))
+  el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function limparDrag() {
+  dragFromIndex.value = null
+  dragOverIndex.value = null
+}
+
+function onDragStart(index, event) {
+  dragFromIndex.value = index
+  if (event?.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(index))
+  }
+}
+
+function onDragOver(index) {
+  if (dragFromIndex.value === null) return
+  dragOverIndex.value = index
+}
+
+function onDragLeave(index) {
+  if (dragOverIndex.value === index) dragOverIndex.value = null
+}
+
+function onDrop(index) {
+  const from = dragFromIndex.value
+  if (from === null || from === index) {
+    limparDrag()
+    return
+  }
+  reordenarLista(from, index)
+  limparDrag()
+}
+
+function onDragEnd() {
+  limparDrag()
+}
+
+function reordenarLista(from, to) {
+  if (from === to || from < 0 || to < 0 || from >= props.modelValue.length || to >= props.modelValue.length) {
+    return
+  }
+  const lista = [...props.modelValue]
+  const [item] = lista.splice(from, 1)
+  lista.splice(to, 0, item)
+  emitir(lista)
+}
 
 const tiposDado = [
   { value: 'text', label: 'Texto', dica: 'Resposta digitada', icon: PencilSquareIcon },
@@ -501,10 +658,7 @@ function remover(index) {
 function mover(index, dir) {
   const dest = index + dir
   if (dest < 0 || dest >= props.modelValue.length) return
-  const lista = [...props.modelValue]
-  const [item] = lista.splice(index, 1)
-  lista.splice(dest, 0, item)
-  emitir(lista)
+  reordenarLista(index, dest)
 }
 </script>
 
