@@ -145,6 +145,11 @@ def _transferir_anexos_para_protocolo(sessao: SessaoChat, protocolo: Protocolo) 
 
 
 def finalizar_sessao_com_protocolo(sessao: SessaoChat) -> Protocolo:
+    from atendimentos.slot_filling_service import aplicar_equipamento_rede_seguranca_sessao
+
+    aplicar_equipamento_rede_seguranca_sessao(sessao)
+    sessao.refresh_from_db()
+
     servico = sessao.servico_identificado
     dados_brutos = {k: v for k, v in (sessao.dados_coletados or {}).items() if not str(k).startswith("_")}
     bloqueio = _avaliar_regras_elegibilidade(servico, dados_brutos)
@@ -172,13 +177,13 @@ def finalizar_sessao_com_protocolo(sessao: SessaoChat) -> Protocolo:
     lat, lng = loc.get("latitude"), loc.get("longitude")
     if lat is not None and lng is not None:
         protocolo.localizacao = Point(float(lng), float(lat), srid=4326)
+    protocolo.save()
+
+    from atendimentos.services.equipamento_protocolo import sincronizar_equipamento_no_protocolo
     from atendimentos.services.protocolo_localidade import sincronizar_localidade_protocolo
 
-    sincronizar_localidade_protocolo(protocolo, persistir=False)
-    protocolo.save()
-    from atendimentos.services.equipamento_protocolo import sincronizar_equipamento_no_protocolo
-
     sincronizar_equipamento_no_protocolo(protocolo)
+    sincronizar_localidade_protocolo(protocolo)
     from atendimentos.services.triagem_service import executar_triagem_protocolo
 
     executar_triagem_protocolo(protocolo)
@@ -417,6 +422,17 @@ def executar_processamento_ia(
 
             slot = None
             if dados_slot and sessao.servico_identificado_id:
+                if dados_slot.get("__pular_campo"):
+                    from atendimentos.chat_estado import registrar_campo_pulado
+
+                    registrar_campo_pulado(
+                        sessao, str(dados_slot.get("__pular_campo")).strip()
+                    )
+                    dados_slot = {
+                        k: v
+                        for k, v in dados_slot.items()
+                        if k != "__pular_campo"
+                    }
                 slot = normalizar_dados_slot(sessao.servico_identificado, dados_slot)
 
             turno = orchestrator.processar_turno(

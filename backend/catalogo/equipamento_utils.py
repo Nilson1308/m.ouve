@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import unicodedata
 from typing import Any
 
@@ -114,7 +115,48 @@ def distancia_em_metros(valor) -> int | None:
 def normalizar_texto_busca(texto: str) -> str:
     s = unicodedata.normalize("NFD", (texto or "").strip())
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    s = re.sub(r"[^\w\s]", " ", s, flags=re.UNICODE)
+    s = re.sub(r"\s+", " ", s).strip()
     return s.casefold()
+
+
+_STOPWORDS_EQUIPAMENTO = frozenset(
+    {
+        "de",
+        "da",
+        "do",
+        "das",
+        "dos",
+        "em",
+        "na",
+        "no",
+        "nas",
+        "nos",
+        "a",
+        "o",
+        "e",
+        "as",
+        "os",
+    }
+)
+
+
+def tokens_significativos(texto: str) -> list[str]:
+    """Tokens normalizados sem artigos/preposições (matching tolerante no chat)."""
+    norm = normalizar_texto_busca(texto)
+    brutos = re.findall(r"[a-z0-9]+", norm)
+    return [t for t in brutos if t not in _STOPWORDS_EQUIPAMENTO and len(t) >= 2]
+
+
+def termo_casa_no_texto(termo: str, texto: str) -> bool:
+    """True se todos os tokens significativos do termo aparecem no texto."""
+    tokens_termo = tokens_significativos(termo)
+    if not tokens_termo:
+        return False
+    if sum(len(t) for t in tokens_termo) < 4:
+        return False
+    tokens_texto = set(tokens_significativos(texto))
+    return all(t in tokens_texto for t in tokens_termo)
 
 
 def _parse_datasource_filter(prop: dict | None) -> dict[str, Any]:
@@ -196,9 +238,9 @@ def texto_contem_equipamento(texto: str, equipamento: EquipamentoPublico) -> boo
         str(a).strip() for a in (equipamento.apelidos or []) if str(a).strip()
     ]
     for termo in termos:
-        if len(normalizar_texto_busca(termo)) < 4:
-            continue
-        if _coincide_texto(texto, termo):
+        if termo_casa_no_texto(termo, texto):
+            return True
+        if len(normalizar_texto_busca(termo)) >= 4 and _coincide_texto(texto, termo):
             return True
     return False
 

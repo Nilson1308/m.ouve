@@ -76,8 +76,18 @@ def sincronizar_equipamento_no_protocolo(protocolo, *, persistir: bool = True) -
     if protocolo.equipamento_id:
         eq = getattr(protocolo, "equipamento", None)
         if eq and eq.ativo and eq.unidade_responsavel.ativo:
-            if herdar_localizacao_do_equipamento(protocolo, eq) and persistir:
-                protocolo.save(update_fields=["localizacao", "data_atualizacao"])
+            update_fields = []
+            if herdar_localizacao_do_equipamento(protocolo, eq):
+                update_fields.append("localizacao")
+            bairro_eq = (eq.bairro or "").strip()
+            if bairro_eq:
+                dados = dict(protocolo.dados_dinamicos or {})
+                if dados.get("bairro") != bairro_eq:
+                    dados["bairro"] = bairro_eq
+                    protocolo.dados_dinamicos = dados
+                    update_fields.append("dados_dinamicos")
+            if persistir and update_fields:
+                protocolo.save(update_fields=update_fields + ["data_atualizacao"])
             return eq
 
     if not protocolo.servico_id:
@@ -90,6 +100,13 @@ def sincronizar_equipamento_no_protocolo(protocolo, *, persistir: bool = True) -
     update_fields = ["equipamento", "data_atualizacao"]
     if herdar_localizacao_do_equipamento(protocolo, eq):
         update_fields.append("localizacao")
+
+    bairro_eq = (eq.bairro or "").strip()
+    if bairro_eq:
+        dados = dict(protocolo.dados_dinamicos or {})
+        dados["bairro"] = bairro_eq
+        protocolo.dados_dinamicos = dados
+        update_fields.append("dados_dinamicos")
 
     if persistir:
         protocolo.save(update_fields=update_fields)

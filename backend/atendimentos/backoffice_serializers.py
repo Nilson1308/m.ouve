@@ -13,6 +13,7 @@ from atendimentos.models import (
     ProtocoloHistorico,
     SessaoChat,
 )
+from atendimentos.campo_exibicao import dados_coletados_para_exibicao
 from catalogo.models import ServicoCatalogo, UnidadeAdministrativa
 from ouvia_core.url_utils import public_absolute_uri
 
@@ -373,7 +374,9 @@ class BackofficeProtocoloDetalheSerializer(BackofficeProtocoloKanbanSerializer):
         )
 
     def get_dados_coletados(self, obj):
-        return mesclar_dados_coletados(obj)
+        brutos = mesclar_dados_coletados(obj)
+        servico = obj.servico if obj.servico_id else None
+        return dados_coletados_para_exibicao(servico, brutos)
 
     def get_historico_chat(self, obj):
         request = self.context.get("request")

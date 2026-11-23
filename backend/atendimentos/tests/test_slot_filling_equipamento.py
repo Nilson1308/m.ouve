@@ -66,7 +66,7 @@ class SlotFillingEquipamentoTests(TestCase):
         return SessaoChat.objects.create(
             usuario=self.cidadao,
             servico_identificado=self.servico,
-            status=SessaoChat.Status.ATIVA,
+            status=SessaoChat.Status.EM_ANDAMENTO,
             dados_coletados={},
         )
 
@@ -75,9 +75,20 @@ class SlotFillingEquipamentoTests(TestCase):
         campos = preencher_equipamento_por_texto_inicial(self.servico, texto, {})
         self.assertEqual(campos.get("local_atendimento"), str(self.ubs_a.id))
 
+    def test_match_preposicao_ubs_sabauna(self):
+        ubs_sabauna = EquipamentoPublico.objects.create(
+            nome="UBS Sabaúna",
+            tipo=EquipamentoPublico.Tipo.UBS,
+            unidade_responsavel=self.u,
+            ativo=True,
+        )
+        texto = "quero fazer uma reclamação sobre a UBS de Sabaúna"
+        campos = preencher_equipamento_por_texto_inicial(self.servico, texto, {})
+        self.assertEqual(campos.get("local_atendimento"), str(ubs_sabauna.id))
+
     def test_ambiguidade_nao_preenche(self):
         texto = (
-            "Problema no postinho da vila com fila grande — não sei qual unidade "
+            "Problema num postinho municipal com fila grande — não sei qual unidade "
             "mas quero registrar oficialmente minha insatisfação."
         )
         campos = preencher_equipamento_por_texto_inicial(self.servico, texto, {})

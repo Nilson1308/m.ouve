@@ -33,6 +33,7 @@ from atendimentos.llm_schemas import (
     EXTRACAO_DADOS_SCHEMA,
 )
 from atendimentos.models import AnexoChatSessao, SessaoChat
+from catalogo.datasources import LOOKUP_DATASOURCE_EQUIPAMENTOS
 from catalogo.models import ServicoCatalogo, UnidadeAdministrativa
 from catalogo.views import _filtrar_servicos_por_categoria
 
@@ -295,6 +296,9 @@ def _permite_outro_campo(prop: dict, enum_vals: list | None) -> bool:
 def _montar_config_escolha(servico: ServicoCatalogo, campo: str) -> dict | None:
     prop = _propriedade_campo(servico, campo)
     datasource = (prop.get("x-ouvia-datasource") or "").strip()
+    schema = _schema_sem_metadados(servico.schema_formulario)
+    required_set = set(schema.get("required") or [])
+    opcional = campo not in required_set
     if datasource == "unidades_administrativas":
         titulo = (
             prop.get("x-ouvia-ui-pergunta")
@@ -307,7 +311,27 @@ def _montar_config_escolha(servico: ServicoCatalogo, campo: str) -> dict | None:
             "titulo": titulo,
             "modo": "single",
             "datasource": datasource,
+            "opcional": opcional,
             "dica": "Selecione a unidade na lista. Os dados vêm do cadastro municipal.",
+        }
+    if datasource == LOOKUP_DATASOURCE_EQUIPAMENTOS:
+        titulo = (
+            prop.get("x-ouvia-ui-pergunta")
+            or prop.get("description")
+            or prop.get("title")
+            or campo.replace("_", " ")
+        ).strip()
+        filtro = prop.get("x-ouvia-datasource-filter") or {}
+        if not isinstance(filtro, dict):
+            filtro = {}
+        return {
+            "campo": campo,
+            "titulo": titulo,
+            "modo": "single",
+            "datasource": datasource,
+            "opcional": opcional,
+            "filtro": filtro,
+            "dica": "Selecione o equipamento na lista ou busque pelo nome.",
         }
     enum_vals = _enum_do_campo(prop)
     if not enum_vals:
@@ -715,15 +739,25 @@ def _campo_ainda_falta(
     return False
 
 
+def _campos_pulados(sessao: SessaoChat | None) -> set[str]:
+    if not sessao:
+        return set()
+    raw = (sessao.dados_coletados or {}).get("_campos_pulados")
+    if not isinstance(raw, list):
+        return set()
+    return {str(c).strip() for c in raw if str(c).strip()}
+
+
 def _campos_faltantes(
     servico: ServicoCatalogo, dados: dict, sessao: SessaoChat | None = None
 ) -> list[str]:
     schema = _schema_sem_metadados(servico.schema_formulario)
     faltantes = []
     campos_ordem = _ordem_campos_schema(servico)
-    required_set = set(schema.get("required") or [])
-    iterar = [c for c in campos_ordem if c in required_set] if required_set else campos_ordem
-    for campo in iterar:
+    pulados = _campos_pulados(sessao)
+    for campo in campos_ordem:
+        if campo in pulados:
+            continue
         prop = (schema.get("properties") or {}).get(campo) or {}
         if _campo_ainda_falta(servico, campo, prop, dados, sessao):
             faltantes.append(campo)

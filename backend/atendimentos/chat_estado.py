@@ -163,3 +163,18 @@ def usuario_pediu_confirmar_protocolo(*, texto: str, confirmar_protocolo: bool) 
     if confirmar_protocolo:
         return True
     return confirmacao_protocolo_usuario(texto)
+
+
+def registrar_campo_pulado(sessao: SessaoChat, campo: str) -> None:
+    """Marca campo lookup opcional como explicitamente pulado na sessão."""
+    nome = (campo or "").strip()
+    if not nome:
+        return
+    dados = dict(sessao.dados_coletados or {})
+    pulados = list(dados.get("_campos_pulados") or [])
+    if nome not in pulados:
+        pulados.append(nome)
+    dados["_campos_pulados"] = pulados
+    dados.pop(nome, None)
+    sessao.dados_coletados = dados
+    sessao.save(update_fields=["dados_coletados", "atualizado_em"])

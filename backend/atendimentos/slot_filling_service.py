@@ -383,6 +383,52 @@ def _chamar_llm_slot_filling(texto: str, servico: ServicoCatalogo) -> dict | Non
             return None
 
 
+def _texto_rede_seguranca_equipamento(sessao: SessaoChat, dados_existentes: dict) -> str:
+    partes: list[str] = []
+    for msg in sessao.mensagens.filter(autor=MensagemChat.Autor.CIDADAO).order_by("criado_em"):
+        t = (msg.conteudo_texto or "").strip()
+        if len(t) >= 4:
+            partes.append(t)
+    for chave in (
+        "descricao_detalhada",
+        "descricao_problema",
+        "descricao",
+        "d",
+        "relato",
+        "observacoes",
+    ):
+        val = dados_existentes.get(chave)
+        if isinstance(val, str) and len(val.strip()) >= 4:
+            partes.append(val.strip())
+    return " ".join(partes)
+
+
+def preencher_equipamento_rede_seguranca(
+    sessao: SessaoChat,
+    servico: ServicoCatalogo,
+) -> dict[str, Any]:
+    """Última tentativa de match antes de fechar o protocolo."""
+    dados_existentes = {
+        k: v
+        for k, v in (sessao.dados_coletados or {}).items()
+        if not str(k).startswith("_")
+    }
+    texto = _texto_rede_seguranca_equipamento(sessao, dados_existentes)
+    if not texto.strip():
+        return {}
+    return preencher_equipamento_por_texto_inicial(servico, texto, dados_existentes)
+
+
+def aplicar_equipamento_rede_seguranca_sessao(sessao: SessaoChat) -> dict[str, Any]:
+    servico = sessao.servico_identificado
+    if not servico:
+        return {}
+    campos = preencher_equipamento_rede_seguranca(sessao, servico)
+    if not campos:
+        return {}
+    return _mesclar_dados_sem_sobrescrever(sessao, campos)
+
+
 def preencher_equipamento_por_texto_inicial(
     servico: ServicoCatalogo,
     texto: str,

@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from atendimentos.campo_exibicao import (
+    formatar_valor_campo,
+    ordem_campos_exibicao,
+    rotulo_campo_schema,
+)
 from atendimentos.models import AnexoChatSessao, MensagemChat, SessaoChat
 
 _MSG_CIDADAO_IGNORAR = frozenset({"sim", "nao", "não", "ok", "s", "n", "(sem texto)"})
@@ -31,32 +36,7 @@ def _dados_negocio(sessao: SessaoChat) -> dict[str, Any]:
 
 
 def _formatar_valor(prop: dict, valor: Any) -> str:
-    if valor is None:
-        return "—"
-    if isinstance(valor, bool):
-        return "Sim" if valor else "Não"
-    if isinstance(valor, (int, float)):
-        return str(valor)
-    if isinstance(valor, list):
-        items = prop.get("items") or {}
-        enums = items.get("enum") or prop.get("enum") or []
-        names = items.get("enumNames") or prop.get("enumNames") or []
-        partes: list[str] = []
-        for v in valor:
-            if enums and v in enums:
-                idx = enums.index(v)
-                partes.append(names[idx] if idx < len(names) else str(v))
-            else:
-                partes.append(str(v))
-        return ", ".join(partes) if partes else "—"
-    enums = prop.get("enum") or []
-    names = prop.get("enumNames") or []
-    if enums and valor in enums:
-        idx = enums.index(valor)
-        if idx < len(names):
-            return names[idx]
-    s = str(valor).strip()
-    return s if s else "—"
+    return formatar_valor_campo(prop, valor)
 
 
 def _mensagem_cidadao_util(texto: str) -> bool:
@@ -217,8 +197,7 @@ def montar_campos_protocolo_publico(servico, dados_dinamicos: dict | None) -> li
     props = _schema_props(servico.schema_formulario) if servico else {}
     narrativa = _narrativa_de_dados(servico, dados) if servico else ""
 
-    ordem = list((servico.schema_formulario or {}).get("required") or []) if servico else []
-    ordem.extend(k for k in dados if k not in ordem)
+    ordem = ordem_campos_exibicao(servico, dados) if servico else list(dados.keys())
 
     campos: list[dict[str, str]] = []
     vistos: set[str] = set()
@@ -235,7 +214,7 @@ def montar_campos_protocolo_publico(servico, dados_dinamicos: dict | None) -> li
         campos.append(
             {
                 "chave": chave,
-                "rotulo": prop.get("title") or chave.replace("_", " ").title(),
+                "rotulo": rotulo_campo_schema(prop, chave),
                 "valor": valor_fmt,
             }
         )
@@ -265,8 +244,7 @@ def montar_resumo_revisao(sessao: SessaoChat, request=None) -> dict[str, Any]:
 
     campos: list[dict[str, str]] = []
     vistos: set[str] = set()
-    ordem = list((servico.schema_formulario or {}).get("required") or []) if servico else []
-    ordem.extend(k for k in dados if k not in ordem)
+    ordem = ordem_campos_exibicao(servico, dados) if servico else list(dados.keys())
 
     for chave in ordem:
         if chave in vistos or chave not in dados:
@@ -276,7 +254,7 @@ def montar_resumo_revisao(sessao: SessaoChat, request=None) -> dict[str, Any]:
         campos.append(
             {
                 "chave": chave,
-                "rotulo": prop.get("title") or chave.replace("_", " ").title(),
+                "rotulo": rotulo_campo_schema(prop, chave),
                 "valor": _formatar_valor(prop, dados.get(chave)),
             }
         )

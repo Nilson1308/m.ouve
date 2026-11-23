@@ -118,10 +118,18 @@
 
               <!-- Escolha de campo (single/multi/outro) -->
               <ChatFieldLookupUnidades
-                v-else-if="mensagem.tipoAcao === 'escolha_campo' && escolhaLookupAtiva(mensagem)"
+                v-else-if="mensagem.tipoAcao === 'escolha_campo' && escolhaLookupUnidadesAtiva(mensagem)"
                 :config="configEscolhaMensagem(mensagem)"
                 :desabilitado="chatStore.isTyping"
                 @confirmar="handleEscolhaCampo"
+              />
+
+              <ChatFieldLookupEquipamentos
+                v-else-if="mensagem.tipoAcao === 'escolha_campo' && escolhaLookupEquipamentosAtiva(mensagem)"
+                :config="configEscolhaMensagem(mensagem)"
+                :desabilitado="chatStore.isTyping"
+                @confirmar="handleEscolhaCampo"
+                @pular="handleEscolhaCampo"
               />
 
               <ChatFieldChoices
@@ -417,6 +425,8 @@ import ChatPhotoPreview from '@/components/pwa/chat/ChatPhotoPreview.vue'
 import ChatSatisfacao from '@/components/pwa/chat/ChatSatisfacao.vue'
 import ChatFieldChoices from '@/components/pwa/chat/ChatFieldChoices.vue'
 import ChatFieldLookupUnidades from '@/components/pwa/chat/ChatFieldLookupUnidades.vue'
+import ChatFieldLookupEquipamentos from '@/components/pwa/chat/ChatFieldLookupEquipamentos.vue'
+import { LOOKUP_DATASOURCE_EQUIPAMENTOS, LOOKUP_DATASOURCE_UNIDADES } from '@/constants/fluxoTramitacao'
 import ChatInelegibilidadeAcoes from '@/components/pwa/chat/ChatInelegibilidadeAcoes.vue'
 import ThemeToggle from '@/components/shared/ThemeToggle.vue'
 import PwaA11yMenu from '@/components/pwa/PwaA11yMenu.vue'
@@ -570,19 +580,29 @@ async function handleQuickReply(valor) {
   await chatStore.enviarMensagem({ texto: valor })
 }
 
-function escolhaLookupAtiva(mensagem) {
-  const config = configEscolhaMensagem(mensagem)
-  if (!config?.campo || config?.datasource !== 'unidades_administrativas') return false
+function escolhaUiAtiva(mensagem) {
   const ultimaIa = [...chatStore.mensagens].reverse().find((m) => m.tipo === 'ia')
   return ultimaIa?.id === mensagem.id
+}
+
+function escolhaLookupUnidadesAtiva(mensagem) {
+  const config = configEscolhaMensagem(mensagem)
+  if (!config?.campo || config?.datasource !== LOOKUP_DATASOURCE_UNIDADES) return false
+  return escolhaUiAtiva(mensagem)
+}
+
+function escolhaLookupEquipamentosAtiva(mensagem) {
+  const config = configEscolhaMensagem(mensagem)
+  if (!config?.campo || config?.datasource !== LOOKUP_DATASOURCE_EQUIPAMENTOS) return false
+  return escolhaUiAtiva(mensagem)
 }
 
 function escolhaCampoAtiva(mensagem) {
   const config = configEscolhaMensagem(mensagem)
   if (!config?.campo) return false
-  if (config?.datasource === 'unidades_administrativas') return false
-  const ultimaIa = [...chatStore.mensagens].reverse().find((m) => m.tipo === 'ia')
-  return ultimaIa?.id === mensagem.id
+  if (config?.datasource === LOOKUP_DATASOURCE_UNIDADES) return false
+  if (config?.datasource === LOOKUP_DATASOURCE_EQUIPAMENTOS) return false
+  return escolhaUiAtiva(mensagem)
 }
 
 function configEscolhaMensagem(mensagem) {

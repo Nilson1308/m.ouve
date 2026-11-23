@@ -136,10 +136,24 @@ def _enriquecer_via_geocode(protocolo) -> tuple[str, str, str]:
     return bairro, cidade, endereco
 
 
+def _bairro_equipamento_vinculado(protocolo) -> str:
+    eq_id = getattr(protocolo, "equipamento_id", None)
+    if not eq_id:
+        return ""
+    eq = getattr(protocolo, "equipamento", None)
+    if eq is None:
+        from catalogo.models import EquipamentoPublico
+
+        eq = EquipamentoPublico.objects.filter(pk=eq_id).only("bairro").first()
+    if eq and (eq.bairro or "").strip():
+        return (eq.bairro or "").strip()
+    return ""
+
+
 def sincronizar_localidade_protocolo(protocolo, *, persistir: bool = True) -> bool:
     """
     Garante ``dados_dinamicos.bairro`` (e ``cidade`` quando possível) no protocolo.
-    Ordem: JSON existente → ``endereco_texto`` → endereço do cidadão → reverse geocode.
+    Ordem: JSON existente → equipamento vinculado → ``endereco_texto`` → cidadão → geocode.
     """
     dados = dict(protocolo.dados_dinamicos or {})
     alterou_dados = False
@@ -147,14 +161,17 @@ def sincronizar_localidade_protocolo(protocolo, *, persistir: bool = True) -> bo
 
     bairro = bairro_de_dados_dinamicos(dados)
     if not bairro:
+        bairro = _bairro_equipamento_vinculado(protocolo)
+    if not bairro:
         bairro = bairro_de_endereco_texto(protocolo.endereco_texto or "")
     if not bairro:
         bairro = _bairro_usuario(protocolo)
     cidade = (dados.get("cidade") or "").strip()
+    bairro_equipamento = _bairro_equipamento_vinculado(protocolo)
 
-    if not bairro or not cidade:
+    if not cidade or (not bairro and not bairro_equipamento):
         geo_bairro, geo_cidade, geo_endereco = _enriquecer_via_geocode(protocolo)
-        if not bairro and geo_bairro:
+        if not bairro and geo_bairro and not bairro_equipamento:
             bairro = geo_bairro
         if not cidade and geo_cidade:
             cidade = geo_cidade
