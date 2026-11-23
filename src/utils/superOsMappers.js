@@ -58,7 +58,10 @@ export function mapKanbanItem(api) {
     cidadao:
       tipo === 'super_os'
         ? { nome: `${api.qtd_filhos || 0} cidadãos`, telefone: '' }
-        : { nome: '—', telefone: '' },
+        : {
+            nome: api.cidadao?.nome || '—',
+            telefone: api.cidadao?.telefone || ''
+          },
     responsavel: null,
     departamento: null,
     ordens_servico: [],
@@ -69,7 +72,11 @@ export function mapKanbanItem(api) {
     dadosDinamicos: {},
     superOsId: null,
     superOsCodigo: null,
-    descricao: api.titulo || ''
+    descricao: api.titulo || '',
+    triagemSugerida:
+      tipo === 'protocolo' && api.triagem_sugerida && Object.keys(api.triagem_sugerida).length
+        ? api.triagem_sugerida
+        : null
   }
   if (tipo === 'super_os') {
     base.numero = api.codigo

@@ -1956,7 +1956,9 @@ Kanban unificado da Mesa de Trabalho — **não lista protocolos já agrupados**
       },
       "criado_em": "2026-11-16T12:00:00Z",
       "endereco": "Rua Exemplo, 100",
-      "servico_nome": "Buracos e Pavimentação"
+      "servico_nome": "Buracos e Pavimentação",
+      "cidadao": { "id": "uuid", "nome": "Maria Silva", "telefone": "11999990000" },
+      "triagem_sugerida": {}
     },
     {
       "id": "uuid",

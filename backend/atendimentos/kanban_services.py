@@ -53,6 +53,16 @@ def _prazo_operacional_horas(protocolo: Protocolo) -> int | None:
 def montar_item_protocolo(protocolo: Protocolo) -> dict:
     sla = calcular_sla(protocolo)
     urgencia = extrair_urgencia(protocolo.dados_dinamicos)
+    u = protocolo.usuario
+    cidadao = (
+        {
+            "id": str(u.id),
+            "nome": u.nome,
+            "telefone": u.telefone or "",
+        }
+        if u
+        else {"nome": "—", "telefone": ""}
+    )
     return {
         "id": str(protocolo.id),
         "tipo": "protocolo",
@@ -66,6 +76,8 @@ def montar_item_protocolo(protocolo: Protocolo) -> dict:
         "criado_em": protocolo.data_criacao.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "endereco": protocolo.endereco_texto or "",
         "servico_nome": protocolo.servico.nome if protocolo.servico_id else None,
+        "cidadao": cidadao,
+        "triagem_sugerida": protocolo.triagem_sugerida or {},
         "_sort_vencido": sla["vencido"],
         "_sort_horas": sla["horas_restantes"],
         "_sort_urgencia": _peso_urgencia(urgencia),
