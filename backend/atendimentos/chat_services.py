@@ -446,12 +446,24 @@ def executar_processamento_ia(
             and not codigo
             and get_fase(sessao) == FaseChat.PREENCHIMENTO
         ):
+            prefixo_slot = ""
+            servico = sessao.servico_identificado
+            if servico:
+                from atendimentos.slot_filling_service import aplicar_slot_filling_abertura
+
+                prefixo_slot, _ = aplicar_slot_filling_abertura(sessao, servico)
+                sessao.refresh_from_db()
+
             det = orchestrator.passo_deterministico_preenchimento(sessao, anexos_novos=qtd_anexos)
             codigo_det = _aplicar_turno_llm(sessao, det)
             sessao.refresh_from_db()
             if codigo_det:
                 codigo = codigo_det
             resposta = (det.resposta_cidadao or "").strip()
+            if prefixo_slot and resposta and not det.fluxo_bloqueado:
+                resposta = f"{prefixo_slot}\n\n{resposta}"
+            elif prefixo_slot and not resposta and not det.fluxo_bloqueado:
+                resposta = prefixo_slot
             acao_ui = det.acao_ui
 
         if codigo:

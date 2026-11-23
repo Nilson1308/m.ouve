@@ -2982,6 +2982,22 @@ Até lá, combinar **regra por passo** + **regra de protocolo** cobre a maioria 
 | `historico_sugerido` | Histórico para o próximo POST do simulador |
 | `servico_id` / `servico_nome` | Metadados do serviço testado |
 
+#### Slot filling na abertura (PWA — após confirmar serviço)
+
+Quando o cidadão confirma o `ServicoCatalogo` sugerido e já existe uma **mensagem inicial substantiva** (≥ 20 caracteres, não sendo só “oi”/“sim”), o motor tenta **uma única extração estruturada** dos campos elegíveis do `schema_formulario` publicado (exclui lookup, imagem, geo).
+
+| Aspecto | Comportamento |
+|---------|----------------|
+| **Idempotência** | Cache Redis `slot_filling:<sessao_id>:<sha256_16>` TTL 3600s — evita re-chamar o LLM no reenvio/reload |
+| **Confiança** | Só persiste campos com `confianca ≥ 0.80` após validação estrita (enum, tipos, `minLength`) |
+| **Persistência** | Merge em `dados_coletados` **sem sobrescrever** valores já preenchidos |
+| **Elegibilidade** | Regras de passo/protocolo rodam no turno seguinte (determinístico), podendo bloquear já na abertura |
+| **UX** | Prefixo opcional na próxima fala da IA: “Entendi! Já identifiquei …” (rótulos `title` / `enumNames`) |
+| **Fallback** | Sem API key, timeout ou nenhum campo válido → fluxo pergunta campo a campo (sem erro ao cidadão) |
+| **Diagnóstico** | Opcional em `dados_coletados._meta`: `slot_filling_hash`, `slot_filling_campos` (não altera contrato REST do PWA) |
+
+Endpoints e payloads do PWA (`POST /chat/interagir`, polling de mensagens) **não mudam**.
+
 #### Produção vs Sandbox
 
 | | Produção (PWA) | Sandbox |
