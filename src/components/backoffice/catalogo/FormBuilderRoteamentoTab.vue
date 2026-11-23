@@ -54,6 +54,18 @@
             A triagem por IA atua apenas nos fluxos <strong>Ouvidoria (encaminhamento)</strong> e
             <strong>Híbrido</strong>.
           </p>
+          <p
+            v-else-if="triagemIaAtiva"
+            class="text-xs text-violet-800 dark:text-violet-200 mt-2 inline-flex items-start gap-1.5 rounded-md bg-violet-50 dark:bg-violet-950/40 px-2.5 py-1.5 border border-violet-200/80 dark:border-violet-800/60"
+          >
+            <span class="font-semibold uppercase tracking-wide text-[10px] text-violet-600 dark:text-violet-300 shrink-0 mt-0.5">
+              IA ativa
+            </span>
+            <span>
+              Com a IA ativa, as regras manuais abaixo são <strong>opcionais</strong> — use-as apenas para fixar
+              atalhos exatos por opção do formulário.
+            </span>
+          </p>
         </div>
       </div>
 
@@ -70,7 +82,28 @@
         </div>
       </div>
 
-      <form class="rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/60 dark:bg-gray-900/40 p-4 space-y-4 mb-6" @submit.prevent="criarRegra">
+      <div
+        v-if="opcoesCampos.length === 0"
+        class="rounded-xl border border-dashed border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20 p-6 mb-6 text-center space-y-4"
+      >
+        <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed max-w-lg mx-auto">
+          Adicione pelo menos um campo na aba <strong>Formulário &amp; IA</strong> para criar regras de roteamento
+          sem risco de erro.
+        </p>
+        <button
+          type="button"
+          class="btn-primary !py-2.5 !px-5 text-sm min-h-11"
+          @click="emit('ir-para-formulario')"
+        >
+          Ir para Formulário &amp; IA
+        </button>
+      </div>
+
+      <form
+        v-else
+        class="rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/60 dark:bg-gray-900/40 p-4 space-y-4 mb-6"
+        @submit.prevent="criarRegra"
+      >
         <h4 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <PlusCircleIcon class="w-5 h-5 text-primary-500" />
           Nova regra
@@ -243,6 +276,8 @@ import { matrizRoteamentoService, catalogoLookupService } from '@/services/api'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const triagemIaAtiva = defineModel('triagemIaAtiva', { type: Boolean, default: true })
+
+const emit = defineEmits(['ir-para-formulario'])
 
 const props = defineProps({
   servicoId: { type: String, default: '' },

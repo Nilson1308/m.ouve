@@ -340,6 +340,13 @@
                   <p class="text-[11px] text-gray-600 dark:text-gray-400">
                     Descreva a condição em linguagem natural — a IA interpreta a resposta. Sem precisar alterar código a cada regra nova.
                   </p>
+                  <p
+                    v-if="item.regra_elegibilidade_ativa && ehTipoEscolha(item.type)"
+                    class="text-xs text-amber-800 dark:text-amber-200 bg-white/60 dark:bg-gray-900/40 border border-amber-200/80 dark:border-amber-800/60 rounded-lg px-2.5 py-2 leading-snug"
+                  >
+                    Esta regra avalia apenas a <strong>opção selecionada neste passo</strong> — não analisa textos livres
+                    de outros passos.
+                  </p>
                   <template v-if="item.regra_elegibilidade_ativa">
                     <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Modo</label>
                     <select
@@ -536,6 +543,10 @@ function emitir(lista) {
 
 function rotuloTipo(type) {
   return tiposDado.find((t) => t.value === type)?.label || 'Texto'
+}
+
+function ehTipoEscolha(type) {
+  return type === 'select' || type === 'lookup'
 }
 
 function placeholderPergunta(type) {

@@ -1,12 +1,15 @@
 <template>
   <CardSecao
     titulo="Elegibilidade do serviço (vários campos)"
-    subtitulo="Condições que cruzam idade, motivo, espécie e demais respostas — avaliadas sobre o protocolo completo"
+    subtitulo="Cruza campos já respondidos no formulário (ex.: tipo + descrição) — não vale para a 1ª mensagem livre de abertura"
     :icon="ShieldExclamationIcon"
   >
-    <p class="text-xs text-gray-600 dark:text-gray-400 mb-4">
-      Use quando a regra depende de mais de uma pergunta. As regras por passo (no roteiro abaixo) continuam
-      válidas para bloqueio imediato em um único campo.
+    <p class="text-xs text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
+      Cruza respostas já coletadas no formulário (ex.: tipo + descrição).
+      <strong class="font-semibold text-gray-700 dark:text-gray-300">Não bloqueia a 1ª mensagem livre</strong>
+      de abertura do chat.
+      Para validar apenas um campo (como a descrição), prefira adicionar a regra diretamente naquele passo no
+      roteiro abaixo.
     </p>
 
     <div v-if="!modelValue.length" class="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 p-6 text-center">

@@ -77,8 +77,14 @@
               {{ mensagem.timestamp }}
             </span>
 
+            <ChatInelegibilidadeAcoes
+              v-if="deveExibirAcoesInelegibilidade(index)"
+              @escolher-outro-servico="irEscolherOutroServico"
+              @voltar-inicio="irInicioPwa"
+            />
+
             <!-- Componentes de Ação baseados em tipo_acao -->
-            <div v-if="mensagem.tipoAcao" class="mt-3 ml-10">
+            <div v-if="mensagem.tipoAcao && !atendimentoBloqueadoInelegivel" class="mt-3 ml-10">
               <!-- Confirmação de Serviço -->
               <ChatConfirmation
                 v-if="mensagem.tipoAcao === 'confirmar_servico'"
@@ -239,7 +245,25 @@
   </main>
 
     <!-- Barra de Input -->
-    <footer class="chat-composer-footer flex-shrink-0 z-30 bg-white dark:bg-gray-900 high-contrast:bg-black border-t border-gray-200 dark:border-gray-800 high-contrast:border-yellow-300 safe-area-inset-bottom">
+    <footer
+      v-if="atendimentoBloqueadoInelegivel"
+      class="chat-composer-footer flex-shrink-0 z-30 bg-gray-50 dark:bg-gray-900 high-contrast:bg-black border-t border-amber-200 dark:border-amber-800 high-contrast:border-yellow-300 safe-area-inset-bottom"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="px-4 py-4 text-center">
+        <p class="text-sm font-medium text-amber-900 dark:text-amber-100 high-contrast:text-yellow-300">
+          Atendimento encerrado por fora de escopo
+        </p>
+        <p class="text-xs text-gray-600 dark:text-gray-400 high-contrast:text-white mt-1">
+          Use os botões acima para escolher outro serviço ou voltar ao início.
+        </p>
+      </div>
+    </footer>
+    <footer
+      v-else
+      class="chat-composer-footer flex-shrink-0 z-30 bg-white dark:bg-gray-900 high-contrast:bg-black border-t border-gray-200 dark:border-gray-800 high-contrast:border-yellow-300 safe-area-inset-bottom"
+    >
       <div class="px-3 py-3 sm:px-4">
         <div class="chat-composer-grid">
           <!-- Coluna esquerda: câmera + anexos -->
@@ -393,6 +417,7 @@ import ChatPhotoPreview from '@/components/pwa/chat/ChatPhotoPreview.vue'
 import ChatSatisfacao from '@/components/pwa/chat/ChatSatisfacao.vue'
 import ChatFieldChoices from '@/components/pwa/chat/ChatFieldChoices.vue'
 import ChatFieldLookupUnidades from '@/components/pwa/chat/ChatFieldLookupUnidades.vue'
+import ChatInelegibilidadeAcoes from '@/components/pwa/chat/ChatInelegibilidadeAcoes.vue'
 import ThemeToggle from '@/components/shared/ThemeToggle.vue'
 import PwaA11yMenu from '@/components/pwa/PwaA11yMenu.vue'
 import {
@@ -424,6 +449,32 @@ const textoAguardandoIA = computed(() => {
   }
   return 'A IA está analisando sua solicitação...'
 })
+
+const atendimentoBloqueadoInelegivel = computed(
+  () => (chatStore.sessaoAtual?.fase || '').toLowerCase() === 'inelegivel'
+)
+
+const indiceUltimaMensagemIa = computed(() => {
+  const msgs = chatStore.mensagens
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].tipo === 'ia') return i
+  }
+  return -1
+})
+
+function deveExibirAcoesInelegibilidade(index) {
+  return atendimentoBloqueadoInelegivel.value && index === indiceUltimaMensagemIa.value
+}
+
+function irEscolherOutroServico() {
+  chatStore.pararPolling?.()
+  router.push({ name: 'pwa-nova-solicitacao' })
+}
+
+function irInicioPwa() {
+  chatStore.pararPolling?.()
+  router.push({ name: 'pwa-dashboard' })
+}
 const dialog = useDialog()
 
 const categoriaNome = computed(() => route.params.categoriaNome)
@@ -471,6 +522,7 @@ function ajustarAlturaTextarea() {
 
 // Enviar mensagem
 async function enviarMensagem() {
+  if (atendimentoBloqueadoInelegivel.value) return
   const texto = mensagemAtual.value.trim()
   if (!texto || chatStore.isTyping) return
   

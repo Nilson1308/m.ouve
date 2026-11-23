@@ -313,6 +313,7 @@
               :servico-id="String(servicoAtual.id)"
               :fluxo-tramitacao="formulario.fluxo_tramitacao"
               :requisitos="requisitos"
+              @ir-para-formulario="abaAtiva = 'formulario'"
             />
           </div>
 
