@@ -1368,6 +1368,7 @@ class LLMOrchestrator:
         return TurnResult(
             resposta_cidadao=MSG_REVISAO,
             acao_ui="revisao_final",
+            ir_para_revisao=True,
         )
 
 

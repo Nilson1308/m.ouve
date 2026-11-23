@@ -13,12 +13,15 @@ from atendimentos.chat_resumo import montar_descricao_protocolo
 from atendimentos.llm_orchestrator import (
     ChatOrchestrationError,
     LLMOrchestrator,
+    MSG_REVISAO,
     TurnResult,
     _avaliar_regras_elegibilidade,
     _campos_faltantes,
     _dados_negocio,
     _exige_foto,
     _localizacao_ok,
+    _msg_foto_servico,
+    _msg_localizacao_servico,
     _qtd_anexos,
 )
 from atendimentos.models import AnexoChatSessao, AnexoProtocolo, MensagemChat, Protocolo, SessaoChat
@@ -185,6 +188,73 @@ def finalizar_sessao_com_protocolo(sessao: SessaoChat) -> Protocolo:
     return protocolo
 
 
+def _resposta_parece_revisao(texto: str | None) -> bool:
+    t = (texto or "").strip()
+    return t == MSG_REVISAO or t.startswith("Aqui está o resumo")
+
+
+def _rotulos_campos_faltantes(servico, campos: list[str]) -> str:
+    if not servico or not campos:
+        return ""
+    props = (servico.schema_formulario or {}).get("properties") or {}
+    labels = []
+    for chave in campos:
+        prop = props.get(chave) or {}
+        labels.append((prop.get("title") or chave.replace("_", " ")).strip() or chave)
+    return ", ".join(labels)
+
+
+def _sincronizar_turno_revisao(sessao: SessaoChat, turno: TurnResult) -> None:
+    """
+    Garante que ``tipo_acao=revisao_final`` só acompanha resumo quando a sessão está pronta,
+    e nunca envia o texto de revisão sem o card no PWA.
+    """
+    if not (turno.ir_para_revisao or turno.acao_ui == "revisao_final") or turno.fluxo_bloqueado:
+        return
+
+    servico = sessao.servico_identificado
+
+    if _requisitos_revisao_ok(sessao):
+        set_meta(sessao, fase=FaseChat.REVISAO)
+        turno.acao_ui = "revisao_final"
+        if not (turno.resposta_cidadao or "").strip():
+            turno.resposta_cidadao = MSG_REVISAO
+        sessao.save(update_fields=["dados_coletados", "atualizado_em"])
+        return
+
+    turno.ir_para_revisao = False
+
+    if _resposta_parece_revisao(turno.resposta_cidadao):
+        if servico and _exige_foto(servico) and _qtd_anexos(sessao) < 1:
+            turno.resposta_cidadao = _msg_foto_servico(servico)
+            turno.acao_ui = "solicitar_foto"
+        elif servico and servico.exige_localizacao and not _localizacao_ok(sessao):
+            turno.resposta_cidadao = _msg_localizacao_servico(servico)
+            turno.acao_ui = "solicitar_localizacao"
+        else:
+            faltantes = _campos_faltantes(servico, _dados_negocio(sessao), sessao) if servico else []
+            if faltantes:
+                rotulos = _rotulos_campos_faltantes(servico, faltantes)
+                turno.resposta_cidadao = (
+                    f"Ainda preciso destas informações para montar o resumo: {rotulos}."
+                )
+            else:
+                turno.resposta_cidadao = "Ainda faltam informações para concluir."
+            turno.acao_ui = None
+    elif servico:
+        if _exige_foto(servico) and _qtd_anexos(sessao) < 1:
+            turno.acao_ui = "solicitar_foto"
+        elif servico.exige_localizacao and not _localizacao_ok(sessao):
+            turno.acao_ui = "solicitar_localizacao"
+        else:
+            turno.acao_ui = None
+    else:
+        turno.acao_ui = None
+
+    set_meta(sessao, fase=FaseChat.PREENCHIMENTO)
+    sessao.save(update_fields=["dados_coletados", "atualizado_em"])
+
+
 def _requisitos_revisao_ok(sessao: SessaoChat) -> bool:
     servico = sessao.servico_identificado
     if not servico:
@@ -276,21 +346,7 @@ def _aplicar_turno_llm(sessao: SessaoChat, turno: TurnResult) -> str | None:
         set_meta(sessao, pending_escolha=None)
         sessao.save(update_fields=["dados_coletados", "atualizado_em"])
 
-    if (turno.ir_para_revisao or turno.acao_ui == "revisao_final") and not turno.fluxo_bloqueado:
-        if _requisitos_revisao_ok(sessao):
-            set_meta(sessao, fase=FaseChat.REVISAO)
-            sessao.save(update_fields=["dados_coletados", "atualizado_em"])
-        else:
-            turno.ir_para_revisao = False
-            servico = sessao.servico_identificado
-            if servico and _exige_foto(servico) and _qtd_anexos(sessao) < 1:
-                turno.acao_ui = "solicitar_foto"
-            elif servico and servico.exige_localizacao and not _localizacao_ok(sessao):
-                turno.acao_ui = "solicitar_localizacao"
-            else:
-                turno.acao_ui = None
-            set_meta(sessao, fase=FaseChat.PREENCHIMENTO)
-            sessao.save(update_fields=["dados_coletados", "atualizado_em"])
+    _sincronizar_turno_revisao(sessao, turno)
 
     if turno.criar_protocolo and sessao.servico_identificado_id:
         if get_fase(sessao) != FaseChat.CONCLUIDO:

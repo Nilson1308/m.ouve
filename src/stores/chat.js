@@ -6,6 +6,7 @@ import { ensureHttpsMediaUrl } from '@/utils/mediaUrl'
 
 const POLL_INTERVAL_MS = 2000
 const POLL_MAX_ATTEMPTS = 90
+const TEXTO_GANCHO_REVISAO = 'Aqui está o resumo'
 
 export const useChatStore = defineStore('chat', () => {
   const sessaoAtual = ref(null)
@@ -50,6 +51,14 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  function inferirRevisaoFinal(msg) {
+    if (msg.tipoAcao === 'revisao_final') return true
+    if (msg.tipo !== 'ia') return false
+    const texto = (msg.conteudo || '').trim()
+    if (!texto.startsWith(TEXTO_GANCHO_REVISAO)) return false
+    return sessaoAtual.value?.fase === 'revisao'
+  }
+
   function aplicarMensagensDaApi(listaApi) {
     const fotosPorId = new Map(
       mensagens.value
@@ -60,6 +69,9 @@ export const useChatStore = defineStore('chat', () => {
       const msg = mapearMensagemApi(m)
       if (!msg.fotos?.length && fotosPorId.has(msg.id)) {
         msg.fotos = fotosPorId.get(msg.id)
+      }
+      if (!msg.tipoAcao && inferirRevisaoFinal(msg)) {
+        msg.tipoAcao = 'revisao_final'
       }
       return msg
     })
