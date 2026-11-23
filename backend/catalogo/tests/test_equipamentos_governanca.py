@@ -1,6 +1,7 @@
 """CRUD backoffice — equipamentos públicos."""
 
 from django.contrib.auth import get_user_model
+from django.contrib.gis.geos import Point
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -110,3 +111,89 @@ class EquipamentosGovernancaTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         nomes = [item["nome"] for item in resp.json()]
         self.assertIn("UBS Central", nomes)
+
+    def test_grava_e_le_latitude_longitude(self):
+        self.client.force_authenticate(user=self.admin)
+        payload = {
+            "nome": "UBS Georef",
+            "tipo": "ubs",
+            "unidade_responsavel": str(self.u_saude.id),
+            "latitude": -23.55052,
+            "longitude": -46.63331,
+            "ativo": True,
+        }
+        resp = self.client.post("/api/v1/backoffice/equipamentos", payload, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        data = resp.json()
+        self.assertTrue(data["georreferenciado"])
+        self.assertAlmostEqual(data["latitude"], -23.55052, places=5)
+        self.assertAlmostEqual(data["longitude"], -46.63331, places=5)
+        obj = EquipamentoPublico.objects.get(pk=data["id"])
+        self.assertIsNotNone(obj.localizacao)
+        self.assertAlmostEqual(obj.localizacao.y, -23.55052, places=5)
+        self.assertAlmostEqual(obj.localizacao.x, -46.63331, places=5)
+
+    def test_rejeita_latitude_sem_longitude(self):
+        self.client.force_authenticate(user=self.admin)
+        payload = {
+            "nome": "UBS Incompleta",
+            "tipo": "ubs",
+            "unidade_responsavel": str(self.u_saude.id),
+            "latitude": -23.55,
+        }
+        resp = self.client.post("/api/v1/backoffice/equipamentos", payload, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_rejeita_coordenada_fora_da_faixa(self):
+        self.client.force_authenticate(user=self.admin)
+        payload = {
+            "nome": "UBS Inválida",
+            "tipo": "ubs",
+            "unidade_responsavel": str(self.u_saude.id),
+            "latitude": 95.0,
+            "longitude": -46.0,
+        }
+        resp = self.client.post("/api/v1/backoffice/equipamentos", payload, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_limpa_coordenadas_com_null(self):
+        eq = EquipamentoPublico.objects.create(
+            nome="UBS Com Mapa",
+            tipo=EquipamentoPublico.Tipo.UBS,
+            unidade_responsavel=self.u_saude,
+            localizacao=Point(-46.63331, -23.55052, srid=4326),
+            ativo=True,
+        )
+        self.client.force_authenticate(user=self.admin)
+        resp = self.client.patch(
+            f"/api/v1/backoffice/equipamentos/{eq.id}",
+            {"latitude": None, "longitude": None},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertFalse(resp.json()["georreferenciado"])
+        eq.refresh_from_db()
+        self.assertIsNone(eq.localizacao)
+
+    def test_filtro_georreferenciado(self):
+        EquipamentoPublico.objects.create(
+            nome="UBS Mapa",
+            tipo=EquipamentoPublico.Tipo.UBS,
+            unidade_responsavel=self.u_saude,
+            localizacao=Point(-46.63, -23.55, srid=4326),
+            ativo=True,
+        )
+        self.client.force_authenticate(user=self.admin)
+        resp_true = self.client.get(
+            "/api/v1/backoffice/equipamentos",
+            {"georreferenciado": "true"},
+        )
+        self.assertEqual(resp_true.status_code, status.HTTP_200_OK)
+        self.assertTrue(all(item["georreferenciado"] for item in resp_true.json()))
+
+        resp_false = self.client.get(
+            "/api/v1/backoffice/equipamentos",
+            {"georreferenciado": "false"},
+        )
+        self.assertEqual(resp_false.status_code, status.HTTP_200_OK)
+        self.assertTrue(all(not item["georreferenciado"] for item in resp_false.json()))

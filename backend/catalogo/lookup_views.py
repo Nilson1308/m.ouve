@@ -1,6 +1,7 @@
 """Endpoints de lookup para campos dinâmicos do catálogo (PWA / chat)."""
 
 from django.db.models import Q
+from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,8 +11,13 @@ from catalogo.datasources import (
     LOOKUP_DATASOURCE_UNIDADES,
 )
 from catalogo.equipamento_utils import (
+    CoordenadasInvalidasError,
+    distancia_em_metros,
     filtrar_equipamentos_busca,
+    parse_lat_lng_query,
     queryset_equipamentos_ativos,
+    queryset_equipamentos_por_proximidade,
+    serializar_equipamento_lookup_item,
 )
 from catalogo.models import UnidadeAdministrativa
 
@@ -57,21 +63,38 @@ class CatalogoLookupEquipamentosView(APIView):
         busca = (request.query_params.get("busca") or "").strip()
         if busca:
             qs = filtrar_equipamentos_busca(qs, busca)
+
+        try:
+            _, _, ref = parse_lat_lng_query(
+                request.query_params.get("lat"),
+                request.query_params.get("lng"),
+                exigir_par=True,
+            )
+        except CoordenadasInvalidasError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        ordenar_por_distancia = ref is not None
+        if ordenar_por_distancia:
+            qs = queryset_equipamentos_por_proximidade(qs, ref)
+
         limite = request.query_params.get("limit")
         try:
             n = int(limite) if limite else 30
         except (TypeError, ValueError):
             n = 30
         n = max(1, min(n, 100))
-        items = [
-            {
-                "id": str(eq.id),
-                "nome": eq.nome,
-                "tipo": eq.tipo,
-                "bairro": eq.bairro or "",
-                "unidade_id": str(eq.unidade_responsavel_id),
-                "unidade_nome": eq.unidade_responsavel.nome,
-            }
-            for eq in qs[:n]
-        ]
+        resultados = list(qs[:n])
+
+        items = []
+        for eq in resultados:
+            distancia_metros = None
+            if ordenar_por_distancia:
+                distancia_metros = distancia_em_metros(getattr(eq, "distancia", None))
+            items.append(
+                serializar_equipamento_lookup_item(
+                    eq,
+                    distancia_metros=distancia_metros,
+                    incluir_distancia=ordenar_por_distancia,
+                )
+            )
         return Response({"datasource": LOOKUP_DATASOURCE_EQUIPAMENTOS, "items": items})

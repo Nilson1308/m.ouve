@@ -1,6 +1,7 @@
 """Vínculo equipamento → protocolo e triagem."""
 
 from django.contrib.auth import get_user_model
+from django.contrib.gis.geos import Point
 from django.test import TestCase
 
 from atendimentos.models import Protocolo
@@ -29,6 +30,7 @@ class EquipamentoProtocoloTriagemTests(TestCase):
             nome="UBS Norte",
             tipo=EquipamentoPublico.Tipo.UBS,
             unidade_responsavel=cls.u_saude,
+            localizacao=Point(-46.6333, -23.5505, srid=4326),
             ativo=True,
         )
         cls.schema = {
@@ -77,3 +79,35 @@ class EquipamentoProtocoloTriagemTests(TestCase):
         saude = next(u for u in unidades if u["id"] == str(self.u_saude.id))
         self.assertEqual(saude["confianca"], 1.0)
         self.assertIn("Equipamento", saude["motivo"])
+
+    def test_herda_localizacao_do_equipamento_sem_gps_cidadao(self):
+        protocolo = Protocolo.objects.create(
+            codigo=Protocolo.gerar_codigo(),
+            usuario=self.cidadao,
+            servico=self.servico,
+            dados_dinamicos={"equipamento_saude": str(self.ubs.id)},
+            descricao="Sem GPS",
+            status=Protocolo.Status.EM_ANALISE,
+        )
+        self.assertIsNone(protocolo.localizacao)
+        sincronizar_equipamento_no_protocolo(protocolo)
+        protocolo.refresh_from_db()
+        self.assertIsNotNone(protocolo.localizacao)
+        self.assertAlmostEqual(protocolo.localizacao.y, self.ubs.localizacao.y, places=4)
+        self.assertAlmostEqual(protocolo.localizacao.x, self.ubs.localizacao.x, places=4)
+
+    def test_nao_sobrescreve_localizacao_do_cidadao(self):
+        ponto_cidadao = Point(-46.64, -23.56, srid=4326)
+        protocolo = Protocolo.objects.create(
+            codigo=Protocolo.gerar_codigo(),
+            usuario=self.cidadao,
+            servico=self.servico,
+            dados_dinamicos={"equipamento_saude": str(self.ubs.id)},
+            descricao="Com GPS",
+            status=Protocolo.Status.EM_ANALISE,
+            localizacao=ponto_cidadao,
+        )
+        sincronizar_equipamento_no_protocolo(protocolo)
+        protocolo.refresh_from_db()
+        self.assertAlmostEqual(protocolo.localizacao.x, ponto_cidadao.x, places=4)
+        self.assertAlmostEqual(protocolo.localizacao.y, ponto_cidadao.y, places=4)

@@ -5,10 +5,110 @@ from __future__ import annotations
 import unicodedata
 from typing import Any
 
-from django.db.models import Q
+from django.contrib.gis.db.models.functions import Distance
+from django.contrib.gis.geos import Point
+from django.db.models import Case, IntegerField, Q, Value, When
 
 from catalogo.datasources import LOOKUP_DATASOURCE_EQUIPAMENTOS
 from catalogo.models import EquipamentoPublico
+
+
+class CoordenadasInvalidasError(ValueError):
+    """Par lat/lng inválido ou incompleto."""
+
+
+def validar_faixa_coordenadas(latitude: float, longitude: float) -> None:
+    if not (-90.0 <= latitude <= 90.0):
+        raise CoordenadasInvalidasError("Latitude deve estar entre -90 e 90.")
+    if not (-180.0 <= longitude <= 180.0):
+        raise CoordenadasInvalidasError("Longitude deve estar entre -180 e 180.")
+
+
+def ponto_wgs84(latitude: float, longitude: float) -> Point:
+    validar_faixa_coordenadas(latitude, longitude)
+    return Point(float(longitude), float(latitude), srid=4326)
+
+
+def extrair_lat_lng(geometria) -> tuple[float | None, float | None]:
+    if not geometria:
+        return None, None
+    return float(geometria.y), float(geometria.x)
+
+
+def parse_lat_lng_query(
+    lat_raw,
+    lng_raw,
+    *,
+    exigir_par: bool = True,
+) -> tuple[float | None, float | None, Point | None]:
+    """
+    Interpreta query ``lat``/``lng``.
+
+    Se ``exigir_par`` e apenas um vier preenchido → CoordenadasInvalidasError.
+    Se ambos ausentes → (None, None, None).
+    """
+    lat_vazio = lat_raw is None or str(lat_raw).strip() == ""
+    lng_vazio = lng_raw is None or str(lng_raw).strip() == ""
+    if lat_vazio and lng_vazio:
+        return None, None, None
+    if lat_vazio != lng_vazio:
+        raise CoordenadasInvalidasError("Informe latitude e longitude juntos.")
+    try:
+        lat = float(str(lat_raw).strip().replace(",", "."))
+        lng = float(str(lng_raw).strip().replace(",", "."))
+    except (TypeError, ValueError) as exc:
+        raise CoordenadasInvalidasError("Latitude e longitude devem ser numéricas.") from exc
+    validar_faixa_coordenadas(lat, lng)
+    return lat, lng, ponto_wgs84(lat, lng)
+
+
+def serializar_equipamento_lookup_item(
+    equipamento: EquipamentoPublico,
+    *,
+    distancia_metros: int | None = None,
+    incluir_distancia: bool = False,
+) -> dict:
+    lat, lng = extrair_lat_lng(equipamento.localizacao)
+    item = {
+        "id": str(equipamento.id),
+        "nome": equipamento.nome,
+        "tipo": equipamento.tipo,
+        "bairro": equipamento.bairro or "",
+        "unidade_id": str(equipamento.unidade_responsavel_id),
+        "unidade_nome": equipamento.unidade_responsavel.nome,
+        "latitude": lat,
+        "longitude": lng,
+    }
+    if incluir_distancia:
+        item["distancia_metros"] = distancia_metros
+    return item
+
+
+def queryset_equipamentos_por_proximidade(qs, ref: Point):
+    """Ordena por distância; itens sem geometria ficam ao final."""
+    return (
+        qs.annotate(distancia=Distance("localizacao", ref))
+        .annotate(
+            _sem_geo=Case(
+                When(localizacao__isnull=True, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by("_sem_geo", "distancia", "nome")
+    )
+
+
+def distancia_em_metros(valor) -> int | None:
+    if valor is None:
+        return None
+    try:
+        return int(round(float(valor.m)))
+    except (AttributeError, TypeError, ValueError):
+        try:
+            return int(round(float(valor)))
+        except (TypeError, ValueError):
+            return None
 
 
 def normalizar_texto_busca(texto: str) -> str:

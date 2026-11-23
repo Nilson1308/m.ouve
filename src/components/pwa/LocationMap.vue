@@ -32,6 +32,9 @@ const props = defineProps({
   latitude: { type: Number, default: null },
   longitude: { type: Number, default: null },
   draggable: { type: Boolean, default: false },
+  pickOnClick: { type: Boolean, default: false },
+  defaultLatitude: { type: Number, default: -23.5222 },
+  defaultLongitude: { type: Number, default: -46.1883 },
   zoom: { type: Number, default: 17 },
   height: { type: String, default: '12rem' }
 })
@@ -42,13 +45,47 @@ const containerRef = ref(null)
 let map = null
 let marker = null
 
+function coordenadasAtivas() {
+  if (props.latitude != null && props.longitude != null) {
+    return { lat: props.latitude, lng: props.longitude, temMarcador: true }
+  }
+  return {
+    lat: props.defaultLatitude,
+    lng: props.defaultLongitude,
+    temMarcador: false
+  }
+}
+
+function emitirPosicao(lat, lng) {
+  emit('update:latitude', lat)
+  emit('update:longitude', lng)
+  emit('move', { latitude: lat, longitude: lng })
+}
+
+function ligarMarcador(lat, lng) {
+  if (!map) return
+  if (!marker) {
+    marker = L.marker([lat, lng], { draggable: props.draggable || props.pickOnClick }).addTo(map)
+    if (props.draggable || props.pickOnClick) {
+      marker.on('dragend', () => {
+        const pos = marker.getLatLng()
+        emitirPosicao(pos.lat, pos.lng)
+      })
+    }
+  } else {
+    marker.setLatLng([lat, lng])
+  }
+}
+
 function initMap() {
-  if (!containerRef.value || props.latitude == null || props.longitude == null) return
+  if (!containerRef.value) return
   if (map) {
     map.remove()
     map = null
     marker = null
   }
+
+  const { lat, lng, temMarcador } = coordenadasAtivas()
 
   map = L.map(containerRef.value, {
     scrollWheelZoom: true,
@@ -60,18 +97,20 @@ function initMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }).addTo(map)
 
-  marker = L.marker([props.latitude, props.longitude], {
-    draggable: props.draggable
-  }).addTo(map)
+  map.setView([lat, lng], props.zoom)
 
-  map.setView([props.latitude, props.longitude], props.zoom)
+  if (temMarcador) {
+    ligarMarcador(lat, lng)
+  }
 
-  if (props.draggable) {
-    marker.on('dragend', () => {
-      const { lat, lng } = marker.getLatLng()
-      emit('update:latitude', lat)
-      emit('update:longitude', lng)
-      emit('move', { latitude: lat, longitude: lng })
+  if (props.pickOnClick) {
+    map.on('click', (ev) => {
+      const { lat: cLat, lng: cLng } = ev.latlng
+      ligarMarcador(cLat, cLng)
+      if (marker && !marker.dragging?.enabled()) {
+        marker.dragging.enable()
+      }
+      emitirPosicao(cLat, cLng)
     })
   }
 }
@@ -88,6 +127,14 @@ onMounted(() => {
   nextTick(() => initMap())
 })
 
+defineExpose({
+  invalidateSize: () => {
+    nextTick(() => {
+      map?.invalidateSize()
+    })
+  }
+})
+
 onBeforeUnmount(() => {
   if (map) {
     map.remove()
@@ -98,12 +145,16 @@ onBeforeUnmount(() => {
 watch(
   () => [props.latitude, props.longitude],
   ([lat, lng]) => {
+    if (!map) {
+      nextTick(() => initMap())
+      return
+    }
     if (lat != null && lng != null) {
-      if (!map) {
-        nextTick(() => initMap())
-      } else {
-        syncMarker(lat, lng)
-      }
+      ligarMarcador(lat, lng)
+      syncMarker(lat, lng)
+    } else if (marker) {
+      map.removeLayer(marker)
+      marker = null
     }
   }
 )

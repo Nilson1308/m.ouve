@@ -42,18 +42,55 @@ def resolver_equipamento_de_dados(servico, dados: dict | None) -> EquipamentoPub
     return None
 
 
+def protocolo_possui_localizacao_cidadao(protocolo) -> bool:
+    """GPS ou endereço estruturado informado pelo cidadão — não sobrescrever."""
+    if protocolo.localizacao:
+        return True
+    dados = protocolo.dados_dinamicos or {}
+    loc = dados.get("_localizacao")
+    if isinstance(loc, dict):
+        lat = loc.get("latitude", loc.get("lat"))
+        lng = loc.get("longitude", loc.get("lng"))
+        if lat is not None and lng is not None:
+            return True
+    return False
+
+
+def herdar_localizacao_do_equipamento(protocolo, equipamento: EquipamentoPublico) -> bool:
+    """
+    Copia ``equipamento.localizacao`` para o protocolo quando o cidadão
+    não informou coordenadas (ex.: ouvidoria textual sobre uma UBS).
+    """
+    if not equipamento or not equipamento.localizacao:
+        return False
+    if protocolo_possui_localizacao_cidadao(protocolo):
+        return False
+    if protocolo.localizacao:
+        return False
+    protocolo.localizacao = equipamento.localizacao
+    return True
+
+
 def sincronizar_equipamento_no_protocolo(protocolo, *, persistir: bool = True) -> EquipamentoPublico | None:
     """Grava ``protocolo.equipamento`` quando o schema traz lookup de equipamento válido."""
     if protocolo.equipamento_id:
         eq = getattr(protocolo, "equipamento", None)
         if eq and eq.ativo and eq.unidade_responsavel.ativo:
+            if herdar_localizacao_do_equipamento(protocolo, eq) and persistir:
+                protocolo.save(update_fields=["localizacao", "data_atualizacao"])
             return eq
+
     if not protocolo.servico_id:
         return None
     eq = resolver_equipamento_de_dados(protocolo.servico, protocolo.dados_dinamicos)
     if not eq:
         return None
+
     protocolo.equipamento = eq
+    update_fields = ["equipamento", "data_atualizacao"]
+    if herdar_localizacao_do_equipamento(protocolo, eq):
+        update_fields.append("localizacao")
+
     if persistir:
-        protocolo.save(update_fields=["equipamento", "data_atualizacao"])
+        protocolo.save(update_fields=update_fields)
     return eq

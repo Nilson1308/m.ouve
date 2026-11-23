@@ -2669,13 +2669,15 @@ Cadastro **por município** via API/banco — sem listas fixas no código.
 
 Rotas com barra final aceitas.
 
-**Filtros GET:** `busca` (nome, apelidos, bairro), `unidade_id`, `tipo` (`ubs`, `escola`, …), `ativo`.
+**Filtros GET:** `busca` (nome, apelidos, bairro), `unidade_id`, `tipo` (`ubs`, `escola`, …), `ativo`, `georreferenciado` (`true` \| `false`) — v4.11.1.
 
-**Payload escrita:** `nome`, `tipo`, `unidade_responsavel` (UUID, ativa), `apelidos` (lista de strings), `endereco`, `bairro`, `ativo`.
+**Payload escrita:** `nome`, `tipo`, `unidade_responsavel` (UUID, ativa), `apelidos` (lista de strings), `endereco`, `bairro`, `ativo`, `latitude` e `longitude` (opcionais, par obrigatório).
 
-**Resposta leitura:** inclui `unidade_responsavel_nome`.
+**Regras de coordenadas (v4.11.1):** enviar apenas latitude ou apenas longitude → `400`. Faixas: `-90 ≤ latitude ≤ 90`, `-180 ≤ longitude ≤ 180`. Ambos `null` limpa `localizacao` (PostGIS). Persistência: `Point(longitude, latitude, srid=4326)`.
 
-**Protocolo:** campo opcional `equipamento_id` preenchido automaticamente quando há campo lookup `equipamentos_publicos` em `dados_dinamicos` (chat ou POST direto).
+**Resposta leitura:** inclui `unidade_responsavel_nome`, `latitude`, `longitude` (ou `null`), `georreferenciado` (bool).
+
+**Protocolo:** campo opcional `equipamento_id` preenchido automaticamente quando há campo lookup `equipamentos_publicos` em `dados_dinamicos` (chat ou POST direto). Se o equipamento tiver coordenadas e o protocolo **não** tiver GPS do cidadão, `Protocolo.localizacao` herda o ponto do equipamento (v4.11.1 — mapas/cluster).
 
 #### Matriz de roteamento temático (triagem determinística) — v4.9
 
@@ -2770,7 +2772,7 @@ Regras de merge: UUID deve existir em unidade ativa; `confianca` mínima 0.50; a
 
 Query unidades: `busca` (filtra nome/sigla), `limit` (1–500, default 200).
 
-Query equipamentos: `busca` (nome, apelidos, bairro — sem acento/case), `unidade_id`, `tipo`, `limit` (1–100, default 30).
+Query equipamentos: `busca` (nome, apelidos, bairro — sem acento/case), `unidade_id`, `tipo`, `limit` (1–100, default 30), `lat` + `lng` (opcionais, par obrigatório — v4.11.1: ordena por proximidade PostGIS; equipamentos sem coordenadas ao final; cada item inclui `distancia_metros` inteiro ou `null`).
 
 **Resposta 200:**
 
@@ -2810,11 +2812,16 @@ Rota com barra final (`.../unidades/`) é aceita. Apenas unidades **ativas**; re
       "tipo": "ubs",
       "bairro": "Vila São José",
       "unidade_id": "uuid",
-      "unidade_nome": "Secretaria Municipal de Saúde"
+      "unidade_nome": "Secretaria Municipal de Saúde",
+      "latitude": -23.55,
+      "longitude": -46.63,
+      "distancia_metros": 120
     }
   ]
 }
 ```
+
+`distancia_metros` só aparece quando `lat` e `lng` são enviados na query; equipamentos sem geometria retornam `distancia_metros: null` (ainda ordenados ao final).
 
 Datasources suportados: `unidades_administrativas`, `equipamentos_publicos`. Widgets: `searchable_select`, `select`.
 
@@ -3386,6 +3393,7 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.11.1** (Nov 23, 2026): Georreferência de equipamentos — `latitude`/`longitude`/`georreferenciado` no CRUD governança, filtro `georreferenciado`, lookup com coords e ordenação por `lat`+`lng`, herança de `Protocolo.localizacao` a partir do equipamento
 - **v4.11** (Nov 23, 2026): Equipamentos públicos — modelo `EquipamentoPublico`, CRUD `GET/POST/PATCH/DELETE /backoffice/equipamentos`, lookup `GET /catalogo/lookup/equipamentos`, datasource `equipamentos_publicos`, `Protocolo.equipamento`, triagem `fonte=equipamento_publico`, slot filling por apelido
 - **v4.10.1** (Nov 23, 2026): Mesa — `triagem_sugerida` no `GET /backoffice/kanban`; indicadores no kanban/lista e painel no modal de despacho; slot filling na abertura do chat (Redis + schema)
 - **v4.10** (Nov 23, 2026): Onda 4 — `triagem_ia_ativa` no catálogo; triagem semântica assíncrona (Celery + LLM) com merge em `triagem_sugerida` (`hibrido_llm_v1`, `resumo_motivo`, `versao_modelo`, fonte `llm`)

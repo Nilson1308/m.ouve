@@ -18,7 +18,7 @@
     </div>
 
     <div class="card p-4 mb-4">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
         <div class="lg:col-span-2">
           <label class="sr-only">Busca</label>
           <input
@@ -45,6 +45,11 @@
           <option value="">Ativo e inativo</option>
           <option value="true">Somente ativos</option>
           <option value="false">Somente inativos</option>
+        </select>
+        <select v-model="filtrosLocais.georreferenciado" class="input text-sm" title="Filtro geoespacial">
+          <option value="">GPS: todos</option>
+          <option value="true">No mapa</option>
+          <option value="false">Sem GPS (curadoria)</option>
         </select>
       </div>
       <div class="flex flex-wrap gap-2 mt-3">
@@ -77,6 +82,7 @@
               <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Secretaria</th>
               <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Bairro</th>
               <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Apelidos</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Mapa</th>
               <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Status</th>
               <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Ações</th>
             </tr>
@@ -106,6 +112,24 @@
                   </span>
                   <span v-if="(eq.apelidos || []).length > 3" class="text-[10px] text-gray-500">+{{ eq.apelidos.length - 3 }}</span>
                 </div>
+              </td>
+              <td class="px-4 py-3">
+                <span
+                  v-if="eq.georreferenciado"
+                  class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-800 dark:text-emerald-200"
+                  title="Coordenadas PostGIS cadastradas"
+                >
+                  <MapPinIcon class="w-4 h-4 text-emerald-500 shrink-0" aria-hidden="true" />
+                  No mapa
+                </span>
+                <span
+                  v-else
+                  class="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400"
+                  title="Sem georreferência — edite para posicionar no mapa"
+                >
+                  <MapPinIcon class="w-4 h-4 text-gray-400 shrink-0" aria-hidden="true" />
+                  Sem GPS
+                </span>
               </td>
               <td class="px-4 py-3">
                 <span
@@ -149,7 +173,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { BuildingStorefrontIcon, PlusIcon, PencilSquareIcon } from '@heroicons/vue/24/outline'
+import { BuildingStorefrontIcon, PlusIcon, PencilSquareIcon, MapPinIcon } from '@heroicons/vue/24/outline'
 import {
   TIPOS_EQUIPAMENTO_PUBLICO,
   badgeClassTipoEquipamento,
@@ -170,7 +194,8 @@ const filtrosLocais = reactive({
   busca: '',
   unidade_id: '',
   tipo: '',
-  ativo: ''
+  ativo: '',
+  georreferenciado: ''
 })
 
 function paramsApi() {
@@ -180,6 +205,8 @@ function paramsApi() {
   if (filtrosLocais.tipo) p.tipo = filtrosLocais.tipo
   if (filtrosLocais.ativo === 'true') p.ativo = true
   if (filtrosLocais.ativo === 'false') p.ativo = false
+  if (filtrosLocais.georreferenciado === 'true') p.georreferenciado = true
+  if (filtrosLocais.georreferenciado === 'false') p.georreferenciado = false
   return p
 }
 
@@ -196,6 +223,7 @@ function limparFiltros() {
   filtrosLocais.unidade_id = ''
   filtrosLocais.tipo = ''
   filtrosLocais.ativo = ''
+  filtrosLocais.georreferenciado = ''
   aplicarFiltros()
 }
 

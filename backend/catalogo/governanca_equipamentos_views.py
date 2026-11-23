@@ -16,13 +16,21 @@ class EquipamentoPublicoFilterSet(filters.FilterSet):
     unidade_id = filters.UUIDFilter(field_name="unidade_responsavel_id")
     tipo = filters.CharFilter(field_name="tipo")
     ativo = filters.BooleanFilter(field_name="ativo")
+    georreferenciado = filters.BooleanFilter(method="filter_georreferenciado")
 
     class Meta:
         model = EquipamentoPublico
-        fields = ("unidade_id", "tipo", "ativo")
+        fields = ("unidade_id", "tipo", "ativo", "georreferenciado")
 
     def filter_busca(self, queryset, name, value):
         return filtrar_equipamentos_busca(queryset, value)
+
+    def filter_georreferenciado(self, queryset, name, value):
+        if value is True:
+            return queryset.filter(localizacao__isnull=False)
+        if value is False:
+            return queryset.filter(localizacao__isnull=True)
+        return queryset
 
 
 class EquipamentoPublicoGovernancaViewSet(viewsets.ModelViewSet):

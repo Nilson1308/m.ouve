@@ -1,5 +1,6 @@
 """Lookup público de equipamentos."""
 
+from django.contrib.gis.geos import Point
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -75,5 +76,58 @@ class CatalogoLookupEquipamentosTests(APITestCase):
         item = resp.json()["items"][0]
         self.assertEqual(
             set(item.keys()),
-            {"id", "nome", "tipo", "bairro", "unidade_id", "unidade_nome"},
+            {
+                "id",
+                "nome",
+                "tipo",
+                "bairro",
+                "unidade_id",
+                "unidade_nome",
+                "latitude",
+                "longitude",
+            },
         )
+
+    def test_lookup_rejeita_lat_sem_lng(self):
+        resp = self.client.get(
+            "/api/v1/catalogo/lookup/equipamentos",
+            {"lat": "-23.55"},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_ordena_por_proximidade(self):
+        perto = EquipamentoPublico.objects.create(
+            nome="UBS Perto",
+            tipo=EquipamentoPublico.Tipo.UBS,
+            unidade_responsavel=self.u_ativa,
+            localizacao=Point(-46.6334, -23.5506, srid=4326),
+            ativo=True,
+        )
+        EquipamentoPublico.objects.create(
+            nome="UBS Longe",
+            tipo=EquipamentoPublico.Tipo.UBS,
+            unidade_responsavel=self.u_ativa,
+            localizacao=Point(-46.70, -23.60, srid=4326),
+            ativo=True,
+        )
+        EquipamentoPublico.objects.create(
+            nome="UBS Sem GPS",
+            tipo=EquipamentoPublico.Tipo.UBS,
+            unidade_responsavel=self.u_ativa,
+            ativo=True,
+        )
+        resp = self.client.get(
+            "/api/v1/catalogo/lookup/equipamentos",
+            {
+                "lat": "-23.5505",
+                "lng": "-46.6333",
+                "limit": 10,
+            },
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        items = resp.json()["items"]
+        nomes = [i["nome"] for i in items]
+        self.assertEqual(nomes[0], perto.nome)
+        self.assertIn("distancia_metros", items[0])
+        self.assertIsInstance(items[0]["distancia_metros"], int)
+        self.assertIsNone(items[-1]["distancia_metros"])
