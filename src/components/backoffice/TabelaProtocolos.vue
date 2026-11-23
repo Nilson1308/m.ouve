@@ -92,11 +92,6 @@
                     >
                       ✨ IA Cluster
                     </span>
-                    <TriagemSugeridaIndicador
-                      v-if="temTriagem(protocolo)"
-                      :triagem="protocolo.triagemSugerida"
-                      variante="badge"
-                    />
                   </div>
                   <div class="text-xs text-gray-500 dark:text-gray-400">
                     {{ formatarData(protocolo.criadoEm) }}
