@@ -136,6 +136,8 @@ class HistoricoSerializer(serializers.ModelSerializer):
 
 
 class ProtocoloDetailSerializer(ProtocoloListSerializer):
+    descricao = serializers.SerializerMethodField()
+    campos_solicitacao = serializers.SerializerMethodField()
     historico = HistoricoSerializer(many=True, read_only=True)
     equipe = serializers.SerializerMethodField()
     ordens_servico = OrdemServicoSerializer(many=True, read_only=True)
@@ -144,12 +146,23 @@ class ProtocoloDetailSerializer(ProtocoloListSerializer):
 
     class Meta(ProtocoloListSerializer.Meta):
         fields = ProtocoloListSerializer.Meta.fields + (
+            "campos_solicitacao",
             "historico",
             "equipe",
             "ordens_servico",
             "pode_avaliar",
             "avaliacao",
         )
+
+    def get_descricao(self, obj):
+        from atendimentos.chat_resumo import descricao_exibicao_cidadao
+
+        return descricao_exibicao_cidadao(obj)
+
+    def get_campos_solicitacao(self, obj):
+        from atendimentos.chat_resumo import montar_campos_protocolo_publico
+
+        return montar_campos_protocolo_publico(obj.servico, obj.dados_dinamicos)
 
     def get_equipe(self, obj):
         ordem = obj.ordens_servico.filter(nome_equipe__gt="").first()

@@ -49,8 +49,18 @@ export function mapProtocoloFromApi(protocolo) {
         }
       : null
 
+  const camposSolicitacao = Array.isArray(protocolo.campos_solicitacao)
+    ? protocolo.campos_solicitacao.map((c) => ({
+        chave: c.chave,
+        rotulo: c.rotulo,
+        valor: c.valor
+      }))
+    : protocolo.camposSolicitacao || []
+
   return {
     ...protocolo,
+    campos_solicitacao: camposSolicitacao,
+    camposSolicitacao,
     dataCriacao: protocolo.data_criacao ?? protocolo.dataCriacao,
     dataAtualizacao: protocolo.data_atualizacao ?? protocolo.dataAtualizacao,
     tipoManifestacao: protocolo.tipo_manifestacao ?? protocolo.tipoManifestacao,

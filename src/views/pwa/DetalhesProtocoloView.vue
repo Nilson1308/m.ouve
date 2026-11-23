@@ -219,23 +219,26 @@
           Descrição
         </h2>
 
-        <div v-if="protocolo.descricao" class="mb-4">
-          <p class="text-gray-700 dark:text-gray-300 high-contrast:text-white leading-relaxed text-base break-words">
-            {{ protocolo.descricao }}
+        <div v-if="descricaoPrincipal" class="mb-4">
+          <p class="text-gray-700 dark:text-gray-300 high-contrast:text-white leading-relaxed text-base break-words whitespace-pre-line">
+            {{ descricaoPrincipal }}
           </p>
         </div>
 
-        <div v-if="dadosDinamicos && Object.keys(dadosDinamicos).length > 0" class="pt-4 border-t border-gray-200 dark:border-gray-700 high-contrast:border-yellow-300/40">
+        <div
+          v-if="camposExibicao.length"
+          class="pt-4 border-t border-gray-200 dark:border-gray-700 high-contrast:border-yellow-300/40"
+        >
           <h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 high-contrast:text-yellow-300 mb-3">
-            Informações adicionais
+            Detalhes da solicitação
           </h3>
           <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-            <div v-for="(valor, chave) in dadosDinamicos" :key="chave" class="flex flex-col min-w-0">
+            <div v-for="campo in camposExibicao" :key="campo.chave" class="flex flex-col min-w-0">
               <dt class="text-xs font-semibold text-gray-600 dark:text-gray-400 high-contrast:text-gray-300 mb-1 break-words">
-                {{ formatarChave(chave) }}
+                {{ campo.rotulo }}
               </dt>
               <dd class="text-sm font-medium text-gray-900 dark:text-white high-contrast:text-white break-words">
-                {{ formatarValor(valor) }}
+                {{ campo.valor }}
               </dd>
             </div>
           </dl>
@@ -563,17 +566,34 @@ const linkMapa = computed(() => {
   return `https://www.google.com/maps?q=${latitude},${longitude}`
 })
 
-const dadosDinamicos = computed(() => {
-  const dados = protocolo.value?.dados_dinamicos
-  if (!dados || typeof dados !== 'object') return null
+const descricaoPrincipal = computed(() => {
+  const texto = (protocolo.value?.descricao || '').trim()
+  return texto || null
+})
 
-  const dadosLimpos = {}
-  for (const [chave, valor] of Object.entries(dados)) {
-    if (chave.startsWith('_') || valor === null || valor === undefined || valor === '') continue
-    dadosLimpos[chave] = valor
+const camposExibicao = computed(() => {
+  const api = protocolo.value?.camposSolicitacao || protocolo.value?.campos_solicitacao
+  if (Array.isArray(api) && api.length) {
+    return api.map((c) => ({
+      chave: c.chave,
+      rotulo: c.rotulo || c.chave,
+      valor: formatarValor(c.valor)
+    }))
   }
 
-  return Object.keys(dadosLimpos).length > 0 ? dadosLimpos : null
+  const dados = protocolo.value?.dados_dinamicos
+  if (!dados || typeof dados !== 'object') return []
+
+  const CHAVES_IGNORAR = new Set(['bairro', 'cidade'])
+  const lista = []
+  for (const [chave, valor] of Object.entries(dados)) {
+    if (chave.startsWith('_') || valor === null || valor === undefined || valor === '') continue
+    const txt = formatarValor(valor)
+    if (descricaoPrincipal.value && txt === descricaoPrincipal.value.trim()) continue
+    if (CHAVES_IGNORAR.has(chave) && protocolo.value?.localizacao?.endereco) continue
+    lista.push({ chave, rotulo: formatarChave(chave), valor: txt })
+  }
+  return lista
 })
 
 const etapasAndamento = computed(() => {
