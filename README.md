@@ -23,7 +23,7 @@ O M.Ouve é um sistema **em produção**, com PWA para o cidadão e backoffice p
 
 ### Backoffice
 
-- **Mesa de trabalho** com Kanban e lista, filtros por SLA, despacho scatter-gather e validação ao cidadão.
+- **Mesa de trabalho** com Kanban e lista, filtros por SLA, despacho scatter-gather, **sugestão de encaminhamento** (motor determinístico + IA semântica opcional) e validação ao cidadão.
 - **Visão 360º** do protocolo, ordens de serviço, assinaturas hierárquicas e evidências de campo.
 - **Painel setorial**, link mágico para equipes de rua e formalização de OS.
 - **Super OS** e sugestões de cluster por IA (governadas por catálogo e configuração global).

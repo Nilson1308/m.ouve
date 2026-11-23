@@ -2705,7 +2705,9 @@ Ordem de evidências: (1) lookup `unidades_administrativas` preenchido pelo cida
 
 `fluxo_tramitacao=direto_secretaria` → `{}` (sem sugestão de encaminhamento).
 
-**Backoffice:** campo `triagem_sugerida` em `GET /api/v1/backoffice/protocolos` (lista/mesa) e em `GET /api/v1/backoffice/protocolos/<protocolo_id>` (detalhe; respeita `escopo_dados` / IDOR).
+**Backoffice — dados:** campo `triagem_sugerida` em `GET /api/v1/backoffice/kanban` (fonte da Mesa), `GET /api/v1/backoffice/protocolos` e `GET /api/v1/backoffice/protocolos/<protocolo_id>` (detalhe; respeita `escopo_dados` / IDOR).
+
+**Backoffice — UI (Mesa v4.10.1):** Kanban e lista exibem resumo compacto (“Sugere: …” + confiança); modal **Despachar** e detalhe do protocolo permitem **aplicar** a sugestão nas ordens de serviço (confirmação manual do servidor).
 
 **Despacho scatter:** quando há triagem, `ProtocoloHistorico` registra se as unidades despachadas **confirmaram** ou **divergiram** da sugestão (auditoria de acurácia).
 
@@ -3335,6 +3337,7 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.10.1** (Nov 23, 2026): Mesa — `triagem_sugerida` no `GET /backoffice/kanban`; indicadores no kanban/lista e painel no modal de despacho; slot filling na abertura do chat (Redis + schema)
 - **v4.10** (Nov 23, 2026): Onda 4 — `triagem_ia_ativa` no catálogo; triagem semântica assíncrona (Celery + LLM) com merge em `triagem_sugerida` (`hibrido_llm_v1`, `resumo_motivo`, `versao_modelo`, fonte `llm`)
 - **v4.9** (Nov 23, 2026): Onda 3 — CRUD `/backoffice/catalogo/servicos/<id>/roteamento`; motor `triagem_sugerida` determinístico em `Protocolo`; auditoria de despacho vs sugestão; exposição no detalhe backoffice
 - **v4.8** (Nov 19, 2026): Catálogo — `fluxo_tramitacao`, `MatrizRoteamentoTematico`, tipo `lookup` + `GET /catalogo/lookup/unidades`; semântica de `unidade_responsavel` por fluxo

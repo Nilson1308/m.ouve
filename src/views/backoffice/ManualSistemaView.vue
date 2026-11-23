@@ -133,6 +133,15 @@ const secoes = [
         ]
       },
       {
+        titulo: 'Sugestão de encaminhamento (triagem)',
+        paragrafos: [
+          'Para serviços Ouvidoria que encaminham, o sistema calcula automaticamente para qual secretaria enviar o protocolo — com base no que o cidadão informou e nas regras temáticas do catálogo. A sugestão não despacha sozinha: o servidor confirma no modal ou ajusta as unidades.',
+          'No Kanban, aparece uma linha violeta “Sugere: …” logo abaixo do nome do serviço (com percentual de confiança). Na visualização em lista, o mesmo resumo fica na coluna Serviço/Solicitação.',
+          'Ao clicar em Despachar, use o painel “Sugestão de encaminhamento” e o botão Aplicar sugestão para pré-preencher as ordens de serviço. No detalhe do protocolo, o card lateral oferece o mesmo fluxo com opção de aplicar uma ou todas as unidades sugeridas.',
+          'Quando o catálogo tem triagem por IA ativa, o motor pode enriquecer a sugestão com análise semântica (fonte “IA Semântica”); caso contrário, prevalece o motor determinístico (“Regra temática” ou dado informado pelo cidadão).'
+        ]
+      },
+      {
         titulo: 'Super OS (incidente mestre)',
         paragrafos: [
           'Protocolos integrados à Super OS têm gestão centralizada. A âncora perde despacho individual — o trabalho ocorre no incidente mestre para ganho de escala em crises ou lotes.'
@@ -155,6 +164,14 @@ const secoes = [
           'Defina unidade responsável e SLA por serviço.',
           'Marque se o serviço permite clusterização para IA.',
           'Mantenha textos padrão alinhados às respostas oficiais.'
+        ]
+      },
+      {
+        titulo: 'Roteamento temático e slot filling',
+        paragrafos: [
+          'Em serviços com fluxo Ouvidoria encaminha ou Híbrido, configure a matriz de roteamento: associe valores de campos do formulário (ex.: tema = Saúde) à secretaria sugerida. Essas regras alimentam a triagem na Mesa.',
+          'O campo triagem por IA no serviço controla se, após o protocolo ser criado, uma análise semântica assíncrona pode refinar a sugestão de encaminhamento.',
+          'Na conversa com o cidadão, o slot filling tenta preencher campos do schema a partir do texto livre (com validação), reduzindo perguntas repetidas quando a API de IA está disponível.'
         ]
       },
       {
