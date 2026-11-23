@@ -407,7 +407,9 @@ export function mapServicoCatalogo(api) {
         : null,
     versao_publicada: api.versao_publicada ?? 1,
     publicado_em: api.publicado_em || null,
-    tem_rascunho_pendente: temRascunho
+    tem_rascunho_pendente: temRascunho,
+    schema_legado_importado: Boolean(api.schema_legado_importado),
+    schema_legado_importado_rascunho: Boolean(api.schema_legado_importado_rascunho)
   }
 }
 

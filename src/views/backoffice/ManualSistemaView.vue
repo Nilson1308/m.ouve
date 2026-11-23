@@ -156,6 +156,15 @@ const secoes = [
           'Marque se o serviço permite clusterização para IA.',
           'Mantenha textos padrão alinhados às respostas oficiais.'
         ]
+      },
+      {
+        titulo: 'Rascunho, publicação e schemas',
+        paragrafos: [
+          'Cada serviço mantém dois formatos: formulario_schema (lista do Form Builder) e schema_formulario (JSON usado pelo chat e pela IA). O cidadão só enxerga a versão publicada após clicar em Publicar versão.',
+          'Edite sempre pelo Form Builder (não pelo Django Admin nos JSONs). Salvar rascunho não altera o PWA; publicar promove o rascunho e incrementa a versão.',
+          'Serviços antigos podem ter só o JSON Schema: ao abrir o editor, o sistema reconstrói os campos automaticamente — revise, salve rascunho e publique para persistir.',
+          'Biblioteca de modelos (is_template=true) não aparece para o cidadão; use Clonar para criar um serviço municipal novo.'
+        ]
       }
     ]
   },

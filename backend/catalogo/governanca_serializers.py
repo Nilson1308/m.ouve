@@ -186,6 +186,8 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
         return attrs
 
     def to_representation(self, instance):
+        from catalogo.formulario_resolution import aplicar_resolucao_edicao_representation
+
         data = super().to_representation(instance)
         data["id"] = str(instance.id)
         data["sla_padrao_horas"] = instance.sla_horas
@@ -194,6 +196,7 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
             str(instance.unidade_responsavel_id) if instance.unidade_responsavel_id else None
         )
         data["tem_rascunho_pendente"] = instance.tem_rascunho_pendente
+        aplicar_resolucao_edicao_representation(data, instance)
         return data
 
     def _extrair_schemas(self, validated_data):

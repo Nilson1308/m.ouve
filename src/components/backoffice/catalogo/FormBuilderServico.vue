@@ -618,6 +618,12 @@ function preencherFormulario(servico) {
   const schemaLista = formularioSchemaParaEdicao(servico)
   requisitos.value = requisitosFromFormularioSchema(schemaLista)
   regrasProtocolo.value = regrasProtocoloFromSchemaFormulario(schemaFormularioParaEdicao(servico))
+  if (servico?.schema_legado_importado || servico?.schema_legado_importado_rascunho) {
+    mostrarToast(
+      'Formulário reconstruído a partir do JSON Schema legado. Revise os campos, salve rascunho e publique.',
+      false
+    )
+  }
   requestAnimationFrame(() => {
     baselineCarregado.value = true
   })

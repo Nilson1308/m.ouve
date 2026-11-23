@@ -117,6 +117,83 @@ def formulario_schema_para_schema_formulario(
     }
 
 
+def schema_formulario_para_formulario_schema(schema: dict | None) -> list[dict[str, Any]]:
+    """Reconstrói ``formulario_schema`` a partir do JSON Schema publicado (serviços legados)."""
+    if not isinstance(schema, dict):
+        return []
+    props = schema.get("properties") or {}
+    if not props:
+        return []
+
+    meta = schema.get("$metadata") or {}
+    ordem = list(meta.get("ordem_campos") or [])
+    required = set(schema.get("required") or [])
+    out: list[dict[str, Any]] = []
+    vistos: set[str] = set()
+
+    def _campo_de_prop(name: str, prop: dict) -> dict[str, Any]:
+        titulo = (
+            (prop.get("title") or prop.get("description") or "").strip()
+            or name.replace("_", " ").title()
+        )
+        tipo_campo = (prop.get("x-ouvia-tipo-campo") or "").strip().lower()
+        fmt = (prop.get("format") or "").strip().lower()
+
+        if tipo_campo == "lookup" or prop.get("x-ouvia-datasource"):
+            tipo = "lookup"
+        elif tipo_campo in ("geolocation", "geo") or fmt == "geo":
+            tipo = "geo"
+        elif tipo_campo == "image" or fmt == "uri":
+            tipo = "image"
+        elif fmt == "textarea":
+            tipo = "textarea"
+        elif prop.get("type") == "number":
+            tipo = "number"
+        elif prop.get("enum"):
+            tipo = "select"
+        else:
+            tipo = "text"
+
+        item: dict[str, Any] = {
+            "name": name,
+            "type": tipo,
+            "label": titulo,
+            "required": name in required,
+        }
+        ia_extract = (prop.get("x-ouvia-ia-extract") or "").strip()
+        ia_reprompt = (prop.get("x-ouvia-ia-reprompt") or "").strip()
+        if ia_extract:
+            item["ia_instrucao"] = ia_extract
+        if ia_reprompt:
+            item["ia_repescagem"] = ia_reprompt
+
+        if tipo == "select":
+            enums = prop.get("enumNames") or prop.get("enum") or []
+            vals = [str(v) for v in (prop.get("enum") or enums)]
+            labels = [str(n) for n in enums]
+            item["options"] = [
+                {"value": v, "label": labels[i] if i < len(labels) else v}
+                for i, v in enumerate(vals)
+            ]
+        if tipo == "lookup":
+            item["datasource"] = prop.get("x-ouvia-datasource") or ""
+            item["ui_widget"] = prop.get("x-ouvia-ui-widget") or ""
+        return item
+
+    for name in ordem:
+        if name not in props or name in vistos:
+            continue
+        vistos.add(name)
+        out.append(_campo_de_prop(name, props[name] or {}))
+
+    for name, prop in props.items():
+        if name in vistos:
+            continue
+        out.append(_campo_de_prop(name, prop or {}))
+
+    return out
+
+
 def _deduplicar_regras(regras: list[dict]) -> list[dict]:
     vistas: set[str] = set()
     out: list[dict] = []
