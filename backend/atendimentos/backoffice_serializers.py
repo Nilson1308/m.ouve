@@ -347,6 +347,8 @@ class BackofficeProtocoloDetalheSerializer(BackofficeProtocoloKanbanSerializer):
     observacoes_internas = serializers.CharField(read_only=True)
     localizacao = serializers.SerializerMethodField()
 
+    triagem_sugerida = serializers.JSONField(read_only=True)
+
     class Meta(BackofficeProtocoloKanbanSerializer.Meta):
         fields = BackofficeProtocoloKanbanSerializer.Meta.fields + (
             "dados_coletados",
@@ -355,6 +357,7 @@ class BackofficeProtocoloDetalheSerializer(BackofficeProtocoloKanbanSerializer):
             "resposta_cidadao",
             "observacoes_internas",
             "localizacao",
+            "triagem_sugerida",
         )
 
     def get_dados_coletados(self, obj):

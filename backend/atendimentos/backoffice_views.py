@@ -250,6 +250,11 @@ class BackofficeDespacharProtocoloView(APIView):
         ]
         if obs:
             partes.append(f"Observação geral: {obs}")
+        from atendimentos.services.triagem_service import texto_auditoria_despacho_triagem
+
+        auditoria = texto_auditoria_despacho_triagem(protocolo, unidade_ids)
+        if auditoria:
+            partes.append(auditoria)
         descricao_hist = " ".join(partes)
 
         ProtocoloHistorico.objects.create(

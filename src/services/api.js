@@ -182,6 +182,19 @@ export const usuarioService = {
     return response.data
   },
 
+  /** multipart/form-data — campo `avatar` */
+  async enviarAvatar(arquivo) {
+    const fd = new FormData()
+    fd.append('avatar', arquivo, arquivo.name || 'avatar.webp')
+    const response = await api.post('/auth/me/avatar', fd)
+    return response.data
+  },
+
+  async removerAvatar() {
+    const response = await api.delete('/auth/me/avatar')
+    return response.data
+  },
+
   async desativar({ refresh_token = null } = {}) {
     const response = await api.delete('/usuario/desativar', {
       data: { refresh_token }
@@ -333,6 +346,38 @@ export const catalogoLookupService = {
     const response = await api.get('/catalogo/lookup/unidades', { params })
     const data = response.data
     return Array.isArray(data?.items) ? data.items : []
+  }
+}
+
+/** Matriz de roteamento temático (Onda 3 — governança). */
+export const matrizRoteamentoService = {
+  async listar(servicoId) {
+    const response = await api.get(
+      `/backoffice/catalogo/servicos/${servicoId}/roteamento`
+    )
+    return Array.isArray(response.data) ? response.data : []
+  },
+
+  async criar(servicoId, payload) {
+    const response = await api.post(
+      `/backoffice/catalogo/servicos/${servicoId}/roteamento`,
+      payload
+    )
+    return response.data
+  },
+
+  async atualizar(servicoId, regraId, payload) {
+    const response = await api.patch(
+      `/backoffice/catalogo/servicos/${servicoId}/roteamento/${regraId}`,
+      payload
+    )
+    return response.data
+  },
+
+  async remover(servicoId, regraId) {
+    await api.delete(
+      `/backoffice/catalogo/servicos/${servicoId}/roteamento/${regraId}`
+    )
   }
 }
 

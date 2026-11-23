@@ -76,6 +76,14 @@ class Protocolo(models.Model):
         blank=True,
         help_text="Comentário opcional do cidadão na pesquisa de satisfação.",
     )
+    triagem_sugerida = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Sugestões estruturadas do motor de triagem (determinístico/LLM) "
+            "para apoio ao despacho na Mesa."
+        ),
+    )
 
     class Meta:
         ordering = ["-data_criacao"]

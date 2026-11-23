@@ -158,6 +158,8 @@ class NotificacoesCidadaoTaskTests(TestCase):
         delay_mock.assert_called_once_with(str(notif.id))
 
     def test_gatilho_status_resolvido(self):
+        # `test_criar_notificacao_enfileira_task` usa o mesmo protocolo e grava cooldown de push.
+        cache.delete(f"cooldown_push_protocolo_{self.protocolo.pk}")
         with patch("atendimentos.tasks.enviar_notificacao_push_task.delay") as delay_mock:
             with self.captureOnCommitCallbacks(execute=True):
                 notif = notificar_status_protocolo(self.protocolo)

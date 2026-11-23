@@ -74,6 +74,30 @@ celery -A ouvia_core worker -l info
 
 **Alternativa (produção):** atualizar o Redis para **6.2+** (Snap, pacote oficial ou container) e usar Kombu/Celery recentes.
 
+## Testes automatizados (`manage.py test`)
+
+O usuário da aplicação (`admin_ouve`) **não tem `CREATEDB`** no PostgreSQL remoto. O Django tenta criar `ouvia_test` por padrão e falha com `permission denied to create database`.
+
+1. **Uma vez** (como `postgres` no servidor — ver `scripts/prepare_test_database.sh`):
+
+```sql
+CREATE DATABASE ouvia_test OWNER admin_ouve ENCODING 'UTF8';
+\c ouvia_test
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+2. Sempre rode os testes com **`--keepdb`** (reutiliza `POSTGRES_TEST_DB` do `.env`):
+
+```bash
+cd /var/www/ouve/backend
+.venv/bin/python manage.py test --keepdb
+# ou um módulo:
+.venv/bin/python manage.py test catalogo.tests.test_matriz_roteamento_governanca --keepdb -v2
+```
+
+Para recriar o schema de testes do zero (como `postgres`): `DROP DATABASE ouvia_test;` e repita o passo 1.
+
 ## Apps
 
 | App | Responsabilidade |

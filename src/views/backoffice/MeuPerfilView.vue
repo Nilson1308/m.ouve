@@ -37,6 +37,15 @@
     </div>
 
     <form v-if="aba === 'dados'" class="space-y-5" @submit.prevent="salvarDados">
+      <div class="flex justify-center pb-2">
+        <AvatarUploadCropper
+          :avatar-url="authStore.user?.avatar || ''"
+          :nome="authStore.user?.nome || ''"
+          theme="backoffice"
+          :tamanho-exibicao="112"
+          @atualizado="aoAtualizarAvatar"
+        />
+      </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="sm:col-span-2">
           <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Nome</label>
@@ -128,6 +137,7 @@ import { BookOpenIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import { usuarioService } from '@/services/api'
 import { getApiErrorMessage } from '@/utils/apiError'
+import AvatarUploadCropper from '@/components/shared/AvatarUploadCropper.vue'
 
 const authStore = useAuthStore()
 const aba = ref('dados')
@@ -167,6 +177,10 @@ onMounted(async () => {
   await authStore.refreshPerfil().catch(() => {})
   preencherForm()
 })
+
+function aoAtualizarAvatar(usuario) {
+  authStore.atualizarUsuarioPerfil(usuario)
+}
 
 async function salvarDados() {
   salvando.value = true

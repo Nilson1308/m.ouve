@@ -5,11 +5,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from core_auth.serializers import UsuarioResponseSerializer
 
 
-def build_auth_response(user):
+def build_auth_response(user, request=None):
     """Monta `{ user, token, refresh_token }`."""
     refresh = RefreshToken.for_user(user)
     return {
-        "user": UsuarioResponseSerializer(user).data,
+        "user": UsuarioResponseSerializer(user, context={"request": request}).data,
         "token": str(refresh.access_token),
         "refresh_token": str(refresh),
     }

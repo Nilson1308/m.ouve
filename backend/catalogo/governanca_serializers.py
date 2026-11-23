@@ -102,6 +102,7 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
         choices=ServicoCatalogo.FluxoTramitacao.choices,
         required=False,
     )
+    triagem_ia_ativa = serializers.BooleanField(required=False)
     exige_localizacao = serializers.BooleanField(read_only=True)
     is_template = serializers.BooleanField(read_only=True)
     tem_rascunho_pendente = serializers.BooleanField(read_only=True)
@@ -126,6 +127,7 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
             "unidade_responsavel_id",
             "unidade_responsavel_nome",
             "fluxo_tramitacao",
+            "triagem_ia_ativa",
             "formulario_schema",
             "schema_formulario",
             "formulario_schema_rascunho",

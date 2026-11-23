@@ -41,9 +41,24 @@
         </div>
         
         <!-- User Greeting -->
-        <p class="text-sm text-gray-600 dark:text-gray-400 high-contrast:text-white high-contrast:font-bold">
-          Olá, <span class="font-semibold text-gray-900 dark:text-white high-contrast:text-yellow-300">{{ authStore.userName }}</span>
-        </p>
+        <div class="flex items-center gap-3">
+          <router-link
+            to="/app/perfil"
+            class="w-10 h-10 rounded-full shrink-0 overflow-hidden bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-sm font-bold ring-2 ring-white/50 dark:ring-gray-800 shadow-soft"
+            aria-label="Ir para meu perfil"
+          >
+            <img
+              v-if="avatarUrl"
+              :src="avatarUrl"
+              alt=""
+              class="w-full h-full object-cover"
+            />
+            <span v-else aria-hidden="true">{{ iniciaisUsuario }}</span>
+          </router-link>
+          <p class="text-sm text-gray-600 dark:text-gray-400 high-contrast:text-white high-contrast:font-bold min-w-0">
+            Olá, <span class="font-semibold text-gray-900 dark:text-white high-contrast:text-yellow-300">{{ authStore.userName }}</span>
+          </p>
+        </div>
       </div>
     </header>
 
@@ -138,6 +153,15 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+
+const avatarUrl = computed(() => authStore.user?.avatar || '')
+
+const iniciaisUsuario = computed(() => {
+  const n = (authStore.userName || '?').trim()
+  const p = n.split(/\s+/)
+  if (p.length >= 2) return (p[0][0] + p[p.length - 1][0]).toUpperCase()
+  return n.slice(0, 2).toUpperCase()
+})
 
 const notificacoesStore = useNotificacoesCidadaoStore()
 

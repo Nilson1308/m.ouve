@@ -45,6 +45,8 @@ def clonar_servico_catalogo_de_template(
         formulario_schema=copy.deepcopy(template.formulario_schema or []),
         schema_formulario=copy.deepcopy(template.schema_formulario or {}),
         permite_cluster=template.permite_cluster,
+        fluxo_tramitacao=template.fluxo_tramitacao,
+        triagem_ia_ativa=template.triagem_ia_ativa,
         ativo=True,
         is_template=False,
     )
@@ -75,6 +77,8 @@ def duplicar_servico_catalogo(
         formulario_schema=copy.deepcopy(origem.formulario_schema or []),
         schema_formulario=copy.deepcopy(origem.schema_formulario or {}),
         permite_cluster=origem.permite_cluster,
+        fluxo_tramitacao=origem.fluxo_tramitacao,
+        triagem_ia_ativa=origem.triagem_ia_ativa,
         ativo=False,
         is_template=False,
     )

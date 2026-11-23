@@ -141,6 +141,13 @@ class ServicoCatalogo(models.Model):
             "Em ouvidoria_encaminha, unidade_responsavel é a unidade do canal."
         ),
     )
+    triagem_ia_ativa = models.BooleanField(
+        default=True,
+        help_text=(
+            "Quando ativo, enfileira triagem semântica (LLM) para sugerir unidades executoras "
+            "em fluxos ouvidoria_encaminha e híbrido, após a triagem determinística."
+        ),
+    )
     unidade_responsavel = models.ForeignKey(
         UnidadeAdministrativa,
         on_delete=models.SET_NULL,

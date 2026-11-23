@@ -7,13 +7,16 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.shortcuts import redirect
 from django.utils import timezone
-from rest_framework import status
+from rest_framework import serializers, status
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from core_auth.avatar_service import remover_avatar, substituir_avatar
 from core_auth.jwt_utils import build_auth_response
 from core_auth.models import DispositivoPush, Notificacao, RecuperacaoSenha, Usuario
 from core_auth.serializers import (
@@ -54,7 +57,7 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response(build_auth_response(user), status=status.HTTP_201_CREATED)
+        return Response(build_auth_response(user, request=request), status=status.HTTP_201_CREATED)
 
 
 class LoginView(APIView):
@@ -71,7 +74,7 @@ class LoginView(APIView):
                 {"error": {"code": "INVALID_CREDENTIALS", "message": "CPF ou senha inválidos"}},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        return Response(build_auth_response(user))
+        return Response(build_auth_response(user, request=request))
 
 
 class LogoutView(APIView):
@@ -120,7 +123,7 @@ class GovBrCallbackView(APIView):
         )
         user.metodo_autenticacao = "govbr"
         user.save(update_fields=["metodo_autenticacao"])
-        return Response(build_auth_response(user))
+        return Response(build_auth_response(user, request=request))
 
 
 class SsoMunicipalCallbackView(APIView):
@@ -138,7 +141,7 @@ class SsoMunicipalCallbackView(APIView):
                 "metodo_autenticacao": "sso_municipal",
             },
         )
-        return Response(build_auth_response(user))
+        return Response(build_auth_response(user, request=request))
 
 
 class VerificarCpfView(APIView):
@@ -343,7 +346,7 @@ class UsuarioMeView(APIView):
 
     def get(self, request):
         user = _carregar_usuario_me(request.user)
-        return Response(UsuarioResponseSerializer(user).data)
+        return Response(UsuarioResponseSerializer(user, context={"request": request}).data)
 
     def patch(self, request):
         serializer = UsuarioPerfilUpdateSerializer(
@@ -353,7 +356,52 @@ class UsuarioMeView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         usuario = _carregar_usuario_me(serializer.save())
-        return Response(UsuarioResponseSerializer(usuario).data)
+        return Response(UsuarioResponseSerializer(usuario, context={"request": request}).data)
+
+
+class UsuarioMeAvatarView(APIView):
+    """Upload, substituição e remoção do avatar do usuário autenticado."""
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def _responder_usuario(self, request, usuario):
+        user = _carregar_usuario_me(usuario)
+        return Response(UsuarioResponseSerializer(user, context={"request": request}).data)
+
+    def _salvar_arquivo(self, request):
+        arquivo = request.FILES.get("avatar")
+        try:
+            substituir_avatar(request.user, arquivo)
+        except serializers.ValidationError as exc:
+            raise DRFValidationError(exc.detail) from exc
+        return self._responder_usuario(request, request.user)
+
+    def post(self, request):
+        return self._salvar_arquivo(request)
+
+    def patch(self, request):
+        if request.content_type and "application/json" in request.content_type:
+            if request.data.get("avatar") is None:
+                remover_avatar(request.user)
+                return self._responder_usuario(request, request.user)
+            return Response(
+                {
+                    "error": {
+                        "code": "AVATAR_INVALIDO",
+                        "message": (
+                            "Para enviar imagem use multipart/form-data com o campo «avatar». "
+                            "Para remover, use DELETE ou JSON {\"avatar\": null}."
+                        ),
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return self._salvar_arquivo(request)
+
+    def delete(self, request):
+        remover_avatar(request.user)
+        return self._responder_usuario(request, request.user)
 
 
 class AlterarSenhaView(APIView):

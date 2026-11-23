@@ -101,6 +101,31 @@ def enviar_push_notification(
     )
 
 
+@shared_task(
+    bind=True,
+    max_retries=1,
+    default_retry_delay=30,
+    soft_time_limit=90,
+    time_limit=120,
+)
+def executar_triagem_semantica_task(self, protocolo_id: str) -> dict | None:
+    """Triagem semântica assíncrona (LLM) — enriquece ``triagem_sugerida`` sem bloquear o protocolo."""
+    from atendimentos.services.triagem_service import executar_triagem_semantica_llm
+
+    try:
+        return executar_triagem_semantica_llm(protocolo_id)
+    except Exception as exc:
+        logger.warning(
+            "Task triagem semântica falhou protocolo_id=%s: %s",
+            protocolo_id,
+            exc,
+            exc_info=True,
+        )
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=exc) from exc
+        return None
+
+
 @shared_task(bind=True, max_retries=2, default_retry_delay=15)
 def enviar_notificacao_push_task(self, notificacao_id: str) -> dict:
     """Envia Web Push para inscrições do usuário a partir de ``NotificacaoCidadao``."""

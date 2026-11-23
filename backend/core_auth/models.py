@@ -101,6 +101,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         help_text="Perfil RBAC dinâmico. Vazio para cidadãos.",
     )
     telefone = models.CharField(max_length=20, blank=True)
+    avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
     metodo_autenticacao = models.CharField(
         max_length=30,
         default="padrao",

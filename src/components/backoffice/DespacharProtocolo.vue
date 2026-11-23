@@ -275,6 +275,11 @@ const props = defineProps({
   modo: {
     type: String,
     default: 'protocolo'
+  },
+  /** Ordens sugeridas pela triagem (pré-preenchimento — confirmação manual). */
+  prefillOrdens: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -348,19 +353,33 @@ function getIconeCategoria(categoria) {
   return icones[categoria] || WrenchScrewdriverIcon
 }
 
-// Inicializar com uma ordem quando o modal abre
+function montarOrdensIniciais() {
+  const prazoPadrao = props.protocolo?.sla?.slaHoras || 48
+  if (props.prefillOrdens?.length) {
+    ordensServico.value = props.prefillOrdens.map((ordem) => ({
+      id: proximoId++,
+      unidadeId: String(ordem.unidadeId || ordem.unidade_id || ''),
+      instrucao: ordem.instrucao || '',
+      prazo_horas: Number(ordem.prazo_horas) > 0 ? Number(ordem.prazo_horas) : prazoPadrao
+    }))
+    return
+  }
+  ordensServico.value = [
+    {
+      id: proximoId++,
+      unidadeId: '',
+      instrucao: '',
+      prazo_horas: prazoPadrao
+    }
+  ]
+}
+
+// Inicializar quando o modal abre (com ou sem triagem)
 watch(
   () => props.aberto,
   async (novoValor) => {
     if (novoValor) {
-      ordensServico.value = [
-        {
-          id: proximoId++,
-          unidadeId: '',
-          instrucao: '',
-          prazo_horas: props.protocolo?.sla?.slaHoras || 48
-        }
-      ]
+      montarOrdensIniciais()
       observacoesGerais.value = ''
       try {
         await backofficeStore.carregarUnidades()
@@ -369,6 +388,14 @@ watch(
       }
     }
   }
+)
+
+watch(
+  () => props.prefillOrdens,
+  () => {
+    if (props.aberto) montarOrdensIniciais()
+  },
+  { deep: true }
 )
 </script>
 

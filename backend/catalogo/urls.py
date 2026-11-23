@@ -5,6 +5,10 @@ from catalogo.governanca_views import (
     CategoriaCatalogoGovernancaViewSet,
     ServicoCatalogoGovernancaViewSet,
 )
+from catalogo.governanca_roteamento_views import (
+    MatrizRoteamentoDetailView,
+    MatrizRoteamentoListCreateView,
+)
 from catalogo.lookup_views import CatalogoLookupUnidadesView
 from catalogo.views import CategoriaCatalogoListView, ServicoCatalogoListView
 
@@ -21,6 +25,22 @@ governanca_router.register(
 )
 
 urlpatterns = [
+    path(
+        "backoffice/catalogo/servicos/<uuid:servico_id>/roteamento",
+        MatrizRoteamentoListCreateView.as_view(),
+    ),
+    path(
+        "backoffice/catalogo/servicos/<uuid:servico_id>/roteamento/",
+        MatrizRoteamentoListCreateView.as_view(),
+    ),
+    path(
+        "backoffice/catalogo/servicos/<uuid:servico_id>/roteamento/<uuid:regra_id>",
+        MatrizRoteamentoDetailView.as_view(),
+    ),
+    path(
+        "backoffice/catalogo/servicos/<uuid:servico_id>/roteamento/<uuid:regra_id>/",
+        MatrizRoteamentoDetailView.as_view(),
+    ),
     path("catalogo-categorias", CategoriaCatalogoListView.as_view()),
     path("catalogo-servicos", ServicoCatalogoListView.as_view()),
     path("catalogo/lookup/unidades", CatalogoLookupUnidadesView.as_view()),

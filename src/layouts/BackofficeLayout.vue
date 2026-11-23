@@ -71,9 +71,15 @@
           :class="sidebarRecolhida ? 'justify-center' : ''"
         >
           <div
-            class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-cyan-600 text-white flex items-center justify-center font-bold text-sm shrink-0"
+            class="w-10 h-10 rounded-full shrink-0 overflow-hidden bg-gradient-to-br from-primary-500 to-cyan-600 text-white flex items-center justify-center font-bold text-sm ring-2 ring-white/20"
           >
-            {{ iniciais }}
+            <img
+              v-if="avatarUrl"
+              :src="avatarUrl"
+              alt=""
+              class="w-full h-full object-cover"
+            />
+            <span v-else aria-hidden="true">{{ iniciais }}</span>
           </div>
           <div v-if="!sidebarRecolhida" class="min-w-0 flex-1">
             <p class="text-sm font-semibold text-slate-900 dark:text-white truncate">
@@ -186,6 +192,8 @@ const menuMobileAberto = ref(false)
 const notificacoesStore = useNotificacoesInternasStore()
 const sidebarRecolhida = ref(localStorage.getItem(SIDEBAR_LS_KEY) === '1')
 let pollNotificacoes = null
+
+const avatarUrl = computed(() => authStore.user?.avatar || '')
 
 const iniciais = computed(() => {
   const n = (authStore.userName || '?').trim()

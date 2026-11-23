@@ -117,6 +117,7 @@
             @validar="onValidar"
             @devolver="onDevolver"
             @adicionar-setor="abrirDespachoContinuo"
+            @preencher-despacho="preencherDespachoComTriagem"
           />
         </div>
       </div>
@@ -127,6 +128,7 @@
       :protocolo="protocolo"
       :aberto="mostrarDespacho"
       :salvando="despachando"
+      :prefill-ordens="prefillOrdens"
       @fechar="fecharDespacho"
       @confirmar="confirmarDespacho"
     />
@@ -187,6 +189,7 @@ const {
 } = storeToRefs(backofficeStore)
 
 const mostrarDespacho = ref(false)
+const prefillOrdens = ref([])
 const erroCarregamento = ref(null)
 const toastAberto = ref(false)
 const toastMensagem = ref('')
@@ -280,11 +283,37 @@ async function onValidar(dados) {
 }
 
 function abrirDespachoContinuo() {
+  prefillOrdens.value = []
+  mostrarDespacho.value = true
+}
+
+function preencherDespachoComTriagem(unidades) {
+  const lista = Array.isArray(unidades) ? unidades : []
+  if (!lista.length) return
+  const prazo = protocolo.value?.sla?.slaHoras || 48
+  const jaDespachadas = new Set(
+    (protocolo.value?.ordens_servico || [])
+      .map((o) => String(o.unidade_id || o.unidade?.id || ''))
+      .filter(Boolean)
+  )
+  const ordens = lista
+    .filter((u) => u?.id && !jaDespachadas.has(String(u.id)))
+    .map((u) => ({
+      unidadeId: String(u.id),
+      instrucao: `Encaminhamento sugerido: ${(u.motivo || u.nome || '').trim()}`,
+      prazo_horas: prazo
+    }))
+  if (!ordens.length) {
+    mostrarToast('As unidades sugeridas já possuem ordem neste protocolo.')
+    return
+  }
+  prefillOrdens.value = ordens
   mostrarDespacho.value = true
 }
 
 function fecharDespacho() {
   mostrarDespacho.value = false
+  prefillOrdens.value = []
 }
 
 async function confirmarDespacho(payload) {

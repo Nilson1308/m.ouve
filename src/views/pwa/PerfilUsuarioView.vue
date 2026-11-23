@@ -21,16 +21,14 @@
     <main class="px-4 py-6 space-y-6 max-w-2xl mx-auto animate-fade-in">
       <!-- Avatar e Info Básica -->
       <div class="card text-center p-6">
-        <div class="relative inline-block mb-4">
-          <div class="w-24 h-24 rounded-avatar bg-gradient-to-br from-primary-500 to-primary-600 high-contrast:from-yellow-300 high-contrast:to-yellow-400 flex items-center justify-center shadow-button mx-auto">
-            <span class="text-3xl font-bold text-white high-contrast:text-black">
-              {{ iniciais }}
-            </span>
-          </div>
-          <button class="absolute bottom-0 right-0 w-8 h-8 bg-white dark:bg-gray-800 high-contrast:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 high-contrast:border-yellow-300 rounded-full flex items-center justify-center shadow-soft hover:scale-110 transition-transform">
-            <CameraIcon class="w-4 h-4 text-gray-600 dark:text-gray-400 high-contrast:text-yellow-300" />
-          </button>
-        </div>
+        <AvatarUploadCropper
+          class="mb-4 mx-auto"
+          :avatar-url="authStore.user?.avatar || ''"
+          :nome="authStore.userName"
+          theme="pwa"
+          :tamanho-exibicao="96"
+          @atualizado="aoAtualizarAvatar"
+        />
         <h2 class="text-xl font-bold text-gray-900 dark:text-white high-contrast:text-yellow-300 mb-1">
           {{ authStore.userName }}
         </h2>
@@ -460,17 +458,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { usuarioService } from '@/services/api'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useDialog } from '@/composables/useDialog'
+import AvatarUploadCropper from '@/components/shared/AvatarUploadCropper.vue'
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   QuestionMarkCircleIcon,
-  CameraIcon,
   UserIcon,
   MapPinIcon,
   ShieldCheckIcon,
@@ -531,15 +529,9 @@ const senhaData = ref({
   confirmacao: ''
 })
 
-// Computed
-const iniciais = computed(() => {
-  const nome = authStore.userName || ''
-  const partes = nome.trim().split(' ')
-  if (partes.length >= 2) {
-    return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
-  }
-  return partes[0] ? partes[0][0].toUpperCase() : '?'
-})
+function aoAtualizarAvatar(usuario) {
+  authStore.atualizarUsuarioPerfil(usuario)
+}
 
 const enderecoVazio = () => ({
   cep: '',

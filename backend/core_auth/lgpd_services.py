@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
+from core_auth.avatar_service import remover_avatar
 from core_auth.models import EnderecoCidadao
 
 Usuario = get_user_model()
@@ -21,6 +22,7 @@ def anonimizar_usuario(usuario: Usuario) -> None:
         usuario.cpf = f"9{sufixo}"[:11].ljust(11, "0")
         usuario.email = f"anonimizado+{sufixo}@ouvia.invalid"
         usuario.telefone = ""
+        remover_avatar(usuario)
         usuario.is_active = False
         usuario.set_unusable_password()
         usuario.save(

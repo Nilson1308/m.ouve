@@ -392,6 +392,7 @@ export function mapServicoCatalogo(api) {
     ativo: api.ativo !== false,
     permite_cluster: api.permite_cluster !== false,
     fluxo_tramitacao: api.fluxo_tramitacao || 'direto_secretaria',
+    triagem_ia_ativa: api.triagem_ia_ativa !== false,
     formulario_schema: Array.isArray(api.formulario_schema) ? api.formulario_schema : [],
     schema_formulario:
       api.schema_formulario && typeof api.schema_formulario === 'object'
@@ -462,6 +463,7 @@ export function payloadServicoCatalogo(form, requisitos, regrasProtocolo = [], o
     unidade_responsavel_id:
       form.unidade_responsavel_id ?? form.unidadeResponsavelId ?? null,
     fluxo_tramitacao: form.fluxo_tramitacao || 'direto_secretaria',
+    triagem_ia_ativa: form.triagem_ia_ativa !== false,
     ativo: form.ativo !== false,
     permite_cluster: form.permite_cluster !== false,
     formulario_schema: schemaLista,

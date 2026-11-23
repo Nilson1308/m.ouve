@@ -35,6 +35,12 @@
     </section>
 
     <template v-else>
+    <TriagemSugeridaCard
+      :triagem="protocolo.triagemSugerida"
+      :pode-despachar="podeDespacharTriagem"
+      @preencher-despacho="$emit('preencher-despacho', $event)"
+    />
+
     <!-- Validação: só no gather completo -->
     <AcoesValidacao
       v-if="prontoParaValidacao"
@@ -166,6 +172,7 @@ import StatusBadge from '@/components/shared/StatusBadge.vue'
 import AcoesValidacao from './AcoesValidacao.vue'
 import OrdemServicoItem from './OrdemServicoItem.vue'
 import BackofficeAccordion from '@/components/backoffice/BackofficeAccordion.vue'
+import TriagemSugeridaCard from '@/components/backoffice/protocolo/TriagemSugeridaCard.vue'
 import {
   resumoNos,
   noFechado,
@@ -208,7 +215,12 @@ const superOsLink = computed(() => {
   return { name: 'backoffice-super-os-detalhes', params: { id } }
 })
 
-defineEmits(['validar', 'devolver', 'adicionar-setor'])
+defineEmits(['validar', 'devolver', 'adicionar-setor', 'preencher-despacho'])
+
+const podeDespacharTriagem = computed(() => {
+  const s = props.protocolo?.status
+  return s === 'em_analise' || s === 'em_andamento'
+})
 
 const prontoParaValidacao = computed(() => protocoloAguardandoValidacao(props.protocolo))
 

@@ -255,6 +255,9 @@ class ProtocoloCreateSerializer(serializers.Serializer):
 
         sincronizar_localidade_protocolo(protocolo, persistir=False)
         protocolo.save()
+        from atendimentos.services.triagem_service import executar_triagem_protocolo
+
+        executar_triagem_protocolo(protocolo)
         return protocolo
 
 

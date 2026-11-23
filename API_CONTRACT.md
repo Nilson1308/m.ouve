@@ -907,7 +907,42 @@ Retorna o perfil do usuário autenticado (mesmo formato de `user` no login/regis
 | `is_superadmin` | `true` se `regras.super_admin` ou `is_superuser` Django. |
 | `perfil` | `null` para cidadãos. |
 | `unidade_administrativa` | `null` se sem vínculo. |
-| `avatar` | Reservado (`null` até haver campo no modelo). |
+| `avatar` | URL absoluta da foto de perfil (`null` se não houver). Mesma convenção dos demais anexos (`PUBLIC_BASE_URL` + `/media/...` ou `request.build_absolute_uri`). |
+
+---
+
+### POST · PATCH · DELETE `/api/v1/usuario/me/avatar` · `/api/v1/auth/me/avatar`
+
+Gerencia a foto de perfil do usuário autenticado (cidadão PWA e servidor backoffice).
+
+**Auth:** Bearer JWT
+
+#### Upload ou substituição (POST ou PATCH)
+
+- **Content-Type:** `multipart/form-data`
+- **Campo:** `avatar` (arquivo)
+- **Regras:** apenas `image/jpeg`, `image/png` ou `image/webp`; tamanho máximo **2 MB**.
+- **Response 200:** objeto completo do usuário (mesmo formato de `GET /auth/me`), com `avatar` atualizado.
+- **Response 400:** corpo com `avatar` ou `error` descrevendo formato/tamanho inválido.
+
+Ao substituir, o arquivo anterior é removido do storage.
+
+#### Remoção
+
+- **DELETE** no mesmo path, **ou**
+- **PATCH** com `Content-Type: application/json` e corpo `{ "avatar": null }`.
+
+**Response 200:** usuário com `"avatar": null`.
+
+**Exemplo (upload):**
+
+```http
+POST /api/v1/auth/me/avatar
+Authorization: Bearer …
+Content-Type: multipart/form-data
+
+avatar=<arquivo imagem>
+```
 
 ---
 
@@ -1151,6 +1186,7 @@ Detalhamento **360º** para a tela interna: dados coletados pela IA, histórico 
 | `historico_protocolo` | Eventos administrativos (`ProtocoloHistorico`) |
 | `localizacao` | `{ endereco, latitude?, longitude? }` |
 | `resposta_cidadao` / `observacoes_internas` | Preenchidos após validação |
+| `triagem_sugerida` | Objeto do motor determinístico (v4.9); `{}` se não aplicável |
 | `ordens_servico[]` | Inclui `observacoes_execucao`, `concluido_em`, `anexos[]`, `fotos_execucao[]`, `prazo_em` |
 
 **Erros:** `403`, `404`.
@@ -2592,18 +2628,85 @@ Sempre copia `descricao`, `icone`, `categoria`, `sla_horas`, `formulario_schema`
 
 Retrocompatibilidade: serviços existentes permanecem `direto_secretaria`.
 
-#### Matriz de roteamento temático (triagem determinística)
+#### Matriz de roteamento temático (triagem determinística) — v4.9
 
-Modelo `catalogo.MatrizRoteamentoTematico` (admin Django na Onda 1; API CRUD governança em onda posterior):
+**RBAC:** `IsAuthenticated` + permissões do módulo `configuracoes` (mesmo padrão de `servicos-catalogo`).
 
-| Campo | Descrição |
-|-------|-----------|
-| `servico` | FK `ServicoCatalogo` |
-| `chave_schema` | Nome do campo (ex.: `categoria`) |
-| `valor_condicao` | Valor exato (ex.: `saude`) |
-| `unidade_sugerida` | FK `UnidadeAdministrativa` executora sugerida |
+| Método | Rota | Ação |
+|--------|------|------|
+| `GET` | `/api/v1/backoffice/catalogo/servicos/<uuid:servico_id>/roteamento` | Lista regras do serviço |
+| `POST` | idem | Cria regra |
+| `PATCH` | `.../roteamento/<uuid:regra_id>` | Atualiza regra |
+| `DELETE` | idem | Remove regra |
+
+Rotas com barra final são aceitas. Serviço deve existir e `is_template=false`.
+
+**Payload escrita (POST/PATCH):**
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `chave_schema` | string | Campo em `schema_formulario.properties` (ex.: `categoria`) |
+| `valor_condicao` | string | Igualdade exata com `dados_dinamicos[chave_schema]` |
+| `unidade_sugerida` | UUID | Unidade executora sugerida (**deve estar ativa**) |
+| `ativo` | bool | Default `true` |
+
+**Resposta leitura:** inclui `id`, `unidade_sugerida_nome`, `criado_em`, `atualizado_em`.
+
+**Erros:** `400` — duplicidade `(servico, chave_schema, valor_condicao)` com mensagem clara; unidade inativa ou inexistente. `403` — sem permissão. `404` — serviço ou regra inexistente.
 
 Constraint: único por `(servico, chave_schema, valor_condicao)`.
+
+#### Triagem sugerida no protocolo (`triagem_sugerida`) — v4.9
+
+Gerada automaticamente na **criação do protocolo** (PWA ou chat) quando `servico.fluxo_tramitacao` é `ouvidoria_encaminha` ou `hibrido`. Motor determinístico (`deterministico_v1`); **não despacha** — protocolo permanece `em_analise`.
+
+Ordem de evidências: (1) lookup `unidades_administrativas` preenchido pelo cidadão (`confianca` 1.0, `fonte` `lookup_cidadao`); (2) regras ativas da matriz (`confianca` 0.85, `fonte` `matriz_eixo`). Unidades deduplicadas (prevalece maior confiança).
+
+**Formato persistido:**
+
+```json
+{
+  "unidades_sugeridas": [
+    {
+      "id": "uuid",
+      "nome": "Secretaria de Saúde",
+      "confianca": 0.85,
+      "fonte": "matriz_eixo",
+      "motivo": "Regra categoria=saude"
+    }
+  ],
+  "gerada_em": "2026-11-23T10:30:00Z",
+  "versao_motor": "deterministico_v1"
+}
+```
+
+`fluxo_tramitacao=direto_secretaria` → `{}` (sem sugestão de encaminhamento).
+
+**Backoffice:** campo `triagem_sugerida` em `GET /api/v1/backoffice/protocolos/<protocolo_id>` (respeita `escopo_dados` / IDOR).
+
+**Despacho scatter:** quando há triagem, `ProtocoloHistorico` registra se as unidades despachadas **confirmaram** ou **divergiram** da sugestão (auditoria de acurácia).
+
+#### Triagem semântica (LLM) — v4.10
+
+**Governança (`ServicoCatalogo`):**
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `triagem_ia_ativa` | bool | Default `true`. Habilita enfileiramento da triagem semântica após a triagem determinística em `ouvidoria_encaminha` e `hibrido`. |
+
+Exposto em `GET/PATCH/POST` do CRUD `backoffice/servicos-catalogo`. Clonagem/duplicação de serviços **preserva** a flag.
+
+**Execução:** task Celery `executar_triagem_semantica_task(protocolo_id)` via `transaction.on_commit` após `executar_triagem_protocolo`. Sem chave LLM ou em erro de rede/parse → **mantém** `triagem_sugerida` determinística (apenas log).
+
+**Payload enriquecido (`versao_motor: hibrido_llm_v1`):**
+
+| Campo extra | Descrição |
+|-------------|-----------|
+| `resumo_motivo` | Síntese em 1 frase do encaminhamento sugerido pela IA |
+| `versao_modelo` | Identificador do modelo LLM usado (ex.: Groq) |
+| `unidades_sugeridas[].fonte` | `llm` (além de `lookup_cidadao`, `matriz_eixo`) |
+
+Regras de merge: UUID deve existir em unidade ativa; `confianca` mínima 0.50; até 3 unidades; duplicatas unificadas (fonte determinística preservada, maior confiança, motivo complementado).
 
 #### Lookup dinâmico — datasource de formulário
 
@@ -3193,6 +3296,8 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.10** (Nov 23, 2026): Onda 4 — `triagem_ia_ativa` no catálogo; triagem semântica assíncrona (Celery + LLM) com merge em `triagem_sugerida` (`hibrido_llm_v1`, `resumo_motivo`, `versao_modelo`, fonte `llm`)
+- **v4.9** (Nov 23, 2026): Onda 3 — CRUD `/backoffice/catalogo/servicos/<id>/roteamento`; motor `triagem_sugerida` determinístico em `Protocolo`; auditoria de despacho vs sugestão; exposição no detalhe backoffice
 - **v4.8** (Nov 19, 2026): Catálogo — `fluxo_tramitacao`, `MatrizRoteamentoTematico`, tipo `lookup` + `GET /catalogo/lookup/unidades`; semântica de `unidade_responsavel` por fluxo
 - **v4.7.1** (Nov 19, 2026): `GET /app/notificacoes/vapid-public-key`; comando `manage.py generate_vapid`; derivação da chave pública a partir de PEM quando só `VAPID_PRIVATE_KEY` (caminho) está definido
 - **v4.7** (Nov 19, 2026): Onda 4 — `NotificacaoCidadao`, `PushSubscription`; `GET/PATCH /app/notificacoes`, `POST /app/notificacoes/push-subscribe`; Celery `enviar_notificacao_push_task` (pywebpush + VAPID); gatilhos status protocolo e resposta IA

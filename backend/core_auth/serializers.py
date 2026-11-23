@@ -8,6 +8,7 @@ from rest_framework import serializers
 from core_auth.models import DispositivoPush, EnderecoCidadao, Notificacao, Usuario
 from core_auth.rbac import listar_permissoes_efetivas, usuario_e_backoffice, usuario_e_cidadao, usuario_e_super_admin
 from core_auth.utils import cpf_valido, formatar_cpf, normalizar_cpf
+from ouvia_core.url_utils import public_absolute_uri
 
 
 class CoordenadasSerializer(serializers.Serializer):
@@ -66,7 +67,10 @@ class UsuarioResponseSerializer(serializers.ModelSerializer):
         return formatar_cpf(obj.cpf)
 
     def get_avatar(self, obj):
-        return None
+        if not obj.avatar:
+            return None
+        request = self.context.get("request")
+        return public_absolute_uri(request, obj.avatar.url)
 
     def get_perfil(self, obj):
         pa = getattr(obj, "perfil_acesso", None)

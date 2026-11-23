@@ -205,6 +205,7 @@ export function mapProtocoloDetalheBackoffice(api) {
       mapOrdemServicoDetalhe(o, base.urgencia)
     ),
     resposta_cidadao: api.resposta_cidadao || '',
-    observacoes_internas: api.observacoes_internas || ''
+    observacoes_internas: api.observacoes_internas || '',
+    triagemSugerida: api.triagem_sugerida || null
   }
 }

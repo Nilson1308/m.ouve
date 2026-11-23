@@ -8,7 +8,7 @@
     leave-to-class="opacity-0"
   >
     <div
-      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 overflow-y-auto"
+      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-hidden"
       @click.self="$emit('fechar')"
     >
       <Transition
@@ -19,9 +19,11 @@
         leave-from-class="opacity-100 scale-100"
         leave-to-class="opacity-0 scale-95"
       >
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-5xl my-8 overflow-hidden">
+        <div
+          class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90dvh] flex flex-col overflow-hidden"
+        >
           <!-- Header (padrão premium — alinhado a ModalPerfil / GestaoPerfis) -->
-          <div class="relative bg-gradient-to-r from-primary-600 via-primary-500 to-cyan-500 p-6 overflow-hidden">
+          <div class="relative shrink-0 bg-gradient-to-r from-primary-600 via-primary-500 to-cyan-500 p-6 overflow-hidden">
             <div
               class="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer"
               aria-hidden="true"
@@ -69,7 +71,7 @@
           <!-- Barra de versionamento -->
           <div
             v-if="modoEdicao"
-            class="px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+            class="shrink-0 px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
           >
             <div class="flex flex-wrap items-center gap-2">
               <span
@@ -105,7 +107,31 @@
             </div>
           </div>
 
-          <div class="p-6 space-y-6 max-h-[calc(100vh-14rem)] overflow-y-auto">
+          <nav
+            v-if="modoEdicao"
+            class="shrink-0 px-6 pt-4 flex gap-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30 overflow-x-auto"
+            aria-label="Seções do editor"
+          >
+            <button
+              type="button"
+              :class="abaClasse('formulario')"
+              @click="abaAtiva = 'formulario'"
+            >
+              <Squares2X2Icon class="w-4 h-4" />
+              Formulário &amp; IA
+            </button>
+            <button
+              type="button"
+              :class="abaClasse('roteamento')"
+              @click="abaAtiva = 'roteamento'"
+            >
+              <ArrowsRightLeftIcon class="w-4 h-4" />
+              Roteamento
+            </button>
+          </nav>
+
+          <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-6">
+            <template v-if="abaAtiva === 'formulario' || !modoEdicao">
             <!-- Governança -->
             <CardSecao
               titulo="Governança do serviço"
@@ -271,11 +297,28 @@
             <RegrasElegibilidadeProtocolo v-model="regrasProtocolo" />
 
             <AiSchemaBuilder v-model="requisitos" />
+
+            <p
+              v-if="!modoEdicao"
+              class="text-xs text-gray-500 dark:text-gray-400 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 px-4 py-3"
+            >
+              Salve o serviço primeiro para configurar regras de roteamento na aba
+              <strong>Roteamento</strong>.
+            </p>
+            </template>
+
+            <FormBuilderRoteamentoTab
+              v-else-if="abaAtiva === 'roteamento'"
+              v-model:triagem-ia-ativa="formulario.triagem_ia_ativa"
+              :servico-id="String(servicoAtual.id)"
+              :fluxo-tramitacao="formulario.fluxo_tramitacao"
+              :requisitos="requisitos"
+            />
           </div>
 
           <!-- Footer -->
           <div
-            class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50"
+            class="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50"
           >
             <p class="text-xs text-gray-500 dark:text-gray-400">
               {{ requisitos.length }} dado(s) mapeado(s) para a IA · campos com * são obrigatórios
@@ -428,6 +471,7 @@ import {
 import { useAdminToast } from '@/composables/useAdminToast'
 import HistoricoVersoesServico from './HistoricoVersoesServico.vue'
 import AiSchemaBuilder from './AiSchemaBuilder.vue'
+import FormBuilderRoteamentoTab from './FormBuilderRoteamentoTab.vue'
 import RegrasElegibilidadeProtocolo from './RegrasElegibilidadeProtocolo.vue'
 import SandboxServicoDrawer from './SandboxServicoDrawer.vue'
 import CardSecao from './FormBuilderCardSecao.vue'
@@ -439,7 +483,8 @@ import {
   SparklesIcon,
   Squares2X2Icon,
   DevicePhoneMobileIcon,
-  ClockIcon
+  ClockIcon,
+  ArrowsRightLeftIcon
 } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
@@ -465,6 +510,17 @@ const notaVersao = ref('')
 const alteracoesLocais = ref(false)
 const restaurandoVersao = ref(null)
 const baselineCarregado = ref(false)
+const abaAtiva = ref('formulario')
+
+function abaClasse(id) {
+  const ativo = abaAtiva.value === id
+  return [
+    'inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg border-b-2 -mb-px transition-colors',
+    ativo
+      ? 'border-primary-500 text-primary-700 dark:text-primary-300 bg-white dark:bg-gray-800'
+      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+  ]
+}
 
 const categorias = computed(() => catalogoStore.categoriasCatalogo)
 
@@ -475,6 +531,7 @@ const formulario = reactive({
   descricao: '',
   sla_padrao_horas: 72,
   fluxo_tramitacao: 'direto_secretaria',
+  triagem_ia_ativa: true,
   categoria_id: null,
   unidade_responsavel_id: null,
   ativo: true,
@@ -549,6 +606,7 @@ function preencherFormulario(servico) {
   formulario.descricao = servico?.descricao || ''
   formulario.sla_padrao_horas = servico?.sla_padrao_horas ?? servico?.sla_horas ?? 72
   formulario.fluxo_tramitacao = servico?.fluxo_tramitacao || 'direto_secretaria'
+  formulario.triagem_ia_ativa = servico?.triagem_ia_ativa !== false
   formulario.categoria_id = servico?.categoria_id ? String(servico.categoria_id) : null
   formulario.unidade_responsavel_id = servico?.unidade_responsavel_id
     ? String(servico.unidade_responsavel_id)
@@ -604,6 +662,7 @@ function payloadForm() {
     icone: formulario.icone,
     sla_padrao_horas: formulario.sla_padrao_horas,
     fluxo_tramitacao: formulario.fluxo_tramitacao,
+    triagem_ia_ativa: formulario.triagem_ia_ativa,
     categoria_id: formulario.categoria_id,
     unidade_responsavel_id: formulario.unidade_responsavel_id,
     ativo: formulario.ativo,
