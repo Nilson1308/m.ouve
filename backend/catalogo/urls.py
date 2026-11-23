@@ -9,7 +9,8 @@ from catalogo.governanca_roteamento_views import (
     MatrizRoteamentoDetailView,
     MatrizRoteamentoListCreateView,
 )
-from catalogo.lookup_views import CatalogoLookupUnidadesView
+from catalogo.governanca_equipamentos_views import EquipamentoPublicoGovernancaViewSet
+from catalogo.lookup_views import CatalogoLookupEquipamentosView, CatalogoLookupUnidadesView
 from catalogo.views import CategoriaCatalogoListView, ServicoCatalogoListView
 
 governanca_router = DefaultRouter(trailing_slash=False)
@@ -22,6 +23,11 @@ governanca_router.register(
     "backoffice/categorias-catalogo",
     CategoriaCatalogoGovernancaViewSet,
     basename="governanca-categorias-catalogo",
+)
+governanca_router.register(
+    "backoffice/equipamentos",
+    EquipamentoPublicoGovernancaViewSet,
+    basename="governanca-equipamentos",
 )
 
 urlpatterns = [
@@ -45,5 +51,7 @@ urlpatterns = [
     path("catalogo-servicos", ServicoCatalogoListView.as_view()),
     path("catalogo/lookup/unidades", CatalogoLookupUnidadesView.as_view()),
     path("catalogo/lookup/unidades/", CatalogoLookupUnidadesView.as_view()),
+    path("catalogo/lookup/equipamentos", CatalogoLookupEquipamentosView.as_view()),
+    path("catalogo/lookup/equipamentos/", CatalogoLookupEquipamentosView.as_view()),
     path("", include(governanca_router.urls)),
 ]

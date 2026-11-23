@@ -63,6 +63,16 @@ def montar_item_protocolo(protocolo: Protocolo) -> dict:
         if u
         else {"nome": "—", "telefone": ""}
     )
+    equipamento_payload = None
+    eq = getattr(protocolo, "equipamento", None)
+    if eq:
+        equipamento_payload = {
+            "id": str(eq.id),
+            "nome": eq.nome,
+            "tipo": eq.tipo,
+            "bairro": eq.bairro or "",
+        }
+
     return {
         "id": str(protocolo.id),
         "tipo": "protocolo",
@@ -77,6 +87,7 @@ def montar_item_protocolo(protocolo: Protocolo) -> dict:
         "endereco": protocolo.endereco_texto or "",
         "servico_nome": protocolo.servico.nome if protocolo.servico_id else None,
         "cidadao": cidadao,
+        "equipamento": equipamento_payload,
         "triagem_sugerida": protocolo.triagem_sugerida or {},
         "_sort_vencido": sla["vencido"],
         "_sort_horas": sla["horas_restantes"],
@@ -183,7 +194,7 @@ def queryset_protocolos_kanban(user=None):
     ordens_qs = OrdemServico.objects.select_related("unidade").order_by("criado_em")
     qs = (
         Protocolo.objects.filter(super_os__isnull=True)
-        .select_related("servico", "servico__categoria", "usuario")
+        .select_related("servico", "servico__categoria", "usuario", "equipamento")
         .prefetch_related(Prefetch("ordens_servico", queryset=ordens_qs))
         .annotate(_tem_anexos=Count("anexos", distinct=True))
     )
@@ -260,6 +271,10 @@ def filtrar_protocolos_kanban(qs, params):
                     | Q(dados_dinamicos__urgencia_estimada__iexact=val)
                 )
             qs = qs.filter(q).distinct()
+
+    equipamento_id = (params.get("equipamento_id") or "").strip()
+    if equipamento_id:
+        qs = qs.filter(equipamento_id=equipamento_id)
 
     return qs
 

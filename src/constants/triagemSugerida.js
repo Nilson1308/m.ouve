@@ -2,6 +2,7 @@
 
 export const TRIAGEM_FONTE_LABELS = {
   lookup_cidadao: 'Informado pelo cidadão',
+  equipamento_publico: 'Equipamento público',
   matriz_eixo: 'Regra temática',
   llm: 'IA Semântica'
 }
@@ -31,6 +32,8 @@ export function classeBadgeFonteTriagem(fonte) {
       return `${base} bg-emerald-100 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200`
     case 'matriz_eixo':
       return `${base} bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200`
+    case 'equipamento_publico':
+      return `${base} bg-cyan-100 text-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 ring-1 ring-cyan-200/80 dark:ring-cyan-700/40`
     default:
       return `${base} bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200`
   }

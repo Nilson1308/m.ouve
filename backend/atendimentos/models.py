@@ -84,6 +84,13 @@ class Protocolo(models.Model):
             "para apoio ao despacho na Mesa."
         ),
     )
+    equipamento = models.ForeignKey(
+        "catalogo.EquipamentoPublico",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="protocolos",
+    )
 
     class Meta:
         ordering = ["-data_criacao"]
@@ -93,6 +100,7 @@ class Protocolo(models.Model):
             models.Index(fields=["servico"]),
             models.Index(fields=["super_os"]),
             models.Index(fields=["nota_satisfacao"]),
+            models.Index(fields=["equipamento"]),
         ]
 
     def __str__(self):

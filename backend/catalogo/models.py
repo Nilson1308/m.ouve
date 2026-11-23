@@ -3,6 +3,7 @@
 import uuid
 
 from django.conf import settings
+from django.contrib.gis.db import models as gis_models
 from django.db import models
 
 from catalogo.form_builder import formulario_schema_padrao
@@ -89,6 +90,55 @@ class UnidadeAdministrativa(models.Model):
 
     def __str__(self):
         return self.sigla or self.nome
+
+
+class EquipamentoPublico(models.Model):
+    """Equipamento físico vinculado a secretaria (UBS, escola, CRAS, etc.)."""
+
+    class Tipo(models.TextChoices):
+        UBS = "ubs", "UBS"
+        UPA = "upa", "UPA"
+        HOSPITAL = "hospital", "Hospital"
+        ESCOLA = "escola", "Escola"
+        CRECHE = "creche", "Creche"
+        PARQUE = "parque", "Parque"
+        QUADRA = "quadra", "Quadra esportiva"
+        CRAS = "cras", "CRAS"
+        EQUIPAMENTO_CULTURAL = "equipamento_cultural", "Equipamento cultural"
+        PREDIO_ADMINISTRATIVO = "predio_administrativo", "Prédio administrativo"
+        OUTRO = "outro", "Outro"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    nome = models.CharField(max_length=255)
+    tipo = models.CharField(max_length=40, choices=Tipo.choices, db_index=True)
+    unidade_responsavel = models.ForeignKey(
+        UnidadeAdministrativa,
+        on_delete=models.PROTECT,
+        related_name="equipamentos_publicos",
+    )
+    apelidos = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Sinônimos usados pelo cidadão (ex.: Postinho do Centro).",
+    )
+    endereco = models.CharField(max_length=500, blank=True)
+    bairro = models.CharField(max_length=120, blank=True, db_index=True)
+    localizacao = gis_models.PointField(geography=True, srid=4326, null=True, blank=True)
+    ativo = models.BooleanField(default=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["nome"]
+        verbose_name = "equipamento público"
+        verbose_name_plural = "equipamentos públicos"
+        indexes = [
+            models.Index(fields=["ativo", "tipo"]),
+            models.Index(fields=["unidade_responsavel", "ativo"]),
+        ]
+
+    def __str__(self):
+        return self.nome
 
 
 class ServicoCatalogo(models.Model):

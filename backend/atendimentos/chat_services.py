@@ -176,6 +176,9 @@ def finalizar_sessao_com_protocolo(sessao: SessaoChat) -> Protocolo:
 
     sincronizar_localidade_protocolo(protocolo, persistir=False)
     protocolo.save()
+    from atendimentos.services.equipamento_protocolo import sincronizar_equipamento_no_protocolo
+
+    sincronizar_equipamento_no_protocolo(protocolo)
     from atendimentos.services.triagem_service import executar_triagem_protocolo
 
     executar_triagem_protocolo(protocolo)

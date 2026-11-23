@@ -49,6 +49,7 @@
           <GestaoUsuarios v-else-if="secaoAtiva === 'usuarios'" />
           <GestaoPerfis v-else-if="secaoAtiva === 'perfis'" />
           <GestaoCatalogo v-else-if="secaoAtiva === 'servicos'" />
+          <GestaoEquipamentos v-else-if="secaoAtiva === 'equipamentos'" />
           <GestaoSaudeInfra v-else-if="secaoAtiva === 'monitoramento'" />
           <p v-else class="text-center py-16 text-slate-500 dark:text-slate-400 text-sm">
             Selecione uma seção ao lado.
@@ -88,6 +89,7 @@ import {
   ShieldCheckIcon,
   WrenchScrewdriverIcon,
   SignalIcon,
+  BuildingStorefrontIcon,
   CheckCircleIcon,
   ExclamationCircleIcon
 } from '@heroicons/vue/24/outline'
@@ -96,6 +98,7 @@ import GestaoUsuarios from '@/components/backoffice/admin/GestaoUsuarios.vue'
 import GestaoPerfis from '@/components/backoffice/admin/GestaoPerfis.vue'
 import GestaoCatalogo from '@/components/backoffice/catalogo/GestaoCatalogo.vue'
 import GestaoSaudeInfra from '@/components/backoffice/admin/GestaoSaudeInfra.vue'
+import GestaoEquipamentos from '@/components/backoffice/admin/GestaoEquipamentos.vue'
 import { useAdminStore } from '@/stores/admin'
 import { useCatalogoStore } from '@/stores/catalogo'
 import { useAdminToast } from '@/composables/useAdminToast'
@@ -105,12 +108,12 @@ const route = useRoute()
 const router = useRouter()
 const adminStore = useAdminStore()
 const catalogoStore = useCatalogoStore()
-const { totalUnidades, totalUsuarios, totalPerfis, erro } = storeToRefs(adminStore)
+const { totalUnidades, totalUsuarios, totalPerfis, totalEquipamentos, erro } = storeToRefs(adminStore)
 const { totalServicos } = storeToRefs(catalogoStore)
 const { toastAberto, toastMensagem, toastErro } = useAdminToast()
 const { can, isSuperAdmin } = useRbac()
 
-const SECOES_VALIDAS = ['unidades', 'usuarios', 'perfis', 'servicos', 'monitoramento']
+const SECOES_VALIDAS = ['unidades', 'usuarios', 'perfis', 'servicos', 'equipamentos', 'monitoramento']
 const secaoAtiva = ref('unidades')
 
 const secoes = computed(() => [
@@ -140,6 +143,13 @@ const secoes = computed(() => [
     nome: 'Catálogo de Serviços',
     icon: WrenchScrewdriverIcon,
     badge: totalServicos.value > 0 ? totalServicos.value : null,
+    visible: () => can('configuracoes.ler') || isSuperAdmin.value
+  },
+  {
+    id: 'equipamentos',
+    nome: 'Equipamentos Públicos',
+    icon: BuildingStorefrontIcon,
+    badge: totalEquipamentos.value > 0 ? totalEquipamentos.value : null,
     visible: () => can('configuracoes.ler') || isSuperAdmin.value
   },
   {
@@ -182,6 +192,7 @@ onMounted(() => {
   adminStore.carregarUsuarios().catch(() => {})
   adminStore.carregarPerfisAcesso().catch(() => {})
   catalogoStore.carregarServicosCatalogo().catch(() => {})
+  adminStore.carregarEquipamentos({}, { silencioso: true }).catch(() => {})
 })
 </script>
 

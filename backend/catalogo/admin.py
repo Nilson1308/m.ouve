@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from catalogo.models import (
     CategoriaCatalogo,
+    EquipamentoPublico,
     MatrizRoteamentoTematico,
     ServicoCatalogo,
     ServicoCatalogoVersao,
@@ -13,6 +14,22 @@ class MatrizRoteamentoTematicoInline(admin.TabularInline):
     model = MatrizRoteamentoTematico
     extra = 0
     autocomplete_fields = ("unidade_sugerida",)
+
+
+@admin.register(EquipamentoPublico)
+class EquipamentoPublicoAdmin(admin.ModelAdmin):
+    list_display = (
+        "nome",
+        "tipo",
+        "unidade_responsavel",
+        "bairro",
+        "ativo",
+        "atualizado_em",
+    )
+    list_filter = ("ativo", "tipo", "unidade_responsavel")
+    search_fields = ("nome", "bairro", "endereco")
+    autocomplete_fields = ("unidade_responsavel",)
+    ordering = ("nome",)
 
 
 @admin.register(UnidadeAdministrativa)

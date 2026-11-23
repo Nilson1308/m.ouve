@@ -12,8 +12,10 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from catalogo.datasources import LOOKUP_DATASOURCES
+from catalogo.datasources import LOOKUP_DATASOURCE_UNIDADES
+from catalogo.equipamento_utils import campos_equipamentos_publicos_schema
 from catalogo.models import MatrizRoteamentoTematico, ServicoCatalogo, UnidadeAdministrativa
+from atendimentos.services.equipamento_protocolo import obter_equipamento_ativo
 from atendimentos.models import MensagemChat, Protocolo
 
 logger = logging.getLogger(__name__)
@@ -22,8 +24,9 @@ VERSAO_MOTOR = "deterministico_v1"
 VERSAO_MOTOR_HIBRIDO = "hibrido_llm_v1"
 FONTE_LOOKUP = "lookup_cidadao"
 FONTE_MATRIZ = "matriz_eixo"
+FONTE_EQUIPAMENTO = "equipamento_publico"
 FONTE_LLM = "llm"
-FONTES_DETERMINISTICAS = frozenset({FONTE_LOOKUP, FONTE_MATRIZ})
+FONTES_DETERMINISTICAS = frozenset({FONTE_LOOKUP, FONTE_MATRIZ, FONTE_EQUIPAMENTO})
 CONFIANCA_LOOKUP = 1.0
 CONFIANCA_MATRIZ = 0.85
 CONFIANCA_MINIMA_LLM = 0.50
@@ -80,18 +83,9 @@ def _parse_uuid(valor: Any) -> uuid.UUID | None:
 
 
 def _campos_lookup_unidades(schema: dict | None) -> list[str]:
-    props = (schema or {}).get("properties") or {}
-    if not isinstance(props, dict):
-        return []
-    chaves: list[str] = []
-    for nome, prop in props.items():
-        if not isinstance(prop, dict):
-            continue
-        ds = (prop.get("x-ouvia-datasource") or "").strip()
-        if ds == "unidades_administrativas" or ds in LOOKUP_DATASOURCES:
-            if ds == "unidades_administrativas":
-                chaves.append(str(nome))
-    return chaves
+    from catalogo.equipamento_utils import campos_schema_datasource
+
+    return campos_schema_datasource(schema, LOOKUP_DATASOURCE_UNIDADES)
 
 
 def _registrar_sugestao(
@@ -131,6 +125,31 @@ def montar_triagem_sugerida(protocolo: Protocolo) -> dict[str, Any]:
     dados = protocolo.dados_dinamicos or {}
     schema = servico.schema_formulario or {}
     sugestoes: dict[str, dict[str, Any]] = {}
+
+    equipamento = getattr(protocolo, "equipamento", None)
+    if equipamento and equipamento.ativo and equipamento.unidade_responsavel.ativo:
+        _registrar_sugestao(
+            sugestoes,
+            equipamento.unidade_responsavel,
+            confianca=CONFIANCA_LOOKUP,
+            fonte=FONTE_EQUIPAMENTO,
+            motivo=f"Equipamento vinculado: {equipamento.nome}",
+        )
+
+    for chave in campos_equipamentos_publicos_schema(schema):
+        eid = _parse_uuid(dados.get(chave))
+        if not eid:
+            continue
+        eq = obter_equipamento_ativo(eid)
+        if not eq:
+            continue
+        _registrar_sugestao(
+            sugestoes,
+            eq.unidade_responsavel,
+            confianca=CONFIANCA_LOOKUP,
+            fonte=FONTE_EQUIPAMENTO,
+            motivo=f"Equipamento informado: {eq.nome}",
+        )
 
     for chave in _campos_lookup_unidades(schema):
         uid = _parse_uuid(dados.get(chave))
@@ -275,8 +294,17 @@ def executar_triagem_protocolo(protocolo: Protocolo, *, persistir: bool = True) 
     Gera e, opcionalmente, persiste sugestões para protocolos em fluxo de encaminhamento.
     Não altera status do protocolo (permanece em análise até despacho humano).
     """
-    if not protocolo.servico_id:
-        protocolo = Protocolo.objects.select_related("servico").get(pk=protocolo.pk)
+    from atendimentos.services.equipamento_protocolo import sincronizar_equipamento_no_protocolo
+
+    protocolo = (
+        Protocolo.objects.select_related(
+            "servico",
+            "equipamento",
+            "equipamento__unidade_responsavel",
+        )
+        .get(pk=protocolo.pk)
+    )
+    sincronizar_equipamento_no_protocolo(protocolo)
 
     payload = montar_triagem_sugerida(protocolo)
     if persistir:

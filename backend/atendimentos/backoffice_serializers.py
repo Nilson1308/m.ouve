@@ -201,6 +201,7 @@ class BackofficeProtocoloKanbanSerializer(serializers.ModelSerializer):
     data_criacao = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%SZ")
     data_atualizacao = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%SZ")
     triagem_sugerida = serializers.JSONField(read_only=True)
+    equipamento = serializers.SerializerMethodField()
 
     class Meta:
         model = Protocolo
@@ -224,7 +225,19 @@ class BackofficeProtocoloKanbanSerializer(serializers.ModelSerializer):
             "super_os_codigo",
             "ordens_servico",
             "triagem_sugerida",
+            "equipamento",
         )
+
+    def get_equipamento(self, obj):
+        eq = getattr(obj, "equipamento", None)
+        if not eq:
+            return None
+        return {
+            "id": str(eq.id),
+            "nome": eq.nome,
+            "tipo": eq.tipo,
+            "bairro": eq.bairro or "",
+        }
 
     def get_dados_dinamicos(self, obj):
         return resumir_dados_dinamicos(obj.dados_dinamicos)

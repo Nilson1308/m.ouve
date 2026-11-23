@@ -50,6 +50,11 @@
                 class="w-3.5 h-3.5"
                 aria-hidden="true"
               />
+              <BuildingOffice2Icon
+                v-else-if="item.fonte === 'equipamento_publico'"
+                class="w-3.5 h-3.5"
+                aria-hidden="true"
+              />
               {{ labelFonteTriagem(item.fonte) }}
             </span>
           </div>
@@ -93,7 +98,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { SparklesIcon, PaperAirplaneIcon } from '@heroicons/vue/24/outline'
+import { SparklesIcon, PaperAirplaneIcon, BuildingOffice2Icon } from '@heroicons/vue/24/outline'
 import {
   classeBadgeFonteTriagem,
   formatarConfiancaTriagem,

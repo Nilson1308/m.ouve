@@ -1065,6 +1065,7 @@ Lista protocolos otimizada para Kanban / tabela, com ordens de serviço aninhada
 | `page`        | int     | Página (padrão 1)                                      |
 | `per_page`    | int     | Itens por página (máx. 100)                            |
 | `ordering`    | string  | Ex.: `-data_criacao`, `codigo`, `status`               |
+| `equipamento_id` | uuid | Filtra protocolos vinculados ao equipamento (v4.11)   |
 
 **Response 200 (paginado):**
 
@@ -1208,6 +1209,7 @@ Detalhamento **360º** para a tela interna: dados coletados pela IA, histórico 
 | `localizacao` | `{ endereco, latitude?, longitude? }` |
 | `resposta_cidadao` / `observacoes_internas` | Preenchidos após validação |
 | `triagem_sugerida` | Objeto do motor determinístico (v4.9); `{}` se não aplicável |
+| `equipamento` | `{ id, nome, tipo, bairro }` ou `null` (v4.11) |
 | `ordens_servico[]` | Inclui `observacoes_execucao`, `concluido_em`, `anexos[]`, `fotos_execucao[]`, `prazo_em` |
 
 **Erros:** `403`, `404`.
@@ -2651,6 +2653,30 @@ Sempre copia `descricao`, `icone`, `categoria`, `sla_horas`, `formulario_schema`
 
 Retrocompatibilidade: serviços existentes permanecem `direto_secretaria`.
 
+#### Equipamentos públicos (SaaS) — v4.11
+
+Cadastro **por município** via API/banco — sem listas fixas no código.
+
+**Permissão:** `configuracoes` (RBAC) — mesmo padrão do catálogo e matriz de roteamento.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/api/v1/backoffice/equipamentos` | Listagem (filtros abaixo) |
+| `POST` | `/api/v1/backoffice/equipamentos` | Cria equipamento |
+| `GET` | `/api/v1/backoffice/equipamentos/<uuid>` | Detalhe |
+| `PATCH` | `/api/v1/backoffice/equipamentos/<uuid>` | Atualiza |
+| `DELETE` | `/api/v1/backoffice/equipamentos/<uuid>` | Remove (ou desativa conforme política) |
+
+Rotas com barra final aceitas.
+
+**Filtros GET:** `busca` (nome, apelidos, bairro), `unidade_id`, `tipo` (`ubs`, `escola`, …), `ativo`.
+
+**Payload escrita:** `nome`, `tipo`, `unidade_responsavel` (UUID, ativa), `apelidos` (lista de strings), `endereco`, `bairro`, `ativo`.
+
+**Resposta leitura:** inclui `unidade_responsavel_nome`.
+
+**Protocolo:** campo opcional `equipamento_id` preenchido automaticamente quando há campo lookup `equipamentos_publicos` em `dados_dinamicos` (chat ou POST direto).
+
 #### Matriz de roteamento temático (triagem determinística) — v4.9
 
 **RBAC:** `IsAuthenticated` + permissões do módulo `configuracoes` (mesmo padrão de `servicos-catalogo`).
@@ -2683,7 +2709,7 @@ Constraint: único por `(servico, chave_schema, valor_condicao)`.
 
 Gerada automaticamente na **criação do protocolo** (PWA ou chat) quando `servico.fluxo_tramitacao` é `ouvidoria_encaminha` ou `hibrido`. Motor determinístico (`deterministico_v1`); **não despacha** — protocolo permanece `em_analise`.
 
-Ordem de evidências: (1) lookup `unidades_administrativas` preenchido pelo cidadão (`confianca` 1.0, `fonte` `lookup_cidadao`); (2) regras ativas da matriz (`confianca` 0.85, `fonte` `matriz_eixo`). Unidades deduplicadas (prevalece maior confiança).
+Ordem de evidências: (1) equipamento vinculado ao protocolo (`confianca` 1.0, `fonte` `equipamento_publico`); (2) lookup `unidades_administrativas` (`fonte` `lookup_cidadao`); (3) regras ativas da matriz (`confianca` 0.85, `fonte` `matriz_eixo`). Unidades deduplicadas (prevalece maior confiança).
 
 **Formato persistido:**
 
@@ -2740,8 +2766,11 @@ Regras de merge: UUID deve existir em unidade ativa; `confianca` mínima 0.50; a
 | Método | Rota | Auth |
 |--------|------|------|
 | `GET` | `/api/v1/catalogo/lookup/unidades` | Nenhuma (`AllowAny`, como `catalogo-servicos`) |
+| `GET` | `/api/v1/catalogo/lookup/equipamentos` | Nenhuma (`AllowAny`) |
 
-Query: `busca` (filtra nome/sigla), `limit` (1–500, default 200).
+Query unidades: `busca` (filtra nome/sigla), `limit` (1–500, default 200).
+
+Query equipamentos: `busca` (nome, apelidos, bairro — sem acento/case), `unidade_id`, `tipo`, `limit` (1–100, default 30).
 
 **Resposta 200:**
 
@@ -2769,7 +2798,27 @@ Rota com barra final (`.../unidades/`) é aceita. Apenas unidades **ativas**; re
 }
 ```
 
-Datasources suportados: `unidades_administrativas`. Widgets: `searchable_select`, `select`.
+**Resposta 200 (equipamentos):**
+
+```json
+{
+  "datasource": "equipamentos_publicos",
+  "items": [
+    {
+      "id": "uuid",
+      "nome": "UBS Vila São José",
+      "tipo": "ubs",
+      "bairro": "Vila São José",
+      "unidade_id": "uuid",
+      "unidade_nome": "Secretaria Municipal de Saúde"
+    }
+  ]
+}
+```
+
+Datasources suportados: `unidades_administrativas`, `equipamentos_publicos`. Widgets: `searchable_select`, `select`.
+
+Filtro opcional no schema: `x-ouvia-datasource-filter` — ex. `{ "tipo": "ubs" }`, `{ "unidade_id": "uuid" }`.
 
 **Espelho em `schema_formulario.properties.<name>`:**
 
@@ -3337,6 +3386,7 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.11** (Nov 23, 2026): Equipamentos públicos — modelo `EquipamentoPublico`, CRUD `GET/POST/PATCH/DELETE /backoffice/equipamentos`, lookup `GET /catalogo/lookup/equipamentos`, datasource `equipamentos_publicos`, `Protocolo.equipamento`, triagem `fonte=equipamento_publico`, slot filling por apelido
 - **v4.10.1** (Nov 23, 2026): Mesa — `triagem_sugerida` no `GET /backoffice/kanban`; indicadores no kanban/lista e painel no modal de despacho; slot filling na abertura do chat (Redis + schema)
 - **v4.10** (Nov 23, 2026): Onda 4 — `triagem_ia_ativa` no catálogo; triagem semântica assíncrona (Celery + LLM) com merge em `triagem_sugerida` (`hibrido_llm_v1`, `resumo_motivo`, `versao_modelo`, fonte `llm`)
 - **v4.9** (Nov 23, 2026): Onda 3 — CRUD `/backoffice/catalogo/servicos/<id>/roteamento`; motor `triagem_sugerida` determinístico em `Protocolo`; auditoria de despacho vs sugestão; exposição no detalhe backoffice

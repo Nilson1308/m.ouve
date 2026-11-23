@@ -19,3 +19,4 @@ export const FLUXO_TRAMITACAO_OPCOES = [
 ]
 
 export const LOOKUP_DATASOURCE_UNIDADES = 'unidades_administrativas'
+export const LOOKUP_DATASOURCE_EQUIPAMENTOS = 'equipamentos_publicos'

@@ -41,3 +41,21 @@ class FormBuilderLookupTests(TestCase):
         self.assertEqual(prop["x-ouvia-ui-widget"], "searchable_select")
         self.assertEqual(prop["format"], "uuid")
         validar_schema_formulario_lookup(schema)
+
+    def test_equipamentos_publicos_datasource_e_filtro(self):
+        schema = formulario_schema_para_schema_formulario(
+            [
+                {
+                    "name": "ubs_atendimento",
+                    "type": "lookup",
+                    "label": "Unidade de saúde",
+                    "datasource": "equipamentos_publicos",
+                    "datasource_filter": {"tipo": "ubs"},
+                    "required": False,
+                }
+            ]
+        )
+        prop = schema["properties"]["ubs_atendimento"]
+        self.assertEqual(prop["x-ouvia-datasource"], "equipamentos_publicos")
+        self.assertEqual(prop["x-ouvia-datasource-filter"], {"tipo": "ubs"})
+        validar_schema_formulario_lookup(schema)

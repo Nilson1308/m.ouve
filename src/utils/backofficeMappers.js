@@ -1,3 +1,5 @@
+import { mapEquipamentoProtocolo } from '@/utils/equipamentoMappers'
+
 /** Normaliza payloads da API /backoffice/* para o UI da Mesa de Trabalho. */
 
 function iniciais(texto) {
@@ -77,7 +79,8 @@ export function mapProtocoloBackoffice(api) {
     superOsId: api.super_os_id || null,
     superOsCodigo: api.super_os_codigo || null,
     descricao: api.descricao || '',
-    triagemSugerida: api.triagem_sugerida || null
+    triagemSugerida: api.triagem_sugerida || null,
+    equipamento: mapEquipamentoProtocolo(api.equipamento)
   }
 }
 
@@ -207,6 +210,7 @@ export function mapProtocoloDetalheBackoffice(api) {
     ),
     resposta_cidadao: api.resposta_cidadao || '',
     observacoes_internas: api.observacoes_internas || '',
-    triagemSugerida: api.triagem_sugerida || null
+    triagemSugerida: api.triagem_sugerida || null,
+    equipamento: mapEquipamentoProtocolo(api.equipamento)
   }
 }

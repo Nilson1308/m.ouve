@@ -63,6 +63,7 @@ class BackofficeProtocoloFilterSet(filters.FilterSet):
     )
     servico_id = filters.BaseInFilter(field_name="servico_id")
     bairro = filters.BaseInFilter(method="filter_bairro")
+    equipamento_id = filters.UUIDFilter(field_name="equipamento_id")
 
     class Meta:
         model = Protocolo
@@ -178,6 +179,7 @@ class BackofficeProtocoloListView(generics.ListAPIView):
                 "servico",
                 "servico__categoria",
                 "usuario",
+                "equipamento",
             )
             .prefetch_related(Prefetch("ordens_servico", queryset=ordens_qs))
             .annotate(_tem_anexos=Count("anexos", distinct=True))

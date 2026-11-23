@@ -1,6 +1,9 @@
 /** Catálogo de serviços — API ↔ Form Builder visual */
 
-import { LOOKUP_DATASOURCE_UNIDADES } from '@/constants/fluxoTramitacao'
+import {
+  LOOKUP_DATASOURCE_EQUIPAMENTOS,
+  LOOKUP_DATASOURCE_UNIDADES
+} from '@/constants/fluxoTramitacao'
 
 export const TIPOS_CAMPO_UI = [
   { value: 'text', label: 'Texto Curto' },
@@ -8,7 +11,7 @@ export const TIPOS_CAMPO_UI = [
   { value: 'number', label: 'Número' },
   { value: 'image', label: 'Imagem' },
   { value: 'select', label: 'Seleção (Dropdown)' },
-  { value: 'lookup', label: 'Lista do Sistema (Unidades)' }
+  { value: 'lookup', label: 'Lista do Sistema (Lookup)' }
 ]
 
 export function labelParaName(label, nomesUsados = new Set()) {
@@ -183,6 +186,12 @@ export function camposUiParaSchemaRequisitos(campos = []) {
     if (c.type === 'lookup') {
       item.datasource = c.datasource || LOOKUP_DATASOURCE_UNIDADES
       item.ui_widget = c.ui_widget || 'searchable_select'
+      if (c.datasource_filter && typeof c.datasource_filter === 'object') {
+        const filtro = {}
+        if (c.datasource_filter.tipo) filtro.tipo = c.datasource_filter.tipo
+        if (c.datasource_filter.unidade_id) filtro.unidade_id = c.datasource_filter.unidade_id
+        if (Object.keys(filtro).length) item.datasource_filter = filtro
+      }
     }
     return item
   })
@@ -197,7 +206,11 @@ export function requisitosFromFormularioSchema(schema = []) {
         : ''
     let tipo = campo.type || 'text'
     if (tipo === 'location') tipo = 'geo'
-    if (campo.datasource === LOOKUP_DATASOURCE_UNIDADES || tipo === 'lookup') {
+    if (
+      campo.datasource === LOOKUP_DATASOURCE_UNIDADES ||
+      campo.datasource === LOOKUP_DATASOURCE_EQUIPAMENTOS ||
+      tipo === 'lookup'
+    ) {
       tipo = 'lookup'
     }
     const pergunta = (campo.label || campo.title || '').trim() || humanizarName(campo.name || '')
@@ -216,6 +229,9 @@ export function requisitosFromFormularioSchema(schema = []) {
     if (tipo === 'lookup') {
       row.datasource = campo.datasource || LOOKUP_DATASOURCE_UNIDADES
       row.ui_widget = campo.ui_widget || 'searchable_select'
+      const filtro = campo.datasource_filter || campo['x-ouvia-datasource-filter']
+      row.datasource_filter =
+        filtro && typeof filtro === 'object' ? { ...filtro } : {}
     }
     return row
   })
@@ -302,6 +318,9 @@ export function buildSchemaFormularioRequisitos(campos = [], regrasProtocolo = [
       prop.type = 'string'
       prop.format = 'uuid'
       prop['x-ouvia-datasource'] = c.datasource || LOOKUP_DATASOURCE_UNIDADES
+      if (c.datasource_filter && typeof c.datasource_filter === 'object') {
+        prop['x-ouvia-datasource-filter'] = c.datasource_filter
+      }
       prop['x-ouvia-ui-widget'] = c.ui_widget || 'searchable_select'
       prop['x-ouvia-tipo-campo'] = 'lookup'
     }

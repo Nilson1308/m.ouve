@@ -96,6 +96,63 @@
 
               <section>
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                  <BuildingOffice2Icon class="w-5 h-5 text-primary-500" />
+                  Equipamento público
+                </h3>
+                <input
+                  v-model="buscaEquipamento"
+                  type="search"
+                  class="input w-full mb-2 text-sm"
+                  placeholder="Buscar UBS, escola, CRAS..."
+                  autocomplete="off"
+                />
+                <div v-if="loadingEquipamentosLookup" class="text-xs text-gray-500 py-2">Buscando...</div>
+                <div
+                  v-else
+                  class="flex flex-col gap-1 max-h-40 overflow-y-auto p-0.5"
+                  role="listbox"
+                  aria-label="Equipamentos"
+                >
+                  <button
+                    type="button"
+                    class="text-left w-full min-h-[44px] px-3 py-2 rounded-lg text-sm transition-colors"
+                    :class="
+                      !local.equipamentoId
+                        ? 'bg-primary-50 dark:bg-primary-950/40 text-primary-800 dark:text-primary-200 ring-1 ring-primary-300'
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                    "
+                    @click="selecionarEquipamento('', '')"
+                  >
+                    Qualquer equipamento
+                  </button>
+                  <button
+                    v-for="eq in equipamentosOpcoes"
+                    :key="eq.id"
+                    type="button"
+                    class="text-left w-full min-h-[44px] px-3 py-2 rounded-lg text-sm transition-colors"
+                    :class="
+                      local.equipamentoId === eq.id
+                        ? 'bg-primary-50 dark:bg-primary-950/40 text-primary-800 dark:text-primary-200 ring-1 ring-primary-300'
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                    "
+                    @click="selecionarEquipamento(eq.id, rotuloEquipamento(eq))"
+                  >
+                    <span class="font-medium block truncate">{{ eq.nome }}</span>
+                    <span class="text-[11px] text-gray-500 dark:text-gray-400 block truncate">
+                      {{ subtituloEquipamento(eq) }}
+                    </span>
+                  </button>
+                  <p
+                    v-if="!equipamentosOpcoes.length && buscaEquipamento.trim()"
+                    class="text-xs text-gray-500 py-2 italic"
+                  >
+                    Nenhum equipamento encontrado.
+                  </p>
+                </div>
+              </section>
+
+              <section>
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                   <MapPinIcon class="w-5 h-5 text-primary-500" />
                   Local (bairro)
                 </h3>
@@ -186,6 +243,7 @@ import {
   WrenchScrewdriverIcon,
   MapPinIcon
 } from '@heroicons/vue/24/outline'
+import { catalogoLookupService } from '@/services/api'
 
 const props = defineProps({
   aberto: Boolean,
@@ -207,13 +265,19 @@ const emit = defineEmits(['fechar', 'aplicar'])
 const buscaUnidade = ref('')
 const buscaServico = ref('')
 const buscaBairro = ref('')
+const buscaEquipamento = ref('')
+const equipamentosOpcoes = ref([])
+const loadingEquipamentosLookup = ref(false)
+let debounceEquipamento = null
 
 const local = reactive({
   unidadesIds: [],
   servicoIds: [],
   bairros: [],
   statusLista: [],
-  urgenciaLista: []
+  urgenciaLista: [],
+  equipamentoId: '',
+  equipamentoRotulo: ''
 })
 
 function snapshotFromStore() {
@@ -223,6 +287,54 @@ function snapshotFromStore() {
   local.bairros = [...(f.bairros || [])]
   local.statusLista = [...(f.statusLista || [])]
   local.urgenciaLista = [...(f.urgenciaLista || [])]
+  local.equipamentoId = f.equipamentoId || ''
+  local.equipamentoRotulo = f.equipamentoRotulo || ''
+  buscaEquipamento.value = f.equipamentoRotulo || ''
+}
+
+async function buscarEquipamentosLookup() {
+  loadingEquipamentosLookup.value = true
+  try {
+    const params = { limit: 25 }
+    const q = buscaEquipamento.value.trim()
+    if (q) params.busca = q
+    equipamentosOpcoes.value = await catalogoLookupService.listarEquipamentos(params)
+  } catch {
+    equipamentosOpcoes.value = []
+  } finally {
+    loadingEquipamentosLookup.value = false
+  }
+}
+
+watch(buscaEquipamento, () => {
+  if (debounceEquipamento) clearTimeout(debounceEquipamento)
+  debounceEquipamento = setTimeout(() => {
+    buscarEquipamentosLookup()
+  }, 300)
+})
+
+watch(
+  () => props.aberto,
+  (aberto) => {
+    if (aberto) buscarEquipamentosLookup()
+  }
+)
+
+function rotuloEquipamento(eq) {
+  return eq.bairro ? `${eq.nome} · ${eq.bairro}` : eq.nome
+}
+
+function subtituloEquipamento(eq) {
+  const partes = []
+  if (eq.bairro) partes.push(eq.bairro)
+  if (eq.unidade_nome) partes.push(eq.unidade_nome)
+  return partes.join(' · ') || 'Sem detalhes adicionais'
+}
+
+function selecionarEquipamento(id, rotulo) {
+  local.equipamentoId = id
+  local.equipamentoRotulo = rotulo
+  if (id && rotulo) buscaEquipamento.value = rotulo.split(' · ')[0]
 }
 
 watch(
@@ -265,7 +377,8 @@ const totalSelecionados = computed(
     local.servicoIds.length +
     local.bairros.length +
     local.statusLista.length +
-    local.urgenciaLista.length
+    local.urgenciaLista.length +
+    (local.equipamentoId ? 1 : 0)
 )
 
 function toggleItem(arr, value) {
@@ -308,6 +421,9 @@ function limparLocal() {
   local.bairros = []
   local.statusLista = []
   local.urgenciaLista = []
+  local.equipamentoId = ''
+  local.equipamentoRotulo = ''
+  buscaEquipamento.value = ''
 }
 
 function aplicar() {
@@ -316,7 +432,9 @@ function aplicar() {
     servicoIds: [...local.servicoIds],
     bairros: [...local.bairros],
     statusLista: [...local.statusLista],
-    urgenciaLista: [...local.urgenciaLista]
+    urgenciaLista: [...local.urgenciaLista],
+    equipamentoId: local.equipamentoId,
+    equipamentoRotulo: local.equipamentoRotulo
   })
 }
 </script>

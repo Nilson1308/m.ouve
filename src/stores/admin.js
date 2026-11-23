@@ -10,6 +10,7 @@ import {
   payloadUnidadeAdmin,
   payloadUsuarioAdmin
 } from '@/utils/adminMappers'
+import { mapEquipamentoAdmin, payloadEquipamentoAdmin } from '@/utils/equipamentoMappers'
 
 function unwrapList(data) {
   if (Array.isArray(data)) return data
@@ -23,6 +24,8 @@ export const useAdminStore = defineStore('admin', () => {
   const perfisAcesso = ref([]) // Perfis dinâmicos do backend
   const loading = ref(false)
   const loadingPerfis = ref(false)
+  const equipamentos = ref([])
+  const loadingEquipamentos = ref(false)
   const erro = ref(null)
 
   const unidadesAtivas = computed(() => unidades.value.filter((u) => u.ativo))
@@ -31,6 +34,7 @@ export const useAdminStore = defineStore('admin', () => {
 
   const totalUnidades = computed(() => unidades.value.length)
   const totalUsuarios = computed(() => usuarios.value.length)
+  const totalEquipamentos = computed(() => equipamentos.value.length)
 
   async function carregarUnidades(opcoes = {}) {
     const { silencioso = false } = opcoes
@@ -276,6 +280,75 @@ export const useAdminStore = defineStore('admin', () => {
     return null
   }
 
+  async function carregarEquipamentos(params = {}, opcoes = {}) {
+    const { silencioso = false } = opcoes
+    if (!silencioso) loadingEquipamentos.value = true
+    erro.value = null
+    try {
+      const { data } = await api.get('/backoffice/equipamentos', { params })
+      equipamentos.value = unwrapList(data).map(mapEquipamentoAdmin)
+      return equipamentos.value
+    } catch (err) {
+      erro.value = getApiErrorMessage(err, 'Erro ao carregar equipamentos')
+      console.error('Erro ao carregar equipamentos:', err)
+      throw err
+    } finally {
+      if (!silencioso) loadingEquipamentos.value = false
+    }
+  }
+
+  async function criarEquipamento(dados) {
+    loadingEquipamentos.value = true
+    erro.value = null
+    try {
+      const { data } = await api.post('/backoffice/equipamentos', payloadEquipamentoAdmin(dados))
+      const novo = mapEquipamentoAdmin(data)
+      equipamentos.value.push(novo)
+      return novo
+    } catch (err) {
+      erro.value = getApiErrorMessage(err, 'Erro ao criar equipamento')
+      throw err
+    } finally {
+      loadingEquipamentos.value = false
+    }
+  }
+
+  async function atualizarEquipamento(id, dados) {
+    loadingEquipamentos.value = true
+    erro.value = null
+    try {
+      const { data } = await api.patch(
+        `/backoffice/equipamentos/${id}`,
+        payloadEquipamentoAdmin(dados)
+      )
+      const atualizado = mapEquipamentoAdmin(data)
+      const idx = equipamentos.value.findIndex((e) => e.id === id)
+      if (idx !== -1) equipamentos.value[idx] = atualizado
+      else equipamentos.value.push(atualizado)
+      return atualizado
+    } catch (err) {
+      erro.value = getApiErrorMessage(err, 'Erro ao atualizar equipamento')
+      throw err
+    } finally {
+      loadingEquipamentos.value = false
+    }
+  }
+
+  async function excluirEquipamento(id) {
+    loadingEquipamentos.value = true
+    erro.value = null
+    try {
+      await api.delete(`/backoffice/equipamentos/${id}`)
+      equipamentos.value = equipamentos.value.filter((e) => e.id !== id)
+      return true
+    } catch (err) {
+      erro.value = getApiErrorMessage(err, 'Erro ao excluir equipamento')
+      throw err
+    } finally {
+      loadingEquipamentos.value = false
+    }
+  }
+
   function limparErro() {
     erro.value = null
   }
@@ -287,8 +360,10 @@ export const useAdminStore = defineStore('admin', () => {
     unidades,
     usuarios,
     perfisAcesso,
+    equipamentos,
     loading,
     loadingPerfis,
+    loadingEquipamentos,
     erro,
     
     // Computeds
@@ -297,11 +372,18 @@ export const useAdminStore = defineStore('admin', () => {
     totalUnidades,
     totalUsuarios,
     totalPerfis,
+    totalEquipamentos,
     
     // Actions - Unidades
     carregarUnidades,
     criarUnidade,
     atualizarUnidade,
+
+    // Actions - Equipamentos
+    carregarEquipamentos,
+    criarEquipamento,
+    atualizarEquipamento,
+    excluirEquipamento,
     
     // Actions - Usuários
     carregarUsuarios,

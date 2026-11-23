@@ -46,6 +46,15 @@
           variante="inline"
         />
 
+        <p
+          v-if="protocolo.equipamento?.nome"
+          class="inline-flex items-center gap-1 text-[11px] text-cyan-800 dark:text-cyan-200 bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200/60 dark:border-cyan-800/50 rounded-md px-2 py-0.5 mb-1 max-w-full"
+          :title="protocolo.equipamento.bairro || ''"
+        >
+          <BuildingOffice2Icon class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+          <span class="truncate">{{ protocolo.equipamento.nome }}</span>
+        </p>
+
         <!-- Endereço -->
         <div class="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
           <MapPinIcon class="w-3.5 h-3.5 flex-shrink-0" />
@@ -231,6 +240,7 @@ import { storeToRefs } from 'pinia'
 import { useSuperOSStore } from '@/stores/super_os'
 import {
   MapPinIcon,
+  BuildingOffice2Icon,
   UserIcon,
   BoltIcon,
   PaperClipIcon,

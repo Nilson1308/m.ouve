@@ -29,6 +29,38 @@
       </dl>
     </section>
 
+    <section
+      v-if="protocolo.equipamento"
+      class="card"
+      aria-labelledby="titulo-equipamento"
+    >
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
+          <BuildingOffice2Icon class="w-6 h-6 text-cyan-700 dark:text-cyan-300" />
+        </div>
+        <div>
+          <h2 id="titulo-equipamento" class="text-lg font-semibold text-gray-900 dark:text-white">
+            Equipamento público
+          </h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Local vinculado ao protocolo</p>
+        </div>
+      </div>
+      <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+        <div>
+          <dt class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Nome</dt>
+          <dd class="mt-1 font-semibold text-gray-900 dark:text-white">{{ protocolo.equipamento.nome }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tipo</dt>
+          <dd class="mt-1 text-gray-900 dark:text-white">{{ labelTipoEquipamento(protocolo.equipamento.tipo) }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Bairro</dt>
+          <dd class="mt-1 text-gray-900 dark:text-white">{{ protocolo.equipamento.bairro || '—' }}</dd>
+        </div>
+      </dl>
+    </section>
+
     <section class="card" aria-labelledby="titulo-demanda">
       <div class="flex items-center gap-3 mb-4">
         <div class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
@@ -207,6 +239,7 @@ import {
 import ChatAuditoria from './ChatAuditoria.vue'
 import LocationMap from '@/components/pwa/LocationMap.vue'
 import BackofficeAccordion from '@/components/backoffice/BackofficeAccordion.vue'
+import { labelTipoEquipamento } from '@/constants/equipamentosPublicos'
 
 const props = defineProps({
   protocolo: {

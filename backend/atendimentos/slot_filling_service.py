@@ -15,6 +15,13 @@ from django.core.cache import cache
 from atendimentos.chat_estado import set_meta
 from atendimentos.chat_resumo import _formatar_valor
 from atendimentos.models import MensagemChat, SessaoChat
+from catalogo.datasources import LOOKUP_DATASOURCE_EQUIPAMENTOS
+from catalogo.equipamento_utils import (
+    _parse_datasource_filter,
+    buscar_equipamentos_unicos_no_texto,
+    campos_schema_datasource,
+)
+from atendimentos.services.equipamento_protocolo import obter_equipamento_ativo
 from catalogo.models import ServicoCatalogo
 
 logger = logging.getLogger(__name__)
@@ -261,13 +268,22 @@ def _mesclar_dados_sem_sobrescrever(sessao: SessaoChat, novos: dict[str, Any]) -
     return aplicados
 
 
+def _rotulo_valor_lookup(prop: dict, valor: Any) -> str | None:
+    ds = (prop.get("x-ouvia-datasource") or "").strip()
+    if ds == LOOKUP_DATASOURCE_EQUIPAMENTOS:
+        eq = obter_equipamento_ativo(valor)
+        if eq:
+            return eq.nome
+    return None
+
+
 def _rotulos_campos_preenchidos(servico: ServicoCatalogo, campos: dict[str, Any]) -> list[str]:
     props = _schema_props(servico)
     partes: list[str] = []
     for chave, valor in campos.items():
         prop = props.get(chave) or {}
         titulo = (prop.get("title") or prop.get("x-ouvia-ui-pergunta") or chave).strip()
-        rotulo_valor = _formatar_valor(prop, valor)
+        rotulo_valor = _rotulo_valor_lookup(prop, valor) or _formatar_valor(prop, valor)
         partes.append(f"{titulo}: {rotulo_valor}")
     return partes
 
@@ -367,6 +383,30 @@ def _chamar_llm_slot_filling(texto: str, servico: ServicoCatalogo) -> dict | Non
             return None
 
 
+def preencher_equipamento_por_texto_inicial(
+    servico: ServicoCatalogo,
+    texto: str,
+    dados_existentes: dict,
+) -> dict[str, Any]:
+    """Match único em nome/apelidos → UUID do equipamento (sem ambiguidade)."""
+    schema = servico.schema_formulario or {}
+    props = _schema_props(servico)
+    aplicados: dict[str, Any] = {}
+    for chave in campos_schema_datasource(schema, LOOKUP_DATASOURCE_EQUIPAMENTOS):
+        if dados_existentes.get(chave) not in (None, "", []):
+            continue
+        prop = props.get(chave) or {}
+        filtro = _parse_datasource_filter(prop)
+        matches = buscar_equipamentos_unicos_no_texto(
+            texto,
+            unidade_id=filtro.get("unidade_id"),
+            tipo=filtro.get("tipo"),
+        )
+        if len(matches) == 1:
+            aplicados[chave] = str(matches[0].id)
+    return aplicados
+
+
 def aplicar_slot_filling_abertura(
     sessao: SessaoChat,
     servico: ServicoCatalogo,
@@ -380,17 +420,32 @@ def aplicar_slot_filling_abertura(
     if not texto:
         return "", {}
 
-    if not _llm_disponivel():
-        return "", {}
-
-    h = _hash_mensagem(texto)
-    ck = _cache_key(sessao.pk, h)
-
     dados_existentes = {
         k: v
         for k, v in (sessao.dados_coletados or {}).items()
         if not str(k).startswith("_")
     }
+
+    equipamento_campos = preencher_equipamento_por_texto_inicial(
+        servico, texto, dados_existentes
+    )
+    all_aplicados: dict[str, Any] = {}
+    if equipamento_campos:
+        aplicados_eq = _mesclar_dados_sem_sobrescrever(sessao, equipamento_campos)
+        all_aplicados.update(aplicados_eq)
+        dados_existentes = {
+            k: v
+            for k, v in (sessao.dados_coletados or {}).items()
+            if not str(k).startswith("_")
+        }
+
+    if not _llm_disponivel():
+        if all_aplicados:
+            return montar_prefixo_confirmacao(servico, all_aplicados), all_aplicados
+        return "", {}
+
+    h = _hash_mensagem(texto)
+    ck = _cache_key(sessao.pk, h)
 
     cached = cache.get(ck)
     if isinstance(cached, dict) and "campos_validados" in cached:
@@ -399,6 +454,8 @@ def aplicar_slot_filling_abertura(
         llm_out = _chamar_llm_slot_filling(texto, servico)
         if not llm_out:
             cache.set(ck, {"campos_validados": {}, "campos_raw": {}}, CACHE_TTL_SEG)
+            if all_aplicados:
+                return montar_prefixo_confirmacao(servico, all_aplicados), all_aplicados
             return "", {}
         raw_campos = llm_out.get("campos") if isinstance(llm_out.get("campos"), dict) else {}
         campos_validados = validar_campos_extraidos(servico, raw_campos, dados_existentes)
@@ -409,13 +466,14 @@ def aplicar_slot_filling_abertura(
         )
 
     aplicados = _mesclar_dados_sem_sobrescrever(sessao, campos_validados)
-    if aplicados:
+    total = {**all_aplicados, **aplicados}
+    if total:
         set_meta(
             sessao,
             slot_filling_hash=h,
-            slot_filling_campos=sorted(aplicados.keys()),
+            slot_filling_campos=sorted(total.keys()),
         )
         sessao.save(update_fields=["dados_coletados", "atualizado_em"])
 
-    prefixo = montar_prefixo_confirmacao(servico, aplicados)
-    return prefixo, aplicados
+    prefixo = montar_prefixo_confirmacao(servico, total)
+    return prefixo, total

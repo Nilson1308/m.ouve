@@ -76,7 +76,15 @@ export function mapKanbanItem(api) {
     triagemSugerida:
       tipo === 'protocolo' && api.triagem_sugerida && Object.keys(api.triagem_sugerida).length
         ? api.triagem_sugerida
-        : null
+        : null,
+    equipamento: api.equipamento
+      ? {
+          id: api.equipamento.id,
+          nome: api.equipamento.nome,
+          tipo: api.equipamento.tipo,
+          bairro: api.equipamento.bairro || ''
+        }
+      : null
   }
   if (tipo === 'super_os') {
     base.numero = api.codigo

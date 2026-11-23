@@ -6,6 +6,8 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError as JsonSchemaValidationError
 from rest_framework import serializers
 
+from catalogo.datasources import LOOKUP_DATASOURCE_EQUIPAMENTOS, LOOKUP_DATASOURCE_UNIDADES
+from catalogo.models import EquipamentoPublico, UnidadeAdministrativa
 from catalogo.schema_props import property_tem_lookup_datasource
 
 
@@ -17,12 +19,29 @@ def _validar_uuids_lookup(schema: dict, dados: dict) -> None:
         if chave not in dados or dados.get(chave) in (None, ""):
             continue
         valor = str(dados[chave]).strip()
+        ds = (prop.get("x-ouvia-datasource") or "").strip()
         try:
-            uuid_lib.UUID(valor)
+            uid = uuid_lib.UUID(valor)
         except (ValueError, AttributeError) as exc:
-            raise serializers.ValidationError(
-                {chave: "Informe um identificador de unidade válido (UUID)."}
-            ) from exc
+            if ds == LOOKUP_DATASOURCE_EQUIPAMENTOS:
+                msg = "Informe um identificador de equipamento válido (UUID)."
+            else:
+                msg = "Informe um identificador de unidade válido (UUID)."
+            raise serializers.ValidationError({chave: msg}) from exc
+        if ds == LOOKUP_DATASOURCE_UNIDADES:
+            if not UnidadeAdministrativa.objects.filter(pk=uid, ativo=True).exists():
+                raise serializers.ValidationError(
+                    {chave: "Unidade administrativa não encontrada ou inativa."}
+                )
+        elif ds == LOOKUP_DATASOURCE_EQUIPAMENTOS:
+            if not EquipamentoPublico.objects.filter(
+                pk=uid,
+                ativo=True,
+                unidade_responsavel__ativo=True,
+            ).exists():
+                raise serializers.ValidationError(
+                    {chave: "Equipamento não encontrado ou inativo."}
+                )
 
 
 def validar_dados_dinamicos(schema: dict, dados: dict) -> dict:

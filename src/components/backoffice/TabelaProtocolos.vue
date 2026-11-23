@@ -116,6 +116,13 @@
                     variante="inline"
                     class="mt-0.5"
                   />
+                  <span
+                    v-if="protocolo.equipamento?.nome"
+                    class="inline-flex items-center gap-1 mt-1 text-[10px] font-medium text-cyan-800 dark:text-cyan-200 bg-cyan-50 dark:bg-cyan-950/40 px-2 py-0.5 rounded-md max-w-xs truncate"
+                  >
+                    <BuildingOffice2Icon class="w-3 h-3 shrink-0" aria-hidden="true" />
+                    {{ protocolo.equipamento.nome }}
+                  </span>
                   <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1">
                     <MapPinIcon class="w-3.5 h-3.5" />
                     {{ protocolo.endereco }}
@@ -258,6 +265,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   MapPinIcon,
+  BuildingOffice2Icon,
   PaperAirplaneIcon,
   EyeIcon,
   WrenchScrewdriverIcon,

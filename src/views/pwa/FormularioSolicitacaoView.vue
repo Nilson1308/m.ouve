@@ -75,6 +75,15 @@
             :input-id="String(propName)"
           />
 
+          <PwaFieldLookupEquipamentos
+            v-else-if="isLookupEquipamentos(propConfig)"
+            v-model="dadosDinamicos[propName]"
+            :required="isRequired(propName)"
+            :label="null"
+            :input-id="String(propName)"
+            :filtro-datasource="propConfig['x-ouvia-datasource-filter'] || {}"
+          />
+
           <!-- Input type="text" -->
           <input 
             v-else-if="propConfig.type === 'string' && !propConfig.format && !propConfig.enum"
@@ -280,6 +289,7 @@ import { nomeCategoriaServico } from '@/utils/catalogo'
 import { useProtocolosStore } from '@/stores/protocolos'
 import { useDialog } from '@/composables/useDialog'
 import PwaFieldLookupUnidades from '@/components/pwa/PwaFieldLookupUnidades.vue'
+import PwaFieldLookupEquipamentos from '@/components/pwa/PwaFieldLookupEquipamentos.vue'
 import { useCatalogoLookup } from '@/composables/useCatalogoLookup'
 import {
   ChevronLeftIcon,
@@ -298,7 +308,7 @@ const route = useRoute()
 const catalogoStore = useCatalogoStore()
 const protocolosStore = useProtocolosStore()
 const { success, error: showError } = useDialog()
-const { isLookupUnidades } = useCatalogoLookup()
+const { isLookupUnidades, isLookupEquipamentos } = useCatalogoLookup()
 
 const servicoId = computed(() => route.params.servicoId)
 const carregandoFormulario = ref(true)

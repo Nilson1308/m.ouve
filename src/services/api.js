@@ -346,6 +346,12 @@ export const catalogoLookupService = {
     const response = await api.get('/catalogo/lookup/unidades', { params })
     const data = response.data
     return Array.isArray(data?.items) ? data.items : []
+  },
+
+  async listarEquipamentos(params = {}) {
+    const response = await api.get('/catalogo/lookup/equipamentos', { params })
+    const data = response.data
+    return Array.isArray(data?.items) ? data.items : []
   }
 }
 

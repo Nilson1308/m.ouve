@@ -218,7 +218,9 @@
                     {{ textoPreview(item) }}
                   </p>
                   <p v-if="item.type === 'select'" class="text-[10px] text-primary-600 mt-1">+ botões de escolha</p>
-                  <p v-else-if="item.type === 'lookup'" class="text-[10px] text-primary-600 mt-1">+ lista de unidades (API)</p>
+                  <p v-else-if="item.type === 'lookup'" class="text-[10px] text-primary-600 mt-1">
+                    + {{ rotuloDatasource(item.datasource) }}
+                  </p>
                   <p v-else-if="item.type === 'geo'" class="text-[10px] text-primary-600 mt-1">+ mapa de localização</p>
                   <p v-else-if="item.type === 'image'" class="text-[10px] text-primary-600 mt-1">+ envio de foto</p>
                 </div>
@@ -256,9 +258,67 @@
               v-if="item.type === 'lookup'"
               class="text-xs text-cyan-800 dark:text-cyan-200 bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-800 rounded-lg px-3 py-2"
             >
-              O PWA carrega as <strong>unidades administrativas ativas</strong> via API
-              (<code class="text-[10px]">/catalogo/lookup/unidades</code>). O valor salvo é o UUID da unidade.
+              O PWA consulta
+              <strong>{{ rotuloDatasource(item.datasource) }}</strong>
+              (<code class="text-[10px]">{{ endpointLookup(item.datasource) }}</code>).
+              O valor salvo é o UUID do registro escolhido.
             </p>
+
+            <div
+              v-if="item.type === 'lookup'"
+              class="space-y-3 rounded-lg border border-gray-200 dark:border-gray-600 p-4 bg-white/70 dark:bg-gray-800/50"
+            >
+              <div>
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Base de dados consultada
+                </label>
+                <select
+                  :value="item.datasource || LOOKUP_DATASOURCE_UNIDADES"
+                  class="input text-sm"
+                  @change="onDatasourceChange(index, $event)"
+                >
+                  <option :value="LOOKUP_DATASOURCE_UNIDADES">
+                    Unidades Administrativas (Secretarias)
+                  </option>
+                  <option :value="LOOKUP_DATASOURCE_EQUIPAMENTOS">
+                    Equipamentos Públicos (UBS, Escolas, Parques…)
+                  </option>
+                </select>
+              </div>
+
+              <div v-if="lookupEhEquipamentos(item)" class="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                    Restringir por tipo (opcional)
+                  </label>
+                  <select
+                    :value="filtroLookup(item).tipo || ''"
+                    class="input text-sm"
+                    @change="onFiltroTipoChange(index, $event)"
+                  >
+                    <option value="">Todos os tipos</option>
+                    <option v-for="t in TIPOS_EQUIPAMENTO_PUBLICO" :key="t.value" :value="t.value">
+                      {{ t.label }}
+                    </option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                    Restringir por secretaria (opcional)
+                  </label>
+                  <select
+                    :value="filtroLookup(item).unidade_id || ''"
+                    class="input text-sm"
+                    @change="onFiltroUnidadeChange(index, $event)"
+                  >
+                    <option value="">Todas as secretarias</option>
+                    <option v-for="u in unidadesAtivas" :key="u.id" :value="u.id">
+                      {{ u.nome }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+            </div>
 
             <div v-if="item.type === 'select'">
               <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -435,7 +495,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import {
   PlusCircleIcon,
   TrashIcon,
@@ -452,8 +513,20 @@ import {
   PencilSquareIcon
 } from '@heroicons/vue/24/outline'
 import { labelParaName } from '@/utils/catalogoMappers'
-import { LOOKUP_DATASOURCE_UNIDADES } from '@/constants/fluxoTramitacao'
+import {
+  LOOKUP_DATASOURCE_EQUIPAMENTOS,
+  LOOKUP_DATASOURCE_UNIDADES
+} from '@/constants/fluxoTramitacao'
+import { TIPOS_EQUIPAMENTO_PUBLICO } from '@/constants/equipamentosPublicos'
+import { useAdminStore } from '@/stores/admin'
 import { BuildingOffice2Icon } from '@heroicons/vue/24/outline'
+
+const adminStore = useAdminStore()
+const { unidadesAtivas } = storeToRefs(adminStore)
+
+onMounted(() => {
+  adminStore.carregarUnidades({ silencioso: true }).catch(() => null)
+})
 
 const props = defineProps({
   modelValue: {
@@ -529,8 +602,8 @@ const tiposDado = [
   { value: 'select', label: 'Lista', dica: 'Botões de escolha', icon: ListBulletIcon },
   {
     value: 'lookup',
-    label: 'Unidades',
-    dica: 'Lista do sistema',
+    label: 'Lista do sistema',
+    dica: 'Unidades ou equipamentos',
     icon: BuildingOffice2Icon
   },
   { value: 'geo', label: 'Mapa', dica: 'Card de localização', icon: MapPinIcon },
@@ -553,7 +626,7 @@ function placeholderPergunta(type) {
   const map = {
     text: 'Ex.: Qual a idade aproximada do animal?',
     select: 'Ex.: Qual o porte do animal?',
-    lookup: 'Ex.: Qual secretaria está relacionada à sua manifestação?',
+    lookup: 'Ex.: Em qual unidade de saúde você foi atendido?',
     geo: 'Ex.: Onde o problema está acontecendo?',
     image: 'Ex.: Pode enviar uma foto do local ou do animal?'
   }
@@ -598,9 +671,63 @@ function adicionarRequisito() {
       regra_tipo: 'interpretacao',
       regra_condicao: '',
       regra_elegibilidade_mensagem: '',
-      regra_texto_valores: ''
+      regra_texto_valores: '',
+      datasource: LOOKUP_DATASOURCE_UNIDADES,
+      datasource_filter: {}
     }
   ])
+}
+
+function lookupEhEquipamentos(item) {
+  return (item.datasource || LOOKUP_DATASOURCE_UNIDADES) === LOOKUP_DATASOURCE_EQUIPAMENTOS
+}
+
+function filtroLookup(item) {
+  return item.datasource_filter && typeof item.datasource_filter === 'object'
+    ? item.datasource_filter
+    : {}
+}
+
+function cloneFiltro(item) {
+  const f = filtroLookup(item)
+  return { ...f }
+}
+
+function rotuloDatasource(ds) {
+  if (ds === LOOKUP_DATASOURCE_EQUIPAMENTOS) return 'equipamentos públicos ativos'
+  return 'unidades administrativas ativas'
+}
+
+function endpointLookup(ds) {
+  if (ds === LOOKUP_DATASOURCE_EQUIPAMENTOS) return '/catalogo/lookup/equipamentos'
+  return '/catalogo/lookup/unidades'
+}
+
+function onDatasourceChange(index, event) {
+  const ds = event.target.value
+  const partial = { datasource: ds }
+  if (ds === LOOKUP_DATASOURCE_EQUIPAMENTOS) {
+    partial.datasource_filter = cloneFiltro(props.modelValue[index])
+  } else {
+    partial.datasource_filter = {}
+  }
+  patch(index, partial)
+}
+
+function onFiltroTipoChange(index, event) {
+  const f = cloneFiltro(props.modelValue[index])
+  const v = event.target.value
+  if (v) f.tipo = v
+  else delete f.tipo
+  patch(index, { datasource_filter: f })
+}
+
+function onFiltroUnidadeChange(index, event) {
+  const f = cloneFiltro(props.modelValue[index])
+  const v = event.target.value
+  if (v) f.unidade_id = v
+  else delete f.unidade_id
+  patch(index, { datasource_filter: f })
 }
 
 const MODELOS_REGRA = {
@@ -627,6 +754,7 @@ function selecionarTipo(index, tipo) {
   const extra = {}
   if (tipo === 'lookup') {
     extra.datasource = LOOKUP_DATASOURCE_UNIDADES
+    extra.datasource_filter = {}
     extra.ui_widget = 'searchable_select'
     extra.optionsText = ''
   }

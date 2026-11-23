@@ -73,6 +73,9 @@ def formulario_schema_para_schema_formulario(
             prop["x-ouvia-datasource"] = ds
             prop["x-ouvia-ui-widget"] = str(widget).strip() or WIDGET_PADRAO
             prop["x-ouvia-tipo-campo"] = "lookup"
+            filtro = campo.get("datasource_filter") or campo.get("x-ouvia-datasource-filter")
+            if isinstance(filtro, dict) and filtro:
+                prop["x-ouvia-datasource-filter"] = filtro
         if tipo == "select":
             opcoes = campo.get("options") or []
             valores: list[str] = []

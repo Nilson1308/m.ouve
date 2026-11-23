@@ -516,6 +516,13 @@ const filtrosAtivosArray = computed(() => {
       label: `Urgência: ${u}`
     })
   }
+  if (f.equipamentoId) {
+    ativos.push({
+      key: 'equipamento',
+      kind: 'equipamento',
+      label: f.equipamentoRotulo ? `Equipamento: ${f.equipamentoRotulo}` : 'Equipamento'
+    })
+  }
   return ativos
 })
 
@@ -594,13 +601,18 @@ function removerFiltro(key) {
       f.statusLista = f.statusLista.filter((s) => s !== item.value)
     } else if (item.kind === 'urgencia') {
       f.urgenciaLista = f.urgenciaLista.filter((u) => u !== item.value)
+    } else if (item.kind === 'equipamento') {
+      f.equipamentoId = ''
+      f.equipamentoRotulo = ''
     }
     backofficeStore.aplicarFiltrosAvancados({
       unidadesIds: f.unidadesIds,
       servicoIds: f.servicoIds,
       bairros: f.bairros,
       statusLista: f.statusLista,
-      urgenciaLista: f.urgenciaLista
+      urgenciaLista: f.urgenciaLista,
+      equipamentoId: f.equipamentoId,
+      equipamentoRotulo: f.equipamentoRotulo
     })
   }
   recarregar()
