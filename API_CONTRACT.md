@@ -736,7 +736,26 @@ Campos adicionais no serializer de detalhe:
 | `pode_avaliar` | bool | `true` se `status=resolvido` e ainda não há `AvaliacaoProtocolo` |
 | `avaliacao` | objeto \| null | `{ "nota", "comentario", "criada_em" }` quando já avaliado |
 
-### POST `/api/v1/avaliacoes` *(legado)*
+### POST `/api/v1/chat/sessao/<sessao_id>/avaliar-abertura`
+
+Pesquisa exibida no chat logo após o registro do protocolo (`tipo_acao: pesquisa_satisfacao`). Mede a **experiência de abertura** da solicitação, **não** o CSAT de conclusão.
+
+**Auth:** Bearer JWT (dono da sessão)
+
+**Regras:** sessão com `status=finalizado_protocolo`, `protocolo_final` definido; uma avaliação por sessão.
+
+```json
+{
+  "nota": 5,
+  "comentario": "Opcional"
+}
+```
+
+**Response 201:** `{ "nota", "comentario", "protocolo_id", "avaliacao_abertura_em" }`
+
+---
+
+### POST `/api/v1/avaliacoes` *(legado — CSAT de protocolo resolvido)*
 
 ```json
 {
@@ -745,6 +764,8 @@ Campos adicionais no serializer de detalhe:
   "comentario": "Opcional"
 }
 ```
+
+- **Requer** `Protocolo.status = resolvido`. Protocolos recém-abertos devem usar `avaliar-abertura` no chat (acima) ou `POST /app/protocolos/<id>/avaliar` após conclusão.
 
 **Response 201:** mesmo formato acima (`criada_em` no lugar de `criado_em`).
 

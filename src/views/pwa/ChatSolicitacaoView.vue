@@ -105,6 +105,7 @@
               <!-- Pesquisa de Satisfação -->
               <ChatSatisfacao
                 v-else-if="mensagem.tipoAcao === 'pesquisa_satisfacao'"
+                :enviando="enviandoSatisfacaoAbertura"
                 @enviar="handleEnviarSatisfacao"
                 @cancelar="handleCancelarSatisfacao"
               />
@@ -378,7 +379,7 @@ import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
 import { useDialog } from '@/composables/useDialog'
-import { avaliacoesService, chatService } from '@/services/api'
+import { chatService } from '@/services/api'
 import { prepareChatImageFiles } from '@/utils/prepareChatImage'
 import {
   CHAT_GALLERY_ACCEPT,
@@ -601,32 +602,41 @@ async function resolverProtocoloParaAvaliacao() {
   }
 }
 
-// Handler: Enviar Satisfação
-async function handleEnviarSatisfacao(dados) {
-  const protocoloId = await resolverProtocoloParaAvaliacao()
+const enviandoSatisfacaoAbertura = ref(false)
 
-  if (!protocoloId) {
-    chatStore.adicionarMensagemErro('Não foi possível identificar o protocolo para avaliação.')
+// Handler: Enviar Satisfação (experiência de abertura no chat — não CSAT de resolução)
+async function handleEnviarSatisfacao(dados) {
+  if (enviandoSatisfacaoAbertura.value) return
+
+  const sessaoId = chatStore.sessaoAtual?.id
+  if (!sessaoId) {
+    chatStore.adicionarMensagemErro('Não foi possível identificar a conversa para avaliação.')
     return
   }
 
+  const protocoloId = await resolverProtocoloParaAvaliacao()
+
+  enviandoSatisfacaoAbertura.value = true
   try {
-    await avaliacoesService.criar({
-      protocolo_id: protocoloId,
+    await chatService.avaliarAbertura(sessaoId, {
       nota: dados.nota,
       comentario: dados.comentario || ''
     })
     chatStore.adicionarMensagemLocal({
       id: `avaliacao-${Date.now()}`,
       autor: 'sistema',
-      conteudo_texto: 'Obrigado! Sua avaliação foi registrada.',
+      conteudo_texto: 'Obrigado! Sua avaliação sobre a abertura da solicitação foi registrada.',
       criado_em: new Date().toISOString()
     })
-    tratarFinalizacaoComProtocolo(
-      chatStore.protocoloPendente || { id: protocoloId, codigo: '' }
-    )
+    if (protocoloId) {
+      tratarFinalizacaoComProtocolo(
+        chatStore.protocoloPendente || { id: protocoloId, codigo: '' }
+      )
+    }
   } catch {
     chatStore.adicionarMensagemErro('Erro ao enviar avaliação. Tente novamente.')
+  } finally {
+    enviandoSatisfacaoAbertura.value = false
   }
 }
 

@@ -502,6 +502,13 @@ class SessaoChat(models.Model):
         db_index=True,
         help_text="Rótulo da regra que bloqueou o atendimento (métricas / escudo político).",
     )
+    nota_abertura = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Satisfação com o processo de abertura da solicitação no chat (1–5).",
+    )
+    comentario_abertura = models.TextField(blank=True, default="", max_length=500)
+    avaliacao_abertura_em = models.DateTimeField(null=True, blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 

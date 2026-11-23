@@ -91,6 +91,53 @@ class SessaoChatSerializer(serializers.ModelSerializer):
         return get_pending_escolha(obj)
 
 
+class AvaliarAberturaChatSerializer(serializers.Serializer):
+    """Pesquisa pós-protocolo no chat — experiência de abertura, não CSAT de resolução."""
+
+    nota = serializers.IntegerField(min_value=1, max_value=5)
+    comentario = serializers.CharField(required=False, allow_blank=True, max_length=500)
+
+    def validate(self, attrs):
+        sessao = self.context.get("sessao")
+        if sessao is None:
+            raise serializers.ValidationError({"detail": "Sessão não encontrada."})
+        if sessao.status != SessaoChat.Status.FINALIZADO_PROTOCOLO:
+            raise serializers.ValidationError(
+                {
+                    "sessao": (
+                        "Avaliação disponível apenas após registrar o protocolo nesta conversa."
+                    )
+                }
+            )
+        if not sessao.protocolo_final_id:
+            raise serializers.ValidationError(
+                {"sessao": "Nenhum protocolo vinculado a esta sessão."}
+            )
+        if sessao.nota_abertura is not None:
+            raise serializers.ValidationError(
+                {"sessao": "Esta abertura já foi avaliada."}
+            )
+        return attrs
+
+    def save(self, **kwargs):
+        from django.utils import timezone
+
+        sessao = self.context["sessao"]
+        comentario = (self.validated_data.get("comentario") or "").strip()
+        sessao.nota_abertura = self.validated_data["nota"]
+        sessao.comentario_abertura = comentario
+        sessao.avaliacao_abertura_em = timezone.now()
+        sessao.save(
+            update_fields=[
+                "nota_abertura",
+                "comentario_abertura",
+                "avaliacao_abertura_em",
+                "atualizado_em",
+            ]
+        )
+        return sessao
+
+
 class CriarSessaoChatSerializer(serializers.Serializer):
     categoria_inicial = serializers.CharField(max_length=80)
 

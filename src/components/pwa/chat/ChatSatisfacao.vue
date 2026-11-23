@@ -7,10 +7,10 @@
       </div>
       <div class="flex-1">
         <h3 class="text-base font-bold text-blue-900 dark:text-blue-100 high-contrast:text-yellow-300 mb-1">
-          Avalie o Atendimento
+          Avalie como foi abrir sua solicitação
         </h3>
         <p class="text-sm text-blue-800 dark:text-blue-200 high-contrast:text-white high-contrast:font-bold">
-          Sua opinião nos ajuda a melhorar nossos serviços
+          Sua opinião sobre o registro no aplicativo (não é a avaliação final do atendimento).
         </p>
       </div>
     </div>
@@ -18,7 +18,7 @@
     <!-- Avaliação por Estrelas -->
     <div class="mb-5">
       <label class="block text-sm font-bold text-blue-900 dark:text-blue-100 high-contrast:text-yellow-300 mb-3">
-        Como você avalia o atendimento?
+        Como foi o processo de abertura?
       </label>
       <div class="flex items-center justify-center gap-3 py-3">
         <button
@@ -28,7 +28,7 @@
           @mouseenter="hoverNota = estrela"
           @mouseleave="hoverNota = 0"
           class="transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-yellow-400 rounded-full p-1"
-          :disabled="enviando"
+          :disabled="props.enviando"
         >
           <StarIcon
             :class="[
@@ -59,7 +59,7 @@
         rows="3"
         class="input resize-none"
         placeholder="O que podemos melhorar? Ou o que fez bem?"
-        :disabled="enviando"
+        :disabled="props.enviando"
       ></textarea>
     </div>
 
@@ -76,18 +76,18 @@
       <button
         @click="$emit('cancelar')"
         class="btn-secondary flex-1"
-        :disabled="enviando"
+        :disabled="props.enviando"
       >
         Pular
       </button>
       <button
         @click="enviarAvaliacao"
-        :disabled="nota === 0 || enviando"
+        :disabled="nota === 0 || props.enviando"
         class="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <span v-if="enviando" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+        <span v-if="props.enviando" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
         <PaperAirplaneIcon v-else class="w-4 h-4 inline-block mr-1" />
-        {{ enviando ? 'Enviando...' : 'Enviar Avaliação' }}
+        {{ props.enviando ? 'Enviando...' : 'Enviar Avaliação' }}
       </button>
     </div>
   </div>
@@ -102,12 +102,15 @@ import {
   PaperAirplaneIcon
 } from '@heroicons/vue/24/solid'
 
+const props = defineProps({
+  enviando: { type: Boolean, default: false }
+})
+
 const emit = defineEmits(['enviar', 'cancelar'])
 
 const nota = ref(0)
 const hoverNota = ref(0)
 const comentario = ref('')
-const enviando = ref(false)
 
 function getLabelSatisfacao(nota) {
   const labels = {
@@ -126,23 +129,11 @@ function getLabelSatisfacaoClass(nota) {
   return 'text-green-600 dark:text-green-400 high-contrast:text-green-300'
 }
 
-async function enviarAvaliacao() {
-  if (nota.value === 0) return
-  
-  enviando.value = true
-  
-  try {
-    // Simula delay de envio
-    await new Promise(resolve => setTimeout(resolve, 800))
-    
-    emit('enviar', {
-      nota: nota.value,
-      comentario: comentario.value.trim() || null
-    })
-  } catch (error) {
-    console.error('Erro ao enviar avaliação:', error)
-  } finally {
-    enviando.value = false
-  }
+function enviarAvaliacao() {
+  if (nota.value === 0 || props.enviando) return
+  emit('enviar', {
+    nota: nota.value,
+    comentario: comentario.value.trim() || null
+  })
 }
 </script>

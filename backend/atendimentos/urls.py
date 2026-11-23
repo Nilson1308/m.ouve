@@ -21,6 +21,7 @@ from atendimentos.notificacoes_cidadao_views import (
     VapidPublicKeyView,
 )
 from atendimentos.chat_views import (
+    AvaliarAberturaChatView,
     CriarSessaoChatView,
     InteragirChatView,
     ListarMensagensChatView,
@@ -196,6 +197,11 @@ urlpatterns = [
         "chat/sessao/<uuid:sessao_id>/mensagens",
         ListarMensagensChatView.as_view(),
         name="chat-sessao-mensagens",
+    ),
+    path(
+        "chat/sessao/<uuid:sessao_id>/avaliar-abertura",
+        AvaliarAberturaChatView.as_view(),
+        name="chat-avaliar-abertura",
     ),
     path("avaliacoes", CriarAvaliacaoView.as_view()),
     path(

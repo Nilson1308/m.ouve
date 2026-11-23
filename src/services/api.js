@@ -600,6 +600,15 @@ export const chatService = {
   async listarMensagens(sessaoId) {
     const response = await api.get(`/chat/sessao/${sessaoId}/mensagens`)
     return response.data
+  },
+
+  /** Satisfação com a abertura da solicitação no chat (não é CSAT de protocolo resolvido). */
+  async avaliarAbertura(sessaoId, { nota, comentario = '' }) {
+    const response = await api.post(`/chat/sessao/${sessaoId}/avaliar-abertura`, {
+      nota,
+      comentario
+    })
+    return response.data
   }
 }
 

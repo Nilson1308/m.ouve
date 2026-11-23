@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from atendimentos.chat_serializers import (
+    AvaliarAberturaChatSerializer,
     CriarSessaoChatSerializer,
     InteragirChatSerializer,
     MensagemChatSerializer,
@@ -130,6 +131,32 @@ class InteragirChatView(APIView):
                 "midia_recebida": qtd_anexos,
             },
             status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class AvaliarAberturaChatView(APIView):
+    """Pesquisa de satisfação com o processo de abertura (chat), distinta do CSAT de protocolo resolvido."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, sessao_id):
+        sessao = get_object_or_404(SessaoChat, pk=sessao_id, usuario=request.user)
+        serializer = AvaliarAberturaChatSerializer(
+            data=request.data,
+            context={"request": request, "sessao": sessao},
+        )
+        serializer.is_valid(raise_exception=True)
+        sessao = serializer.save()
+        return Response(
+            {
+                "nota": sessao.nota_abertura,
+                "comentario": sessao.comentario_abertura or "",
+                "protocolo_id": str(sessao.protocolo_final_id),
+                "avaliacao_abertura_em": sessao.avaliacao_abertura_em.isoformat()
+                if sessao.avaliacao_abertura_em
+                else None,
+            },
+            status=status.HTTP_201_CREATED,
         )
 
 
