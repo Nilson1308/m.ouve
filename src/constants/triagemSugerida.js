@@ -4,12 +4,13 @@ export const TRIAGEM_FONTE_LABELS = {
   lookup_cidadao: 'Informado pelo cidadão',
   equipamento_publico: 'Equipamento público',
   matriz_eixo: 'Regra temática',
+  catalogo_executor_padrao: 'Executor padrão do serviço',
   llm: 'IA Semântica'
 }
 
 const MOTOR_LABELS = {
   deterministico_v1: 'Motor determinístico',
-  hibrido_llm_v1: 'Motor híbrido IA'
+  hibrido_llm_v1: 'Motor com IA semântica'
 }
 
 export function labelFonteTriagem(fonte) {
@@ -34,6 +35,8 @@ export function classeBadgeFonteTriagem(fonte) {
       return `${base} bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200`
     case 'equipamento_publico':
       return `${base} bg-cyan-100 text-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 ring-1 ring-cyan-200/80 dark:ring-cyan-700/40`
+    case 'catalogo_executor_padrao':
+      return `${base} bg-violet-100 text-violet-900 dark:bg-violet-950/55 dark:text-violet-200 ring-1 ring-violet-300/70 dark:ring-violet-600/45`
     default:
       return `${base} bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200`
   }

@@ -222,6 +222,69 @@
                 </div>
 
                 <div
+                  v-if="formulario.fluxo_tramitacao === 'ouvidoria_encaminha'"
+                  class="md:col-span-2 space-y-2"
+                >
+                  <span
+                    class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100 border border-amber-200/80 dark:border-amber-700/50"
+                  >
+                    Homologação da Ouvidoria sempre ativa neste fluxo
+                  </span>
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Executor padrão sugerido na triagem (opcional)
+                    </label>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mb-2 leading-relaxed">
+                      Pré-sugere esta secretaria com alta confiança (95%) na Mesa de Trabalho. O despacho
+                      continua humano em 1 clique.
+                    </p>
+                    <select v-model="formulario.executor_padrao_id" class="input">
+                      <option :value="null">Nenhum</option>
+                      <option
+                        v-for="u in unidadesParaSelect"
+                        :key="'exec-' + u.id"
+                        :value="String(u.id)"
+                      >
+                        {{ u.nome }}{{ u.sigla ? ` (${u.sigla})` : '' }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                <div
+                  v-if="formulario.fluxo_tramitacao === 'direto_secretaria'"
+                  class="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 md:col-span-2"
+                >
+                  <button
+                    type="button"
+                    role="switch"
+                    :aria-checked="formulario.exigir_validacao_ouvidoria"
+                    :class="[
+                      'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors mt-0.5',
+                      formulario.exigir_validacao_ouvidoria
+                        ? 'bg-primary-600'
+                        : 'bg-gray-300 dark:bg-gray-600'
+                    ]"
+                    @click="formulario.exigir_validacao_ouvidoria = !formulario.exigir_validacao_ouvidoria"
+                  >
+                    <span
+                      :class="[
+                        'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition',
+                        formulario.exigir_validacao_ouvidoria ? 'translate-x-5' : 'translate-x-0'
+                      ]"
+                    />
+                  </button>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                      Exigir homologação da Ouvidoria antes de responder ao cidadão
+                    </p>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mt-1 leading-relaxed">
+                      {{ textoAuxiliarValidacaoOuvidoria }}
+                    </p>
+                  </div>
+                </div>
+
+                <div
                   class="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 md:col-span-2"
                 >
                   <button
@@ -532,6 +595,8 @@ const formulario = reactive({
   descricao: '',
   sla_padrao_horas: 72,
   fluxo_tramitacao: 'direto_secretaria',
+  exigir_validacao_ouvidoria: false,
+  executor_padrao_id: null,
   triagem_ia_ativa: true,
   categoria_id: null,
   unidade_responsavel_id: null,
@@ -548,12 +613,16 @@ const descricaoFluxoAtual = computed(() => {
 
 const rotuloUnidadeResponsavel = computed(() => {
   if (formulario.fluxo_tramitacao === 'ouvidoria_encaminha') {
-    return 'Unidade do canal (recebe e monitora)'
+    return 'Unidade canal (ex.: Ouvidoria)'
   }
-  if (formulario.fluxo_tramitacao === 'hibrido') {
-    return 'Unidade titular / canal'
+  return 'Secretaria executora (recebe a OS automaticamente)'
+})
+
+const textoAuxiliarValidacaoOuvidoria = computed(() => {
+  if (formulario.exigir_validacao_ouvidoria) {
+    return 'A OS nasce direto na secretaria, mas ao concluir volta para a Ouvidoria validar a resposta antes de notificar o cidadão.'
   }
-  return 'Unidade responsável (executora)'
+  return 'A secretaria executa a OS e já envia a resposta final diretamente ao cidadão. A Ouvidoria apenas monitora SLA e avaliação.'
 })
 
 const unidadesParaSelect = computed(() => {
@@ -606,7 +675,16 @@ function preencherFormulario(servico) {
   formulario.nome = servico?.nome || ''
   formulario.descricao = servico?.descricao || ''
   formulario.sla_padrao_horas = servico?.sla_padrao_horas ?? servico?.sla_horas ?? 72
-  formulario.fluxo_tramitacao = servico?.fluxo_tramitacao || 'direto_secretaria'
+  formulario.fluxo_tramitacao =
+    servico?.fluxo_tramitacao === 'hibrido'
+      ? 'ouvidoria_encaminha'
+      : servico?.fluxo_tramitacao || 'direto_secretaria'
+  formulario.exigir_validacao_ouvidoria =
+    servico?.exigir_validacao_ouvidoria ??
+    (formulario.fluxo_tramitacao === 'ouvidoria_encaminha')
+  formulario.executor_padrao_id = servico?.executor_padrao_id
+    ? String(servico.executor_padrao_id)
+    : null
   formulario.triagem_ia_ativa = servico?.triagem_ia_ativa !== false
   formulario.categoria_id = servico?.categoria_id ? String(servico.categoria_id) : null
   formulario.unidade_responsavel_id = servico?.unidade_responsavel_id
@@ -648,6 +726,17 @@ watch(
 )
 
 watch(
+  () => formulario.fluxo_tramitacao,
+  (fluxo) => {
+    if (fluxo === 'direto_secretaria') {
+      formulario.executor_padrao_id = null
+    } else if (fluxo === 'ouvidoria_encaminha') {
+      formulario.exigir_validacao_ouvidoria = true
+    }
+  }
+)
+
+watch(
   [requisitos, regrasProtocolo, formulario],
   () => {
     if (modoEdicao.value && baselineCarregado.value) {
@@ -669,6 +758,11 @@ function payloadForm() {
     icone: formulario.icone,
     sla_padrao_horas: formulario.sla_padrao_horas,
     fluxo_tramitacao: formulario.fluxo_tramitacao,
+    exigir_validacao_ouvidoria: formulario.exigir_validacao_ouvidoria,
+    executor_padrao_id:
+      formulario.fluxo_tramitacao === 'ouvidoria_encaminha'
+        ? formulario.executor_padrao_id
+        : null,
     triagem_ia_ativa: formulario.triagem_ia_ativa,
     categoria_id: formulario.categoria_id,
     unidade_responsavel_id: formulario.unidade_responsavel_id,

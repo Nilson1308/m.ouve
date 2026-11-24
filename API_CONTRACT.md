@@ -2735,7 +2735,9 @@ Perfis customizados combinam módulos livremente (padrão GLPI).
 | `descricao` | `descricao` | Texto para o cidadão |
 | `icone` | `icone` | Nome lógico do ícone ou URL |
 | `sla_padrao_horas` | `sla_horas` | SLA padrão (int, ex. 48, 72) |
-| `fluxo_tramitacao` | `fluxo_tramitacao` | `direto_secretaria` (default), `ouvidoria_encaminha`, `hibrido` — ver § Fluxo de tramitação |
+| `fluxo_tramitacao` | `fluxo_tramitacao` | `direto_secretaria` (default), `ouvidoria_encaminha` — ver § Fluxo de tramitação (v4.13) |
+| `executor_padrao_id` | `executor_padrao` | Sugestão na triagem (`ouvidoria_encaminha`); ignorado em `direto_secretaria` |
+| `exigir_validacao_ouvidoria` | bool | Governança da **saída**; forçado `true` em `ouvidoria_encaminha` |
 | `unidade_responsavel_id` | `unidade_responsavel` | Papel depende do fluxo: executor padrão **ou** unidade do **canal** (`SET_NULL`) |
 | `categoria_id` | `categoria` | Agrupamento no app (obrigatório na criação se não houver categoria padrão) |
 | `formulario_schema` | `formulario_schema` | **Publicado** — Form Builder (PWA / chat em produção) |
@@ -2798,11 +2800,12 @@ Sempre copia `descricao`, `icone`, `categoria`, `sla_horas`, `formulario_schema`
 
 | Valor | `unidade_responsavel` | Comportamento operacional |
 |-------|------------------------|---------------------------|
-| `direto_secretaria` | **Executor padrão** (secretaria de campo) | Zeladoria e serviços setoriais: encaminhamento direto; scatter opcional. |
-| `ouvidoria_encaminha` | **Unidade do canal** (Ouvidoria / E-SIC) | Protocolo titulado na ouvidoria; executores via despacho scatter + triagem (matriz/IA — ondas futuras). |
-| `hibrido` | **Canal titular** com executor sugerido | Recepção centralizada com destino padrão editável na mesa. |
+| `direto_secretaria` | **Secretaria executora** (`unidade_responsavel`) | **Auto-despacho:** 1 OS na abertura → `em_andamento`. `exigir_validacao_ouvidoria=false` → setor encerra e responde ao cidadão; `true` → homologação ouvidoria (ex-caso híbrido). |
+| `ouvidoria_encaminha` | **Canal** (Ouvidoria) | Nasce `em_analise`; triagem + despacho manual; `exigir_validacao_ouvidoria` sempre `true`. `executor_padrao` enriquece triagem (`catalogo_executor_padrao`, confiança 0.95). |
 
-Retrocompatibilidade: serviços existentes permanecem `direto_secretaria`.
+**v4.13:** valor `hibrido` **removido** — migração converte para `ouvidoria_encaminha` + `exigir_validacao_ouvidoria=true`. POST/PATCH com `hibrido` → `400`.
+
+**Protocolo / OS (backoffice):** campos somente leitura `exigir_validacao_ouvidoria` e `encerramento_direto_secretaria` (UI do botão de conclusão).
 
 #### Equipamentos públicos (SaaS) — v4.11
 
@@ -2860,7 +2863,7 @@ Constraint: único por `(servico, chave_schema, valor_condicao)`.
 
 #### Triagem sugerida no protocolo (`triagem_sugerida`) — v4.9
 
-Gerada automaticamente na **criação do protocolo** (PWA ou chat) quando `servico.fluxo_tramitacao` é `ouvidoria_encaminha` ou `hibrido`. Motor determinístico (`deterministico_v1`); **não despacha** — protocolo permanece `em_analise`.
+Gerada na **criação do protocolo** quando `fluxo_tramitacao=ouvidoria_encaminha`. Motor `deterministico_v1`; **não despacha** — protocolo permanece `em_analise`. Fontes incluem `catalogo_executor_padrao` (0.95) quando `executor_padrao` está ativo.
 
 Ordem de evidências: (1) equipamento vinculado ao protocolo (`confianca` 1.0, `fonte` `equipamento_publico`); (2) lookup `unidades_administrativas` (`fonte` `lookup_cidadao`); (3) regras ativas da matriz (`confianca` 0.85, `fonte` `matriz_eixo`). Unidades deduplicadas (prevalece maior confiança).
 
@@ -2882,7 +2885,7 @@ Ordem de evidências: (1) equipamento vinculado ao protocolo (`confianca` 1.0, `
 }
 ```
 
-`fluxo_tramitacao=direto_secretaria` → `{}` (sem sugestão de encaminhamento).
+`fluxo_tramitacao=direto_secretaria` → triagem `{}`; **despacho automático** de 1 OS para `unidade_responsavel` (fallback `em_analise` + histórico se unidade inativa/ausente).
 
 **Backoffice — dados:** campo `triagem_sugerida` em `GET /api/v1/backoffice/kanban` (fonte da Mesa), `GET /api/v1/backoffice/protocolos` e `GET /api/v1/backoffice/protocolos/<protocolo_id>` (detalhe; respeita `escopo_dados` / IDOR).
 
@@ -2896,7 +2899,7 @@ Ordem de evidências: (1) equipamento vinculado ao protocolo (`confianca` 1.0, `
 
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
-| `triagem_ia_ativa` | bool | Default `true`. Habilita enfileiramento da triagem semântica após a triagem determinística em `ouvidoria_encaminha` e `hibrido`. |
+| `triagem_ia_ativa` | bool | Default `true`. Triagem semântica após a determinística em `ouvidoria_encaminha`. |
 
 Exposto em `GET/PATCH/POST` do CRUD `backoffice/servicos-catalogo`. Clonagem/duplicação de serviços **preserva** a flag.
 
@@ -3544,6 +3547,7 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.13** (Nov 24, 2026): Sprint 2.5 governança de fluxos — remoção de `hibrido`; `executor_padrao`, `exigir_validacao_ouvidoria`; auto-despacho entrada (`direto_secretaria`); encerramento direto ou homologação na saída; triagem `catalogo_executor_padrao`; metadados `encerramento_direto_secretaria` no backoffice
 - **v4.12** (Nov 24, 2026): Sprint 2 SLA — `ConfiguracaoSlaCobranca`, `CobrancaProtocolo`, `RelatorioSlaEnvio`; `POST /protocolos/<id>/cobrar` (400/429 + cooldown Redis); campos PWA `pode_cobrar`/`motivo_bloqueio_cobranca`; régua Celery `preventivo_80` → `vencido` → `escalonado_controladoria`; digest e-mail consolidado; `GET/PATCH /backoffice/configuracoes/sla-cobranca`; painel `GET /backoffice/relatorios/sla-atrasados` (+ export CSV, disparo manual, histórico envios); filtro `apenas_cobrados` na Mesa
 - **v4.11.1** (Nov 23, 2026): Georreferência de equipamentos — `latitude`/`longitude`/`georreferenciado` no CRUD governança, filtro `georreferenciado`, lookup com coords e ordenação por `lat`+`lng`, herança de `Protocolo.localizacao` a partir do equipamento
 - **v4.11** (Nov 23, 2026): Equipamentos públicos — modelo `EquipamentoPublico`, CRUD `GET/POST/PATCH/DELETE /backoffice/equipamentos`, lookup `GET /catalogo/lookup/equipamentos`, datasource `equipamentos_publicos`, `Protocolo.equipamento`, triagem `fonte=equipamento_publico`, slot filling por apelido

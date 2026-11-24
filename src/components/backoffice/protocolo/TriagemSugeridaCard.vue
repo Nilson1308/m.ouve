@@ -55,6 +55,11 @@
                 class="w-3.5 h-3.5"
                 aria-hidden="true"
               />
+              <BookmarkIcon
+                v-else-if="item.fonte === 'catalogo_executor_padrao'"
+                class="w-3.5 h-3.5"
+                aria-hidden="true"
+              />
               {{ labelFonteTriagem(item.fonte) }}
             </span>
           </div>
@@ -98,7 +103,12 @@
 
 <script setup>
 import { computed } from 'vue'
-import { SparklesIcon, PaperAirplaneIcon, BuildingOffice2Icon } from '@heroicons/vue/24/outline'
+import {
+  SparklesIcon,
+  PaperAirplaneIcon,
+  BuildingOffice2Icon,
+  BookmarkIcon
+} from '@heroicons/vue/24/outline'
 import {
   classeBadgeFonteTriagem,
   formatarConfiancaTriagem,

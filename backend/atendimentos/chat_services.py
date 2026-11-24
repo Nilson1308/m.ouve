@@ -190,6 +190,11 @@ def finalizar_sessao_com_protocolo(sessao: SessaoChat) -> Protocolo:
     from atendimentos.services.triagem_service import executar_triagem_protocolo
 
     executar_triagem_protocolo(protocolo)
+    from atendimentos.services.fluxo_governanca_service import (
+        processar_governanca_entrada_protocolo,
+    )
+
+    processar_governanca_entrada_protocolo(protocolo)
     _transferir_anexos_para_protocolo(sessao, protocolo)
 
     set_meta(sessao, fase=FaseChat.CONCLUIDO)

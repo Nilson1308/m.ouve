@@ -84,7 +84,10 @@ export function mapProtocoloBackoffice(api) {
     qtdCobrancasCidadao: Number(api.qtd_cobrancas_cidadao ?? 0),
     ultimaCobrancaEm: api.ultima_cobranca_em ?? null,
     diasAtraso: Number(api.dias_atraso ?? 0),
-    ultimoAlertaSlaNivel: api.ultimo_alerta_sla_nivel || ''
+    ultimoAlertaSlaNivel: api.ultimo_alerta_sla_nivel || '',
+    fluxoTramitacao: api.servico?.fluxo_tramitacao || null,
+    exigirValidacaoOuvidoria: Boolean(api.exigir_validacao_ouvidoria),
+    encerramentoDiretoSecretaria: Boolean(api.encerramento_direto_secretaria)
   }
 }
 
@@ -177,7 +180,9 @@ export function mapOrdemServicoDetalhe(ordem, urgenciaProtocolo) {
     concluido_em: ordem.concluido_em || null,
     observacoes_execucao: ordem.observacoes_execucao || '',
     fotos_execucao: ordem.fotos_execucao || [],
-    materiais_utilizados: ordem.materiais_utilizados || []
+    materiais_utilizados: ordem.materiais_utilizados || [],
+    exigir_validacao_ouvidoria: Boolean(ordem.exigir_validacao_ouvidoria),
+    encerramento_direto_secretaria: Boolean(ordem.encerramento_direto_secretaria)
   }
 }
 

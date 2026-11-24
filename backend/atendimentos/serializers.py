@@ -283,6 +283,11 @@ class ProtocoloCreateSerializer(serializers.Serializer):
         from atendimentos.services.triagem_service import executar_triagem_protocolo
 
         executar_triagem_protocolo(protocolo)
+        from atendimentos.services.fluxo_governanca_service import (
+            processar_governanca_entrada_protocolo,
+        )
+
+        processar_governanca_entrada_protocolo(protocolo)
         return protocolo
 
 

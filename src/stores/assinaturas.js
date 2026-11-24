@@ -20,7 +20,9 @@ function mapOrdemServicoAssinatura(os) {
     cidadao: os.cidadao || { nome: '—' },
     prioridade: os.prioridade || 'media',
     statusApi: os.status_api || os.status || '',
-    prazoInterno: os.prazo_interno || null
+    prazoInterno: os.prazo_interno || null,
+    exigirValidacaoOuvidoria: Boolean(os.exigir_validacao_ouvidoria),
+    encerramentoDiretoSecretaria: Boolean(os.encerramento_direto_secretaria)
   }
 }
 

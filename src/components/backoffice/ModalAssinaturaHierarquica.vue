@@ -174,6 +174,21 @@
           </div>
 
           <!-- Footer -->
+          <div
+            v-if="etapa === 'assinar' && textoGovernancaConclusao"
+            class="shrink-0 px-6 pt-4"
+          >
+            <p
+              class="text-sm rounded-lg px-4 py-3 border leading-relaxed"
+              :class="
+                encerramentoDireto
+                  ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100'
+                  : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300'
+              "
+            >
+              {{ textoGovernancaConclusao }}
+            </p>
+          </div>
           <div class="shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
             <button type="button" class="btn-secondary" :disabled="processando" @click="$emit('fechar')">
               Cancelar
@@ -194,7 +209,7 @@
                 @click="confirmarAssinar"
               >
                 <ShieldCheckIcon class="w-5 h-5" />
-                {{ processando ? 'Assinando…' : 'Assinar digitalmente' }}
+                {{ processando ? 'Processando…' : rotuloBotaoConclusao }}
               </button>
             </template>
             <template v-else>
@@ -243,6 +258,25 @@ const senha = ref('')
 const motivoRejeicao = ref('')
 
 const os = computed(() => props.solicitacao?.ordemServico || null)
+
+const encerramentoDireto = computed(() => Boolean(os.value?.encerramentoDiretoSecretaria))
+
+const rotuloBotaoConclusao = computed(() =>
+  encerramentoDireto.value
+    ? 'Concluir e responder ao cidadão'
+    : 'Devolver para validação da Ouvidoria'
+)
+
+const textoGovernancaConclusao = computed(() => {
+  if (!os.value) return ''
+  if (encerramentoDireto.value) {
+    return 'Fluxo direto autônomo: ao confirmar, esta resposta será enviada imediatamente ao cidadão e o protocolo será encerrado.'
+  }
+  if (os.value.exigirValidacaoOuvidoria) {
+    return 'A resposta será enviada para revisão/consolidação da Ouvidoria antes de notificar o cidadão.'
+  }
+  return ''
+})
 
 watch(
   () => props.aberto,

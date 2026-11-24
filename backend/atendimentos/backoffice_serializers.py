@@ -68,7 +68,14 @@ class BackofficeServicoResumoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ServicoCatalogo
-        fields = ("id", "nome", "sla_horas", "categoria_nome", "categoria_slug")
+        fields = (
+            "id",
+            "nome",
+            "sla_horas",
+            "categoria_nome",
+            "categoria_slug",
+            "fluxo_tramitacao",
+        )
 
 
 class BackofficeAnexoOrdemServicoSerializer(serializers.ModelSerializer):
@@ -95,6 +102,8 @@ class BackofficeAnexoOrdemServicoSerializer(serializers.ModelSerializer):
 class BackofficeOrdemServicoSerializer(serializers.ModelSerializer):
     unidade = UnidadeAdministrativaSerializer(read_only=True)
     unidade_id = serializers.UUIDField(source="unidade.id", read_only=True)
+    exigir_validacao_ouvidoria = serializers.SerializerMethodField()
+    encerramento_direto_secretaria = serializers.SerializerMethodField()
     super_os_id = serializers.UUIDField(read_only=True, allow_null=True)
     super_os_codigo = serializers.CharField(
         source="super_os.codigo", read_only=True, allow_null=True
@@ -123,7 +132,25 @@ class BackofficeOrdemServicoSerializer(serializers.ModelSerializer):
             "concluido_em",
             "criado_em",
             "atualizado_em",
+            "exigir_validacao_ouvidoria",
+            "encerramento_direto_secretaria",
         )
+
+    def _governanca_protocolo(self, obj):
+        protocolo = obj.protocolo
+        if not protocolo or not getattr(protocolo, "servico_id", None):
+            return {"exigir_validacao_ouvidoria": True, "encerramento_direto_secretaria": False}
+        from atendimentos.services.fluxo_governanca_service import (
+            metadados_governanca_protocolo,
+        )
+
+        return metadados_governanca_protocolo(protocolo)
+
+    def get_exigir_validacao_ouvidoria(self, obj):
+        return self._governanca_protocolo(obj)["exigir_validacao_ouvidoria"]
+
+    def get_encerramento_direto_secretaria(self, obj):
+        return self._governanca_protocolo(obj)["encerramento_direto_secretaria"]
 
     instrucao = serializers.CharField(source="descricao", read_only=True)
     concluido_em = serializers.DateTimeField(
@@ -209,6 +236,8 @@ class BackofficeProtocoloKanbanSerializer(serializers.ModelSerializer):
     )
     ultimo_alerta_sla_nivel = serializers.CharField(read_only=True)
     dias_atraso = serializers.SerializerMethodField()
+    exigir_validacao_ouvidoria = serializers.SerializerMethodField()
+    encerramento_direto_secretaria = serializers.SerializerMethodField()
 
     class Meta:
         model = Protocolo
@@ -237,7 +266,23 @@ class BackofficeProtocoloKanbanSerializer(serializers.ModelSerializer):
             "ultima_cobranca_em",
             "ultimo_alerta_sla_nivel",
             "dias_atraso",
+            "exigir_validacao_ouvidoria",
+            "encerramento_direto_secretaria",
         )
+
+    def get_exigir_validacao_ouvidoria(self, obj):
+        from atendimentos.services.fluxo_governanca_service import (
+            metadados_governanca_protocolo,
+        )
+
+        return metadados_governanca_protocolo(obj)["exigir_validacao_ouvidoria"]
+
+    def get_encerramento_direto_secretaria(self, obj):
+        from atendimentos.services.fluxo_governanca_service import (
+            metadados_governanca_protocolo,
+        )
+
+        return metadados_governanca_protocolo(obj)["encerramento_direto_secretaria"]
 
     def get_dias_atraso(self, obj):
         from atendimentos.services.sla_cobranca_service import dias_atraso

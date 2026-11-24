@@ -147,15 +147,14 @@ class ServicoCatalogo(models.Model):
     validados em ``Protocolo.dados_dinamicos``.
 
     ``unidade_responsavel`` depende de ``fluxo_tramitacao``:
-    - ``direto_secretaria``: executor padrão ao abrir protocolo / OS.
-    - ``ouvidoria_encaminha``: **unidade do canal** (recebe e monitora); executores via despacho/triagem.
-    - ``hibrido``: canal titular com executor padrão opcional + encaminhamento.
+    - ``direto_secretaria``: secretaria executora (OS automática na abertura).
+    - ``ouvidoria_encaminha``: unidade do **canal** (Ouvidoria); executores via triagem/despacho.
+    ``executor_padrao``: sugestão de encaminhamento no fluxo ouvidoria (não confundir com canal).
     """
 
     class FluxoTramitacao(models.TextChoices):
         DIRETO_SECRETARIA = "direto_secretaria", "Direto à secretaria"
         OUVIDORIA_ENCAMINHA = "ouvidoria_encaminha", "Ouvidoria encaminha"
-        HIBRIDO = "hibrido", "Híbrido"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     categoria = models.ForeignKey(
@@ -194,8 +193,27 @@ class ServicoCatalogo(models.Model):
     triagem_ia_ativa = models.BooleanField(
         default=True,
         help_text=(
-            "Quando ativo, enfileira triagem semântica (LLM) para sugerir unidades executoras "
-            "em fluxos ouvidoria_encaminha e híbrido, após a triagem determinística."
+            "Quando ativo, enfileira triagem semântica (LLM) após a triagem determinística "
+            "em fluxos ouvidoria_encaminha."
+        ),
+    )
+    exigir_validacao_ouvidoria = models.BooleanField(
+        default=True,
+        help_text=(
+            "Na saída: se True, o protocolo só encerra ao cidadão após homologação da Ouvidoria. "
+            "Em ouvidoria_encaminha é sempre True. Em direto_secretaria pode ser False para "
+            "encerramento direto pelo executor."
+        ),
+    )
+    executor_padrao = models.ForeignKey(
+        UnidadeAdministrativa,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="servicos_como_executor_padrao",
+        help_text=(
+            "Unidade executora sugerida na triagem (fluxo ouvidoria_encaminha). "
+            "Não usar em direto_secretaria."
         ),
     )
     unidade_responsavel = models.ForeignKey(
@@ -205,9 +223,8 @@ class ServicoCatalogo(models.Model):
         blank=True,
         related_name="servicos_catalogo",
         help_text=(
-            "Unidade padrão vinculada ao serviço. "
-            "direto_secretaria: executor; ouvidoria_encaminha: unidade do canal (ouvidoria); "
-            "hibrido: canal titular com executor sugerido."
+            "direto_secretaria: secretaria executora (recebe OS automática); "
+            "ouvidoria_encaminha: unidade do canal (Ouvidoria)."
         ),
     )
     formulario_schema = models.JSONField(

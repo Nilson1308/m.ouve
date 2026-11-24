@@ -46,7 +46,9 @@ export function mapOrdemSetorial(api) {
     is_super_os: Boolean(api.is_super_os),
     qtd_chamados_vinculados: Number(api.qtd_chamados_vinculados ?? 1),
     super_os_codigo: api.super_os_codigo || null,
-    protocolo_codigo: api.protocolo_codigo || null
+    protocolo_codigo: api.protocolo_codigo || null,
+    exigir_validacao_ouvidoria: Boolean(api.exigir_validacao_ouvidoria),
+    encerramento_direto_secretaria: Boolean(api.encerramento_direto_secretaria)
   }
 }
 

@@ -112,6 +112,8 @@ class SetorialOrdemServicoSerializer(serializers.ModelSerializer):
     qtd_chamados_vinculados = serializers.SerializerMethodField()
     super_os_codigo = serializers.SerializerMethodField()
     protocolo_codigo = serializers.SerializerMethodField()
+    exigir_validacao_ouvidoria = serializers.SerializerMethodField()
+    encerramento_direto_secretaria = serializers.SerializerMethodField()
 
     class Meta:
         model = OrdemServico
@@ -148,7 +150,25 @@ class SetorialOrdemServicoSerializer(serializers.ModelSerializer):
             "qtd_chamados_vinculados",
             "super_os_codigo",
             "protocolo_codigo",
+            "exigir_validacao_ouvidoria",
+            "encerramento_direto_secretaria",
         )
+
+    def _governanca_protocolo(self, obj):
+        protocolo = obj.protocolo
+        if not protocolo or not getattr(protocolo, "servico_id", None):
+            return {"exigir_validacao_ouvidoria": True, "encerramento_direto_secretaria": False}
+        from atendimentos.services.fluxo_governanca_service import (
+            metadados_governanca_protocolo,
+        )
+
+        return metadados_governanca_protocolo(protocolo)
+
+    def get_exigir_validacao_ouvidoria(self, obj):
+        return self._governanca_protocolo(obj)["exigir_validacao_ouvidoria"]
+
+    def get_encerramento_direto_secretaria(self, obj):
+        return self._governanca_protocolo(obj)["encerramento_direto_secretaria"]
 
     def get_is_super_os(self, obj):
         return bool(obj.super_os_id)

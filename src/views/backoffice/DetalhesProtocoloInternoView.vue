@@ -88,6 +88,15 @@
               <UserIcon class="h-5 w-5" />
               <span>{{ protocolo.cidadao?.nome || '—' }}</span>
             </div>
+
+            <span
+              v-if="indicadorFluxoDireto"
+              class="inline-flex items-center gap-2 rounded-badge px-4 py-2 text-xs font-semibold bg-teal-50 text-teal-900 dark:bg-teal-950/40 dark:text-teal-100 border border-teal-200/80 dark:border-teal-700/50"
+              :title="indicadorFluxoDireto.title"
+            >
+              <ArrowsRightLeftIcon class="h-4 w-4 shrink-0" />
+              {{ indicadorFluxoDireto.label }}
+            </span>
           </div>
         </div>
       </header>
@@ -159,8 +168,10 @@ import {
   ShareIcon,
   EllipsisVerticalIcon,
   WrenchScrewdriverIcon,
-  UserIcon
+  UserIcon,
+  ArrowsRightLeftIcon
 } from '@heroicons/vue/24/outline'
+import { indicadorFluxoDiretoProtocolo } from '@/constants/governancaFluxo'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import ProtocoloContexto from '@/components/backoffice/protocolo/ProtocoloContexto.vue'
 import ProtocoloOperacao from '@/components/backoffice/protocolo/ProtocoloOperacao.vue'
@@ -199,6 +210,8 @@ const processandoSugestaoIa = ref(false)
 let toastTimer = null
 
 const protocolo = computed(() => protocoloAtual.value)
+
+const indicadorFluxoDireto = computed(() => indicadorFluxoDiretoProtocolo(protocolo.value))
 
 const protocoloIntegradoSuperOs = computed(() => Boolean(protocolo.value?.superOsId))
 

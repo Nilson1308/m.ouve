@@ -411,6 +411,9 @@ export function mapServicoCatalogo(api) {
     ativo: api.ativo !== false,
     permite_cluster: api.permite_cluster !== false,
     fluxo_tramitacao: api.fluxo_tramitacao || 'direto_secretaria',
+    exigir_validacao_ouvidoria: Boolean(api.exigir_validacao_ouvidoria),
+    executor_padrao_id: api.executor_padrao_id ? String(api.executor_padrao_id) : null,
+    executor_padrao_nome: api.executor_padrao_nome || null,
     triagem_ia_ativa: api.triagem_ia_ativa !== false,
     formulario_schema: Array.isArray(api.formulario_schema) ? api.formulario_schema : [],
     schema_formulario:
@@ -484,6 +487,12 @@ export function payloadServicoCatalogo(form, requisitos, regrasProtocolo = [], o
     unidade_responsavel_id:
       form.unidade_responsavel_id ?? form.unidadeResponsavelId ?? null,
     fluxo_tramitacao: form.fluxo_tramitacao || 'direto_secretaria',
+    exigir_validacao_ouvidoria:
+      form.exigir_validacao_ouvidoria !== undefined
+        ? Boolean(form.exigir_validacao_ouvidoria)
+        : form.fluxo_tramitacao === 'ouvidoria_encaminha',
+    executor_padrao_id:
+      form.fluxo_tramitacao === 'ouvidoria_encaminha' ? form.executor_padrao_id || null : null,
     triagem_ia_ativa: form.triagem_ia_ativa !== false,
     ativo: form.ativo !== false,
     permite_cluster: form.permite_cluster !== false,

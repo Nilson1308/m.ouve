@@ -4,17 +4,14 @@ export const FLUXO_TRAMITACAO_OPCOES = [
   {
     value: 'direto_secretaria',
     label: 'Direto para Secretaria',
-    descricao: 'A unidade vinculada ao serviço é a executora padrão.'
+    descricao:
+      'Abre OS automaticamente na secretaria executora. Homologação da Ouvidoria opcional (toggle).'
   },
   {
     value: 'ouvidoria_encaminha',
     label: 'Ouvidoria (encaminhamento)',
-    descricao: 'A unidade do serviço atua como canal; secretarias executam via despacho.'
-  },
-  {
-    value: 'hibrido',
-    label: 'Híbrido',
-    descricao: 'Canal titular com executor padrão e encaminhamento quando necessário.'
+    descricao:
+      'Abertura na Mesa com triagem e despacho assistido; homologação obrigatória da Ouvidoria.'
   }
 ]
 

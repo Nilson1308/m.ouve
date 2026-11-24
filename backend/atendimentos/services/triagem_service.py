@@ -25,8 +25,12 @@ VERSAO_MOTOR_HIBRIDO = "hibrido_llm_v1"
 FONTE_LOOKUP = "lookup_cidadao"
 FONTE_MATRIZ = "matriz_eixo"
 FONTE_EQUIPAMENTO = "equipamento_publico"
+FONTE_CATALOGO_EXECUTOR = "catalogo_executor_padrao"
 FONTE_LLM = "llm"
-FONTES_DETERMINISTICAS = frozenset({FONTE_LOOKUP, FONTE_MATRIZ, FONTE_EQUIPAMENTO})
+FONTES_DETERMINISTICAS = frozenset(
+    {FONTE_LOOKUP, FONTE_MATRIZ, FONTE_EQUIPAMENTO, FONTE_CATALOGO_EXECUTOR}
+)
+CONFIANCA_EXECUTOR_PADRAO = 0.95
 CONFIANCA_LOOKUP = 1.0
 CONFIANCA_MATRIZ = 0.85
 CONFIANCA_MINIMA_LLM = 0.50
@@ -115,9 +119,9 @@ def montar_triagem_sugerida(protocolo: Protocolo) -> dict[str, Any]:
     if servico.fluxo_tramitacao == ServicoCatalogo.FluxoTramitacao.DIRETO_SECRETARIA:
         return {}
 
-    fluxo_encaminha = servico.fluxo_tramitacao in (
-        ServicoCatalogo.FluxoTramitacao.OUVIDORIA_ENCAMINHA,
-        ServicoCatalogo.FluxoTramitacao.HIBRIDO,
+    fluxo_encaminha = (
+        servico.fluxo_tramitacao
+        == ServicoCatalogo.FluxoTramitacao.OUVIDORIA_ENCAMINHA
     )
     if not fluxo_encaminha:
         return {}
@@ -125,6 +129,21 @@ def montar_triagem_sugerida(protocolo: Protocolo) -> dict[str, Any]:
     dados = protocolo.dados_dinamicos or {}
     schema = servico.schema_formulario or {}
     sugestoes: dict[str, dict[str, Any]] = {}
+
+    executor_padrao = getattr(servico, "executor_padrao", None)
+    if (
+        executor_padrao
+        and executor_padrao.ativo
+        and servico.fluxo_tramitacao
+        == ServicoCatalogo.FluxoTramitacao.OUVIDORIA_ENCAMINHA
+    ):
+        _registrar_sugestao(
+            sugestoes,
+            executor_padrao,
+            confianca=CONFIANCA_EXECUTOR_PADRAO,
+            fonte=FONTE_CATALOGO_EXECUTOR,
+            motivo=f"Executor padrão do serviço: {servico.nome}",
+        )
 
     equipamento = getattr(protocolo, "equipamento", None)
     if equipamento and equipamento.ativo and equipamento.unidade_responsavel.ativo:
@@ -267,9 +286,9 @@ def _payload_de_acumulado(
 def servico_elegivel_triagem_semantica(servico: ServicoCatalogo) -> bool:
     if not servico.triagem_ia_ativa:
         return False
-    return servico.fluxo_tramitacao in (
-        ServicoCatalogo.FluxoTramitacao.OUVIDORIA_ENCAMINHA,
-        ServicoCatalogo.FluxoTramitacao.HIBRIDO,
+    return (
+        servico.fluxo_tramitacao
+        == ServicoCatalogo.FluxoTramitacao.OUVIDORIA_ENCAMINHA
     )
 
 

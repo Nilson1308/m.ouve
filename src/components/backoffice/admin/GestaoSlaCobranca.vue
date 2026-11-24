@@ -74,6 +74,11 @@
           <input v-model="form.digest_email_ativo" type="checkbox" class="w-5 h-5 rounded text-primary-600" />
         </label>
 
+        <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 px-3 py-2.5">
+          Os gestores ativos de cada secretaria recebem automaticamente o resumo dos próprios protocolos
+          atrasados. Use o campo abaixo apenas para o relatório consolidado geral (Controladoria / Ouvidoria).
+        </p>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label for="digest-periodicidade" class="block text-sm font-medium mb-1">Periodicidade</label>

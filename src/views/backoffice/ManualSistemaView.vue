@@ -169,7 +169,7 @@ const secoes = [
       {
         titulo: 'Roteamento temático e slot filling',
         paragrafos: [
-          'Em serviços com fluxo Ouvidoria encaminha ou Híbrido, configure a matriz de roteamento: associe valores de campos do formulário (ex.: tema = Saúde) à secretaria sugerida. Essas regras alimentam a triagem na Mesa.',
+          'Em serviços com fluxo Ouvidoria (encaminhamento), configure a matriz de roteamento: associe valores de campos do formulário (ex.: tema = Saúde) à secretaria sugerida. Essas regras alimentam a triagem na Mesa.',
           'O campo triagem por IA no serviço controla se, após o protocolo ser criado, uma análise semântica assíncrona pode refinar a sugestão de encaminhamento.',
           'Na conversa com o cidadão, o slot filling tenta preencher campos do schema a partir do texto livre (com validação), reduzindo perguntas repetidas quando a API de IA está disponível.'
         ]

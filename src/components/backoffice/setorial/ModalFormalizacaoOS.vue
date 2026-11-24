@@ -381,31 +381,44 @@
               Fechar
             </button>
           </div>
-          <div v-else class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <label class="flex items-start gap-3 cursor-pointer min-w-0 flex-1">
-              <input
-                v-model="formulario.assinado"
-                type="checkbox"
-                class="mt-0.5 w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500 shrink-0"
-              />
-              <span class="text-sm text-gray-700 dark:text-gray-300 leading-snug">
-                Declaro ciência de que a descrição técnica é fidedigna. O gestor da secretaria assinará digitalmente este despacho (Lei 14.063/2020).
-              </span>
-            </label>
+          <div v-else class="space-y-3">
+            <div
+              v-if="textoGovernancaEnvio"
+              class="rounded-lg border px-4 py-3 text-sm leading-relaxed"
+              :class="
+                encerramentoDiretoSecretaria
+                  ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100'
+                  : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300'
+              "
+            >
+              {{ textoGovernancaEnvio }}
+            </div>
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <label class="flex items-start gap-3 cursor-pointer min-w-0 flex-1">
+                <input
+                  v-model="formulario.assinado"
+                  type="checkbox"
+                  class="mt-0.5 w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500 shrink-0"
+                />
+                <span class="text-sm text-gray-700 dark:text-gray-300 leading-snug">
+                  Declaro ciência de que a descrição técnica é fidedigna. O gestor da secretaria assinará digitalmente este despacho (Lei 14.063/2020).
+                </span>
+              </label>
 
-            <div class="flex flex-shrink-0 items-center gap-3 justify-end">
-              <button type="button" class="btn-secondary" @click="fechar">
-                Cancelar
-              </button>
-              <button
-                type="button"
-                class="btn-primary inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                :disabled="!podeEnviarGestor || enviando"
-                @click="enviarParaGestor"
-              >
-                <PaperAirplaneIcon class="w-5 h-5" aria-hidden="true" />
-                {{ enviando ? 'Enviando…' : 'Enviar ao gestor' }}
-              </button>
+              <div class="flex flex-shrink-0 items-center gap-3 justify-end">
+                <button type="button" class="btn-secondary" @click="fechar">
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  class="btn-primary inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  :disabled="!podeEnviarGestor || enviando"
+                  @click="enviarParaGestor"
+                >
+                  <PaperAirplaneIcon class="w-5 h-5" aria-hidden="true" />
+                  {{ enviando ? 'Enviando…' : 'Enviar ao gestor' }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -524,6 +537,20 @@ const aguardandoAssinaturaGestor = computed(() => {
 const podeEnviarGestor = computed(
   () => descricaoPreenchida.value && formulario.value.assinado
 )
+
+const encerramentoDiretoSecretaria = computed(() =>
+  Boolean(props.ordem?.encerramento_direto_secretaria)
+)
+
+const textoGovernancaEnvio = computed(() => {
+  if (encerramentoDiretoSecretaria.value) {
+    return 'Fluxo direto autônomo: após a assinatura do gestor, a resposta segue imediatamente ao cidadão e o protocolo é encerrado.'
+  }
+  if (props.ordem?.exigir_validacao_ouvidoria) {
+    return 'A resposta será enviada para revisão/consolidação da Ouvidoria antes de notificar o cidadão.'
+  }
+  return ''
+})
 
 const relatoCampo = computed(() => (props.ordem.observacoes_execucao || '').trim())
 

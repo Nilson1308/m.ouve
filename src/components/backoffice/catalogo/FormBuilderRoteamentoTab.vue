@@ -51,8 +51,7 @@
             v-if="!iaTriagemDisponivel"
             class="text-xs text-sky-800 dark:text-sky-200 mt-2 rounded-md bg-sky-50 dark:bg-sky-950/40 px-2 py-1.5 border border-sky-200/80 dark:border-sky-800/60"
           >
-            A triagem por IA atua apenas nos fluxos <strong>Ouvidoria (encaminhamento)</strong> e
-            <strong>Híbrido</strong>.
+            A triagem por IA atua apenas no fluxo <strong>Ouvidoria (encaminhamento)</strong>.
           </p>
           <p
             v-else-if="triagemIaAtiva"
@@ -77,7 +76,7 @@
           <InformationCircleIcon class="w-5 h-5 shrink-0 text-sky-600 dark:text-sky-400" />
           <p>
             Neste fluxo o protocolo vai direto à secretaria responsável. A matriz é mais útil em
-            <strong>Ouvidoria (encaminhamento)</strong> ou <strong>Híbrido</strong>, quando a Mesa precisa sugerir executores.
+            <strong>Ouvidoria (encaminhamento)</strong>, quando a Mesa precisa sugerir executores.
           </p>
         </div>
       </div>

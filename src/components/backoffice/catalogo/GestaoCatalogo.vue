@@ -160,6 +160,14 @@
                 <UserIcon class="w-3 h-3 shrink-0" aria-hidden="true" />
                 Atendimento individual
               </span>
+              <span
+                v-if="badgeGovernanca(servico)"
+                class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                :class="badgeGovernanca(servico).class"
+                :title="badgeGovernanca(servico).title"
+              >
+                {{ badgeGovernanca(servico).label }}
+              </span>
             </div>
           </div>
 
@@ -316,6 +324,7 @@ import FormBuilderServico from './FormBuilderServico.vue'
 import BibliotecaModelos from './BibliotecaModelos.vue'
 import GestaoCategoriasCatalogo from './GestaoCategoriasCatalogo.vue'
 import { useAdminToast } from '@/composables/useAdminToast'
+import { badgeGovernancaServico as badgeGovernanca } from '@/constants/governancaFluxo'
 import {
   PlusCircleIcon,
   PencilIcon,

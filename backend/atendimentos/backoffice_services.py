@@ -266,9 +266,33 @@ def concluir_atendimento_setor(
     unidade_nome: str = "",
 ) -> bool:
     """
-    Após a OS ser marcada concluída: histórico com parecer e transição opcional para aguardando_revisao.
+    Após a OS ser marcada concluída: encerramento direto (direto_secretaria) ou homologação ouvidoria.
     """
     garantir_protocolo_tramitavel(protocolo)
+    from atendimentos.services.fluxo_governanca_service import (
+        servico_exige_validacao_ouvidoria,
+        tentar_encerramento_direto_secretaria,
+    )
+
+    servico = protocolo.servico
+    if servico and not servico_exige_validacao_ouvidoria(servico):
+        if tentar_encerramento_direto_secretaria(
+            protocolo,
+            ordem=ordem,
+            despacho_tecnico=despacho_tecnico,
+            unidade_nome=unidade_nome,
+        ):
+            return True
+        if not todas_ordens_concluidas(protocolo):
+            registrar_retorno_setor_para_validacao(
+                protocolo,
+                ordem=ordem,
+                unidade_nome=unidade_nome,
+                despacho_tecnico=despacho_tecnico,
+                equipe_nome=equipe_nome,
+            )
+            return False
+
     return tentar_aguardando_revisao(
         protocolo,
         equipe_nome=equipe_nome,

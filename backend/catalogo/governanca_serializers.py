@@ -98,10 +98,22 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
         read_only=True,
         default=None,
     )
+    executor_padrao_id = serializers.PrimaryKeyRelatedField(
+        source="executor_padrao",
+        queryset=UnidadeAdministrativa.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+    executor_padrao_nome = serializers.CharField(
+        source="executor_padrao.nome",
+        read_only=True,
+        default=None,
+    )
     fluxo_tramitacao = serializers.ChoiceField(
         choices=ServicoCatalogo.FluxoTramitacao.choices,
         required=False,
     )
+    exigir_validacao_ouvidoria = serializers.BooleanField(required=False)
     triagem_ia_ativa = serializers.BooleanField(required=False)
     exige_localizacao = serializers.BooleanField(read_only=True)
     is_template = serializers.BooleanField(read_only=True)
@@ -126,7 +138,10 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
             "categoria_nome",
             "unidade_responsavel_id",
             "unidade_responsavel_nome",
+            "executor_padrao_id",
+            "executor_padrao_nome",
             "fluxo_tramitacao",
+            "exigir_validacao_ouvidoria",
             "triagem_ia_ativa",
             "formulario_schema",
             "schema_formulario",
@@ -150,6 +165,7 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
             "exige_localizacao",
             "categoria_nome",
             "unidade_responsavel_nome",
+            "executor_padrao_nome",
             "is_template",
             "versao_publicada",
             "publicado_em",
@@ -173,6 +189,15 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(str(exc)) from exc
         return value
 
+    def validate_fluxo_tramitacao(self, value):
+        if value == "hibrido":
+            raise serializers.ValidationError(
+                'O fluxo "hibrido" foi descontinuado. Use "direto_secretaria" ou '
+                '"ouvidoria_encaminha". Para autonomia com homologação opcional, '
+                "use direto_secretaria com exigir_validacao_ouvidoria."
+            )
+        return value
+
     def validate(self, attrs):
         categoria = attrs.get("categoria")
         if self.instance and "categoria" not in attrs:
@@ -183,6 +208,43 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"categoria_id": "Informe a categoria ou cadastre uma categoria ativa."}
             )
+
+        fluxo = attrs.get("fluxo_tramitacao")
+        if fluxo is None and self.instance:
+            fluxo = self.instance.fluxo_tramitacao
+        unidade = attrs.get("unidade_responsavel")
+        if unidade is None and self.instance and "unidade_responsavel" not in attrs:
+            unidade = self.instance.unidade_responsavel
+        executor = attrs.get("executor_padrao")
+        if executor is None and self.instance and "executor_padrao" not in attrs:
+            executor = self.instance.executor_padrao
+        exigir = attrs.get("exigir_validacao_ouvidoria")
+        if exigir is None and self.instance and "exigir_validacao_ouvidoria" not in attrs:
+            exigir = self.instance.exigir_validacao_ouvidoria
+
+        if fluxo == ServicoCatalogo.FluxoTramitacao.OUVIDORIA_ENCAMINHA:
+            attrs["exigir_validacao_ouvidoria"] = True
+            if executor is not None:
+                if not executor.ativo:
+                    raise serializers.ValidationError(
+                        {"executor_padrao_id": "Unidade executora padrão inativa."}
+                    )
+        elif fluxo == ServicoCatalogo.FluxoTramitacao.DIRETO_SECRETARIA:
+            attrs["executor_padrao"] = None
+            if executor is not None:
+                attrs["executor_padrao"] = None
+            if not unidade or not unidade.ativo:
+                raise serializers.ValidationError(
+                    {
+                        "unidade_responsavel_id": (
+                            "Informe a secretaria executora ativa para o fluxo "
+                            "direto_secretaria."
+                        )
+                    }
+                )
+            if exigir is None:
+                attrs["exigir_validacao_ouvidoria"] = False
+
         return attrs
 
     def to_representation(self, instance):
@@ -194,6 +256,9 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
         data["categoria_id"] = str(instance.categoria_id) if instance.categoria_id else None
         data["unidade_responsavel_id"] = (
             str(instance.unidade_responsavel_id) if instance.unidade_responsavel_id else None
+        )
+        data["executor_padrao_id"] = (
+            str(instance.executor_padrao_id) if instance.executor_padrao_id else None
         )
         data["tem_rascunho_pendente"] = instance.tem_rascunho_pendente
         aplicar_resolucao_edicao_representation(data, instance)
