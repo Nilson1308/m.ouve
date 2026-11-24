@@ -118,6 +118,14 @@
               </section>
 
               <section>
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Retrabalho</h3>
+                <label class="flex items-center gap-3 min-h-[44px] cursor-pointer">
+                  <input v-model="local.apenasReabertos" type="checkbox" class="w-4 h-4 rounded text-primary-600" />
+                  <span class="text-sm text-gray-700 dark:text-gray-300">Apenas reabertos</span>
+                </label>
+              </section>
+
+              <section>
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Urgência</h3>
                 <div class="flex flex-wrap gap-2">
                   <button
@@ -177,7 +185,8 @@ const local = reactive({
   servicoIds: [],
   bairros: [],
   statusLista: [],
-  urgenciaLista: []
+  urgenciaLista: [],
+  apenasReabertos: false
 })
 
 function snapshotFromStore() {
@@ -186,6 +195,7 @@ function snapshotFromStore() {
   local.bairros = [...(f.bairros || [])]
   local.statusLista = [...(f.statusLista || [])]
   local.urgenciaLista = [...(f.urgenciaLista || [])]
+  local.apenasReabertos = Boolean(f.apenasReabertos)
 }
 
 watch(
@@ -214,7 +224,8 @@ const totalSelecionados = computed(
     local.servicoIds.length +
     local.bairros.length +
     local.statusLista.length +
-    local.urgenciaLista.length
+    local.urgenciaLista.length +
+    (local.apenasReabertos ? 1 : 0)
 )
 
 function toggleItem(arr, value) {
@@ -257,6 +268,7 @@ function limparLocal() {
   local.bairros = []
   local.statusLista = []
   local.urgenciaLista = []
+  local.apenasReabertos = false
 }
 
 function aplicar() {
@@ -264,7 +276,8 @@ function aplicar() {
     servicoIds: [...local.servicoIds],
     bairros: [...local.bairros],
     statusLista: [...local.statusLista],
-    urgenciaLista: [...local.urgenciaLista]
+    urgenciaLista: [...local.urgenciaLista],
+    apenasReabertos: local.apenasReabertos
   })
 }
 </script>

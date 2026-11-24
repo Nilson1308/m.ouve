@@ -50,6 +50,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
     equipamentoId: '',
     equipamentoRotulo: '',
     apenasCobrados: false,
+    apenasReabertos: false,
     page: 1
   })
 
@@ -96,6 +97,9 @@ export const useBackofficeStore = defineStore('backoffice', () => {
     if (filtros.value.apenasCobrados) {
       p.apenas_cobrados = 'true'
     }
+    if (filtros.value.apenasReabertos) {
+      p.apenas_reabertos = 'true'
+    }
     return p
   }
 
@@ -127,7 +131,8 @@ export const useBackofficeStore = defineStore('backoffice', () => {
       (f.statusLista?.length || 0) +
       (f.urgenciaLista?.length || 0) +
       (f.equipamentoId ? 1 : 0) +
-      (f.apenasCobrados ? 1 : 0)
+      (f.apenasCobrados ? 1 : 0) +
+      (f.apenasReabertos ? 1 : 0)
     )
   })
 
@@ -269,6 +274,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
       equipamentoId: '',
       equipamentoRotulo: '',
       apenasCobrados: false,
+      apenasReabertos: false,
       page: 1
     }
   }
@@ -282,6 +288,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
     filtros.value.equipamentoId = payload.equipamentoId || ''
     filtros.value.equipamentoRotulo = payload.equipamentoRotulo || ''
     filtros.value.apenasCobrados = Boolean(payload.apenasCobrados)
+    filtros.value.apenasReabertos = Boolean(payload.apenasReabertos)
     filtros.value.page = 1
   }
 

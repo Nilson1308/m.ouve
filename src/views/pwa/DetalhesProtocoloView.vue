@@ -244,7 +244,19 @@
         :pode-avaliar="podeAvaliarCsat"
         :avaliacao="protocolo.avaliacao"
         @avaliado="onProtocoloAvaliado"
+        @avaliado-resposta="onRespostaAvaliacao"
       />
+
+      <ProtocoloReaberturaCsatCard
+        v-if="protocolo && exibirFluxoReabertura"
+        :protocolo="protocolo"
+        :protocolo-id="props.id"
+        :sugerir-reabertura-csat="sugerirReaberturaAposCsat"
+        @reaberto="onProtocoloReaberto"
+        @toast="anuncioReabertura = $event"
+      />
+
+      <p v-if="anuncioReabertura" class="sr-only" role="status" aria-live="polite">{{ anuncioReabertura }}</p>
 
       <!-- Tipo -->
       <section class="card flex items-center gap-4 min-w-0" aria-labelledby="titulo-categoria">
@@ -462,6 +474,25 @@
                 </div>
               </div>
 
+              <div
+                v-else-if="evento.tipo === 'reabertura'"
+                class="rounded-card border border-orange-200 dark:border-orange-800 bg-orange-50/80 dark:bg-orange-950/30 p-3"
+              >
+                <p class="font-semibold text-orange-900 dark:text-orange-100 break-words">{{ evento.titulo }}</p>
+                <p v-if="evento.metaCsat" class="text-xs font-semibold text-amber-800 dark:text-amber-200 mt-1">
+                  Nota CSAT de origem: {{ evento.metaCsat }} estrela(s)
+                </p>
+                <p class="text-sm text-orange-900/90 dark:text-orange-100/90 mt-1 whitespace-pre-line break-words">{{ evento.subtitulo }}</p>
+                <DiligenciaAnexosGrade v-if="evento.anexos?.length" :anexos="evento.anexos" class="mt-3" />
+                <time
+                  v-if="evento.data && evento.dataIso"
+                  :datetime="evento.dataIso"
+                  class="text-xs text-orange-700 dark:text-orange-300 mt-2 font-mono block"
+                >
+                  {{ evento.data }}
+                </time>
+              </div>
+
               <div v-else>
                 <p class="font-semibold text-gray-900 dark:text-white high-contrast:text-white break-words">{{ evento.titulo }}</p>
                 <p v-if="evento.subtitulo" class="text-sm text-gray-500 dark:text-gray-400 high-contrast:text-gray-300 mt-0.5 break-words">
@@ -536,6 +567,8 @@ import LocationMap from '@/components/pwa/LocationMap.vue'
 import ThemeToggle from '@/components/shared/ThemeToggle.vue'
 import PwaA11yMenu from '@/components/pwa/PwaA11yMenu.vue'
 import ProtocoloCsatCard from '@/components/pwa/protocolo/ProtocoloCsatCard.vue'
+import ProtocoloReaberturaCsatCard from '@/components/pwa/protocolo/ProtocoloReaberturaCsatCard.vue'
+import { mapCamposReaberturaProtocolo } from '@/utils/reaberturaHelpers'
 import ProtocoloCobrancaCard from '@/components/pwa/protocolo/ProtocoloCobrancaCard.vue'
 import ProtocoloDiligenciaCard from '@/components/pwa/protocolo/ProtocoloDiligenciaCard.vue'
 import DiligenciaAnexosGrade from '@/components/diligencia/DiligenciaAnexosGrade.vue'
@@ -558,7 +591,8 @@ import {
   DocumentTextIcon,
   ClipboardDocumentIcon,
   XMarkIcon,
-  ArrowTopRightOnSquareIcon
+  ArrowTopRightOnSquareIcon,
+  ArrowUturnLeftIcon
 } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
@@ -573,6 +607,8 @@ const protocolosStore = useProtocolosStore()
 const protocolo = ref(null)
 const copiado = ref(false)
 const anuncioCopia = ref('')
+const anuncioReabertura = ref('')
+const sugerirReaberturaAposCsat = ref(false)
 
 const lightboxAberto = ref(false)
 const lightboxIndice = ref(0)
@@ -600,6 +636,42 @@ function onProtocoloAvaliado(avaliacao) {
     podeAvaliar: false,
     pode_avaliar: false
   }
+}
+
+function onRespostaAvaliacao(resposta) {
+  if (!protocolo.value || !resposta) return
+  sugerirReaberturaAposCsat.value = Boolean(resposta.sugerir_reabertura_csat)
+  protocolo.value = {
+    ...protocolo.value,
+    ...mapCamposReaberturaProtocolo(resposta),
+    podeAvaliar: Boolean(resposta.pode_avaliar ?? protocolo.value.podeAvaliar),
+    pode_avaliar: Boolean(resposta.pode_avaliar ?? protocolo.value.pode_avaliar)
+  }
+}
+
+const exibirFluxoReabertura = computed(() => {
+  if (!protocolo.value || protocolo.value.status !== 'resolvido') return false
+  const motivo = protocolo.value.motivoBloqueioReabertura ?? protocolo.value.motivo_bloqueio_reabertura
+  if (['janela_expirada', 'desabilitado', 'nao_concluido'].includes(motivo)) return false
+  return (
+    Boolean(protocolo.value.podeReabrir ?? protocolo.value.pode_reabrir) ||
+    motivo === 'limite_atingido' ||
+    sugerirReaberturaAposCsat.value ||
+    Boolean(protocolo.value.sugerirReaberturaCsat ?? protocolo.value.sugerir_reabertura_csat) ||
+    (protocolo.value.reaberturas?.length || 0) > 0
+  )
+})
+
+async function onProtocoloReaberto(payload) {
+  const result = await protocolosStore.buscarProtocolo(props.id)
+  if (result.success) {
+    protocolo.value = result.protocolo
+  } else if (payload && protocolo.value) {
+    const proto = payload.protocolo || payload
+    const mapped = mapCamposReaberturaProtocolo(proto)
+    protocolo.value = { ...protocolo.value, ...mapped, ...proto }
+  }
+  sugerirReaberturaAposCsat.value = false
 }
 
 async function onDiligenciaRespondida() {
@@ -789,6 +861,22 @@ const timelineCompleta = computed(() => {
       dataIso: d.criado_em ? isoData(d.criado_em) : null,
       icon: DocumentTextIcon,
       timestamp: d.criado_em ? new Date(d.criado_em).getTime() : Date.now()
+    })
+  })
+
+  const reaberturas = protocolo.value?.reaberturas || []
+  reaberturas.forEach((r) => {
+    items.push({
+      id: `reabertura-${r.id}`,
+      tipo: 'reabertura',
+      titulo: 'Contestação — solicitação reaberta',
+      subtitulo: r.motivo,
+      metaCsat: r.notaCsatOrigem ?? r.nota_csat_origem,
+      anexos: r.anexos,
+      data: r.criado_em ? formatarDataCompleta(r.criado_em) : null,
+      dataIso: r.criado_em ? isoData(r.criado_em) : null,
+      icon: ArrowUturnLeftIcon,
+      timestamp: r.criado_em ? new Date(r.criado_em).getTime() : Date.now()
     })
   })
 

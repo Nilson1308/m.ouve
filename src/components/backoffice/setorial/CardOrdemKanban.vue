@@ -61,7 +61,13 @@
     <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">
       {{ ordem.servico }}
     </h4>
-    <BadgeDiligenciaOS :ordem="ordem" class="mb-2" />
+    <div class="flex flex-wrap gap-1.5 mb-2">
+      <BadgeDiligenciaOS :ordem="ordem" />
+      <BadgeReabertoProtocolo
+        :qtd-reaberturas="ordem.protocoloQtdReaberturas ?? ordem.protocolo_qtd_reaberturas"
+        :reaberto="ordem.protocoloReaberto ?? ordem.protocolo_reaberto"
+      />
+    </div>
 
     <!-- Endereço -->
     <div class="flex items-start gap-1.5 text-xs text-gray-600 dark:text-gray-400 mb-3">
@@ -136,6 +142,7 @@
 import { computed } from 'vue'
 import BadgeSuperOS from './BadgeSuperOS.vue'
 import BadgeDiligenciaOS from './BadgeDiligenciaOS.vue'
+import BadgeReabertoProtocolo from '@/components/backoffice/protocolo/BadgeReabertoProtocolo.vue'
 import {
   ExclamationCircleIcon,
   FireIcon,

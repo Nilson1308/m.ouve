@@ -168,6 +168,23 @@
                 </div>
 
                 <div>
+                  <label for="prazo-reabertura-servico" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Prazo de reabertura (dias, opcional)
+                  </label>
+                  <input
+                    id="prazo-reabertura-servico"
+                    v-model="prazoReaberturaServicoInput"
+                    type="number"
+                    min="0"
+                    class="input max-w-[8rem]"
+                    placeholder="Padrão"
+                  />
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5 leading-relaxed max-w-prose">
+                    Prazo específico de reabertura em dias (opcional). Deixe em branco para usar o padrão do município ou informe 0 para desativar a reabertura neste serviço.
+                  </p>
+                </div>
+
+                <div>
                   <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                     Categoria *
                   </label>
@@ -602,7 +619,23 @@ const formulario = reactive({
   unidade_responsavel_id: null,
   ativo: true,
   permite_cluster: true,
-  icone: ''
+  icone: '',
+  prazo_reabertura_dias: null
+})
+
+const prazoReaberturaServicoInput = computed({
+  get() {
+    const v = formulario.prazo_reabertura_dias
+    return v == null || v === '' ? '' : v
+  },
+  set(val) {
+    if (val === '' || val == null) {
+      formulario.prazo_reabertura_dias = null
+      return
+    }
+    const n = Number(val)
+    formulario.prazo_reabertura_dias = Number.isFinite(n) ? n : null
+  }
 })
 
 const descricaoFluxoAtual = computed(() => {
@@ -675,6 +708,10 @@ function preencherFormulario(servico) {
   formulario.nome = servico?.nome || ''
   formulario.descricao = servico?.descricao || ''
   formulario.sla_padrao_horas = servico?.sla_padrao_horas ?? servico?.sla_horas ?? 72
+  formulario.prazo_reabertura_dias =
+    servico?.prazo_reabertura_dias === null || servico?.prazo_reabertura_dias === undefined
+      ? null
+      : Number(servico.prazo_reabertura_dias)
   formulario.fluxo_tramitacao =
     servico?.fluxo_tramitacao === 'hibrido'
       ? 'ouvidoria_encaminha'
@@ -767,7 +804,8 @@ function payloadForm() {
     categoria_id: formulario.categoria_id,
     unidade_responsavel_id: formulario.unidade_responsavel_id,
     ativo: formulario.ativo,
-    permite_cluster: formulario.permite_cluster
+    permite_cluster: formulario.permite_cluster,
+    prazo_reabertura_dias: formulario.prazo_reabertura_dias
   }
 }
 

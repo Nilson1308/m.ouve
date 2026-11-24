@@ -6,6 +6,8 @@
       @atualizado="$emit('atualizar-diligencia')"
     />
 
+    <ProtocoloReaberturasCard :protocolo="protocolo" />
+
     <!-- Vitais: sempre visíveis -->
     <ProtocoloSlaCobrancaResumo :protocolo="protocolo" />
 
@@ -233,6 +235,7 @@
 
 <script setup>
 import ProtocoloDiligenciaBackoffice from '@/components/backoffice/protocolo/ProtocoloDiligenciaBackoffice.vue'
+import ProtocoloReaberturasCard from '@/components/backoffice/protocolo/ProtocoloReaberturasCard.vue'
 import ProtocoloSlaCobrancaResumo from '@/components/backoffice/protocolo/ProtocoloSlaCobrancaResumo.vue'
 import { computed } from 'vue'
 import {

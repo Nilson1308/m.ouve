@@ -180,6 +180,8 @@
             class="bg-white dark:bg-gray-800 rounded-card shadow-card p-6"
             aria-labelledby="titulo-diligencia-setorial"
           >
+            <ProtocoloReaberturasCard v-if="protocoloReabertura" :protocolo="protocoloReabertura" />
+
             <ProtocoloDiligenciaBackoffice
               :protocolo="protocoloDiligencia"
               @abrir-modal="modalDiligenciaAberto = true"
@@ -493,7 +495,8 @@ import Editor from '@/components/shared/Editor.vue'
 import ProtocoloDiligenciaBackoffice from '@/components/backoffice/protocolo/ProtocoloDiligenciaBackoffice.vue'
 import ModalAbrirDiligencia from '@/components/backoffice/protocolo/ModalAbrirDiligencia.vue'
 import DiligenciaAnexosGrade from '@/components/diligencia/DiligenciaAnexosGrade.vue'
-import { protocoloDiligenciaFromOrdem } from '@/utils/setorialMappers'
+import ProtocoloReaberturasCard from '@/components/backoffice/protocolo/ProtocoloReaberturasCard.vue'
+import { protocoloDiligenciaFromOrdem, protocoloReaberturaFromOrdem } from '@/utils/setorialMappers'
 import { formatarPrazoHumano } from '@/utils/diligenciaHelpers'
 
 const props = defineProps({
@@ -551,6 +554,7 @@ const emit = defineEmits([
 const modalDiligenciaAberto = ref(false)
 
 const protocoloDiligencia = computed(() => protocoloDiligenciaFromOrdem(props.ordem))
+const protocoloReabertura = computed(() => protocoloReaberturaFromOrdem(props.ordem))
 
 const ultimaDiligenciaRespondida = computed(() => {
   const lista = props.ordem?.diligencias || []

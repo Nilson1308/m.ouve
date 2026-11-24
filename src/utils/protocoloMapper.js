@@ -1,5 +1,6 @@
 import { resolveMediaUrl } from '@/utils/mediaUrl'
 import { mapDiligenciaFromApi } from '@/utils/diligenciaHelpers'
+import { mapCamposReaberturaProtocolo } from '@/utils/reaberturaHelpers'
 
 function nomeArquivoAnexo(url) {
   try {
@@ -97,7 +98,8 @@ export function mapProtocoloFromApi(protocolo) {
         : null,
     diligencias: Array.isArray(protocolo.diligencias)
       ? protocolo.diligencias.map(mapDiligenciaFromApi).filter(Boolean)
-      : []
+      : [],
+    ...mapCamposReaberturaProtocolo(protocolo)
   }
 }
 

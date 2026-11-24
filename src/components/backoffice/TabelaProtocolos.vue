@@ -98,6 +98,10 @@
                     >
                       🔔 {{ protocolo.qtdCobrancasCidadao === 1 ? '1 cobrança' : `${protocolo.qtdCobrancasCidadao} cobranças` }}
                     </span>
+                    <BadgeReabertoProtocolo
+                      :qtd-reaberturas="protocolo.qtdReaberturas ?? protocolo.qtd_reaberturas"
+                      :reaberto="protocolo.reaberto"
+                    />
                     <span
                       v-if="protocolo.sla?.vencido && protocolo.diasAtraso > 0"
                       class="text-[10px] font-semibold text-red-700 dark:text-red-300"
@@ -288,6 +292,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import TriagemSugeridaIndicador from '@/components/backoffice/protocolo/TriagemSugeridaIndicador.vue'
+import BadgeReabertoProtocolo from '@/components/backoffice/protocolo/BadgeReabertoProtocolo.vue'
 import { useSuperOSStore } from '@/stores/super_os'
 import { temTriagemEncaminhamento } from '@/utils/triagemEncaminhamento'
 

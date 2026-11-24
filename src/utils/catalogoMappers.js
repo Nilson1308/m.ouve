@@ -431,7 +431,11 @@ export function mapServicoCatalogo(api) {
     publicado_em: api.publicado_em || null,
     tem_rascunho_pendente: temRascunho,
     schema_legado_importado: Boolean(api.schema_legado_importado),
-    schema_legado_importado_rascunho: Boolean(api.schema_legado_importado_rascunho)
+    schema_legado_importado_rascunho: Boolean(api.schema_legado_importado_rascunho),
+    prazo_reabertura_dias:
+      api.prazo_reabertura_dias === null || api.prazo_reabertura_dias === undefined
+        ? null
+        : Number(api.prazo_reabertura_dias)
   }
 }
 
@@ -496,6 +500,10 @@ export function payloadServicoCatalogo(form, requisitos, regrasProtocolo = [], o
     triagem_ia_ativa: form.triagem_ia_ativa !== false,
     ativo: form.ativo !== false,
     permite_cluster: form.permite_cluster !== false,
+    prazo_reabertura_dias:
+      form.prazo_reabertura_dias === '' || form.prazo_reabertura_dias === undefined
+        ? null
+        : Number(form.prazo_reabertura_dias),
     formulario_schema: schemaLista,
     schema_formulario: buildSchemaFormularioRequisitos(requisitos, regrasProtocolo)
   }

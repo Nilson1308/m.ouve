@@ -316,6 +316,9 @@ const filtrosAtivosArray = computed(() => {
       label: `Urgência: ${uMeta?.label || u}`
     })
   }
+  if (f.apenasReabertos) {
+    ativos.push({ key: 'apenasReabertos', kind: 'apenasReabertos', label: 'Apenas reabertos' })
+  }
   return ativos
 })
 
@@ -365,12 +368,15 @@ function removerFiltro(key) {
       f.statusLista = f.statusLista.filter((s) => s !== item.value)
     } else if (item.kind === 'urgencia') {
       f.urgenciaLista = f.urgenciaLista.filter((u) => u !== item.value)
+    } else if (item.kind === 'apenasReabertos') {
+      f.apenasReabertos = false
     }
     setorialStore.aplicarFiltrosAvancados({
       servicoIds: f.servicoIds,
       bairros: f.bairros,
       statusLista: f.statusLista,
-      urgenciaLista: f.urgenciaLista
+      urgenciaLista: f.urgenciaLista,
+      apenasReabertos: f.apenasReabertos
     })
   }
   recarregarOrdens()

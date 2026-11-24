@@ -20,7 +20,8 @@ export const useSetorialStore = defineStore('setorial', () => {
     servicoIds: [],
     bairros: [],
     statusLista: [],
-    urgenciaLista: []
+    urgenciaLista: [],
+    apenasReabertos: false
   })
   const gerandoLink = ref(false)
   const formalizando = ref(false)
@@ -83,6 +84,9 @@ export const useSetorialStore = defineStore('setorial', () => {
     if (filtros.value.urgenciaLista?.length) {
       p.urgencia = [...filtros.value.urgenciaLista]
     }
+    if (filtros.value.apenasReabertos) {
+      p.apenas_reabertos = 'true'
+    }
     return p
   }
 
@@ -92,7 +96,8 @@ export const useSetorialStore = defineStore('setorial', () => {
       (f.servicoIds?.length || 0) +
       (f.bairros?.length || 0) +
       (f.statusLista?.length || 0) +
-      (f.urgenciaLista?.length || 0)
+      (f.urgenciaLista?.length || 0) +
+      (f.apenasReabertos ? 1 : 0)
     )
   })
 
@@ -101,6 +106,7 @@ export const useSetorialStore = defineStore('setorial', () => {
     filtros.value.bairros = payload.bairros || []
     filtros.value.statusLista = payload.statusLista || []
     filtros.value.urgenciaLista = payload.urgenciaLista || []
+    filtros.value.apenasReabertos = Boolean(payload.apenasReabertos)
   }
 
   function setFiltroBusca(val) {
@@ -113,7 +119,8 @@ export const useSetorialStore = defineStore('setorial', () => {
       servicoIds: [],
       bairros: [],
       statusLista: [],
-      urgenciaLista: []
+      urgenciaLista: [],
+      apenasReabertos: false
     }
   }
 

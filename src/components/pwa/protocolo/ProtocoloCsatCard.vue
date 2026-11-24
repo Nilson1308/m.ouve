@@ -192,7 +192,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['avaliado'])
+const emit = defineEmits(['avaliado', 'avaliado-resposta'])
 
 const uid = Math.random().toString(36).slice(2, 9)
 const tituloSecaoId = `csat-titulo-${uid}`
@@ -290,6 +290,7 @@ async function submeter() {
     }
     anuncioLive.value = 'Avaliação enviada com sucesso. Obrigado!'
     emit('avaliado', avaliacaoLocal.value)
+    emit('avaliado-resposta', resposta)
   } catch (err) {
     erro.value = getApiErrorMessage(err, 'Não foi possível enviar sua avaliação. Tente novamente.')
     anuncioLive.value = erro.value

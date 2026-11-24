@@ -450,6 +450,104 @@
         </div>
       </section>
 
+      <!-- Card 5 — Reabertura (v4.15) -->
+      <section
+        class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 p-6 shadow-sm space-y-5"
+      >
+        <div class="flex items-start gap-3">
+          <div
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-200"
+          >
+            <ArrowUturnLeftIcon class="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">Janela de Reabertura e Contestação</h3>
+          </div>
+        </div>
+
+        <CardToggle
+          :model-value="form.reabertura_ativa"
+          :disabled="!podeEditar"
+          titulo="Permitir que o cidadão conteste e reabra protocolos concluídos"
+          descricao="Evita encerramentos sem solução efetiva e mede a taxa de retrabalho das secretarias."
+          @update:model-value="form.reabertura_ativa = $event"
+        />
+
+        <div
+          class="space-y-4 transition-opacity duration-200"
+          :class="form.reabertura_ativa ? '' : 'opacity-50 pointer-events-none select-none'"
+        >
+          <div>
+            <label for="prazo-reabertura" class="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
+              Prazo para contestação após a conclusão (dias)
+            </label>
+            <input
+              id="prazo-reabertura"
+              v-model.number="form.prazo_reabertura_dias"
+              type="number"
+              min="1"
+              class="input w-full max-w-[7rem]"
+              :disabled="!form.reabertura_ativa || !podeEditar"
+            />
+            <p class="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
+              Após concluído, o cidadão tem
+              <strong>{{ prazoReaberturaValido }}</strong>
+              dia(s) para contestar. Passado esse prazo, o protocolo é encerrado definitivamente.
+            </p>
+          </div>
+
+          <div>
+            <label for="max-reaberturas" class="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
+              Limite de reaberturas por protocolo
+            </label>
+            <input
+              id="max-reaberturas"
+              v-model.number="form.max_reaberturas_por_protocolo"
+              type="number"
+              min="1"
+              class="input w-full max-w-[7rem]"
+              :disabled="!form.reabertura_ativa || !podeEditar"
+            />
+            <p class="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
+              Proteção contra reaberturas sucessivas em indeferimentos já fundamentados.
+            </p>
+          </div>
+
+          <div>
+            <label for="gatilho-csat" class="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
+              Sugerir contestação automaticamente ao avaliar com
+            </label>
+            <select
+              id="gatilho-csat"
+              v-model.number="form.nota_csat_gatilho_reabertura"
+              class="input w-full max-w-md"
+              :disabled="!form.reabertura_ativa || !podeEditar"
+            >
+              <option :value="1">Nota 1 estrela</option>
+              <option :value="2">Notas 1 ou 2 estrelas</option>
+              <option :value="3">Notas 1, 2 ou 3 estrelas</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="sla-reabertura" class="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
+              Novo prazo (SLA) para protocolo reaberto (dias)
+            </label>
+            <input
+              id="sla-reabertura"
+              v-model="prazoSlaReaberturaInput"
+              type="number"
+              min="1"
+              class="input w-full max-w-[7rem]"
+              :disabled="!form.reabertura_ativa || !podeEditar"
+            />
+            <p class="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
+              Deixe em branco para reutilizar o prazo padrão do serviço.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <p v-if="erroSalvar" class="text-sm text-red-600 dark:text-red-400">{{ erroSalvar }}</p>
 
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2">
@@ -477,7 +575,8 @@ import {
   EnvelopeIcon,
   BuildingOffice2Icon,
   ChartBarSquareIcon,
-  PauseCircleIcon
+  PauseCircleIcon,
+  ArrowUturnLeftIcon
 } from '@heroicons/vue/24/outline'
 import { slaCobrancaService } from '@/services/api'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -571,6 +670,26 @@ const diasEscalonamentoValido = computed(() =>
 const prazoDiligenciaValido = computed(() =>
   clampInt(form.value?.prazo_diligencia_dias, 5, 1, 9999)
 )
+
+const prazoReaberturaValido = computed(() =>
+  clampInt(form.value?.prazo_reabertura_dias, 7, 1, 9999)
+)
+
+const prazoSlaReaberturaInput = computed({
+  get() {
+    const v = form.value?.prazo_sla_reabertura_dias
+    return v == null || v === '' ? '' : v
+  },
+  set(val) {
+    if (!form.value) return
+    if (val === '' || val == null) {
+      form.value.prazo_sla_reabertura_dias = null
+      return
+    }
+    const n = Number(val)
+    form.value.prazo_sla_reabertura_dias = Number.isFinite(n) ? n : null
+  }
+})
 
 const alertaPercentualValido = computed(() =>
   clampInt(form.value?.alerta_preventivo_percentual, 80, 50, 99)

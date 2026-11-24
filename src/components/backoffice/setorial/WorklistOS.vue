@@ -62,6 +62,10 @@
                 <div class="flex flex-col gap-1.5">
                   <div class="flex flex-wrap items-center gap-1.5">
                     <BadgeSuperOS v-if="ordem.is_super_os" :ordem="ordem" />
+                    <BadgeReabertoProtocolo
+                      :qtd-reaberturas="ordem.protocoloQtdReaberturas ?? ordem.protocolo_qtd_reaberturas"
+                      :reaberto="ordem.protocoloReaberto ?? ordem.protocolo_reaberto"
+                    />
                   </div>
                   <span
                     v-if="ordem.super_os_codigo"
@@ -330,6 +334,7 @@ import {
 import CardOrdemKanban from './CardOrdemKanban.vue'
 import BadgeSuperOS from './BadgeSuperOS.vue'
 import BadgeDiligenciaOS from './BadgeDiligenciaOS.vue'
+import BadgeReabertoProtocolo from '@/components/backoffice/protocolo/BadgeReabertoProtocolo.vue'
 
 const props = defineProps({
   ordens: {

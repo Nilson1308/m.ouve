@@ -195,6 +195,22 @@
                     Avaliações:
                     <strong class="text-white">{{ tooltipFlutuante.unidade.total_avaliacoes }}</strong>
                   </div>
+                  <div
+                    v-if="tooltipFlutuante.unidade.total_reabertos != null"
+                    class="flex justify-between gap-3 text-xs"
+                  >
+                    <span>Retrabalho</span>
+                    <strong
+                      :class="
+                        Number(tooltipFlutuante.unidade.taxa_retrabalho_percentual) > 10
+                          ? 'text-amber-300'
+                          : 'text-white'
+                      "
+                    >
+                      {{ Number(tooltipFlutuante.unidade.taxa_retrabalho_percentual || 0).toFixed(1) }}%
+                      ({{ tooltipFlutuante.unidade.total_reabertos }} reab.)
+                    </strong>
+                  </div>
                 </div>
               </div>
             </div>

@@ -527,6 +527,9 @@ const filtrosAtivosArray = computed(() => {
   if (f.apenasCobrados) {
     ativos.push({ key: 'apenasCobrados', kind: 'apenasCobrados', label: 'Cobrados pelo cidadão' })
   }
+  if (f.apenasReabertos) {
+    ativos.push({ key: 'apenasReabertos', kind: 'apenasReabertos', label: 'Apenas reabertos' })
+  }
   return ativos
 })
 
@@ -610,6 +613,8 @@ function removerFiltro(key) {
       f.equipamentoRotulo = ''
     } else if (item.kind === 'apenasCobrados') {
       f.apenasCobrados = false
+    } else if (item.kind === 'apenasReabertos') {
+      f.apenasReabertos = false
     }
     backofficeStore.aplicarFiltrosAvancados({
       unidadesIds: f.unidadesIds,
@@ -619,7 +624,8 @@ function removerFiltro(key) {
       urgenciaLista: f.urgenciaLista,
       equipamentoId: f.equipamentoId,
       equipamentoRotulo: f.equipamentoRotulo,
-      apenasCobrados: f.apenasCobrados
+      apenasCobrados: f.apenasCobrados,
+      apenasReabertos: f.apenasReabertos
     })
   }
   recarregar()

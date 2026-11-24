@@ -1,5 +1,6 @@
 import { mapEquipamentoProtocolo } from '@/utils/equipamentoMappers'
 import { mapDiligenciaFromApi } from '@/utils/diligenciaHelpers'
+import { mapCamposReaberturaProtocolo } from '@/utils/reaberturaHelpers'
 
 /** Normaliza payloads da API /backoffice/* para o UI da Mesa de Trabalho. */
 
@@ -101,7 +102,8 @@ export function mapProtocoloBackoffice(api) {
     podeAbrirDiligencia: Boolean(api.pode_abrir_diligencia),
     pode_abrir_diligencia: Boolean(api.pode_abrir_diligencia),
     motivoBloqueioDiligencia: api.motivo_bloqueio_diligencia ?? null,
-    motivo_bloqueio_diligencia: api.motivo_bloqueio_diligencia ?? null
+    motivo_bloqueio_diligencia: api.motivo_bloqueio_diligencia ?? null,
+    ...mapCamposReaberturaProtocolo(api)
   }
 }
 
@@ -234,6 +236,7 @@ export function mapProtocoloDetalheBackoffice(api) {
     resposta_cidadao: api.resposta_cidadao || '',
     observacoes_internas: api.observacoes_internas || '',
     triagemSugerida: api.triagem_sugerida || null,
-    equipamento: mapEquipamentoProtocolo(api.equipamento)
+    equipamento: mapEquipamentoProtocolo(api.equipamento),
+    ...mapCamposReaberturaProtocolo(api)
   }
 }

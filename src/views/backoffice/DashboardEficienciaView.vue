@@ -36,10 +36,10 @@
       </div>
 
       <!-- Cards de KPI -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6 mb-8">
         <!-- TMA Global -->
         <template v-if="carregando">
-          <SkeletonKpi v-for="i in 4" :key="i" />
+          <SkeletonKpi v-for="i in 5" :key="i" />
         </template>
         <template v-else-if="dados">
           <KpiCard
@@ -96,6 +96,21 @@
             tipo="warning"
             :contexto="`${dados.ranking_unidades.length} unidades monitoradas`"
           />
+
+          <KpiCard
+            titulo="Taxa de Retrabalho"
+            subtitulo="Contestação após conclusão"
+            ajuda="Percentual de protocolos concluídos que voltaram à fila por contestação do cidadão."
+            :icon="ArrowPathIcon"
+            :tipo="tipoKpiRetrabalho"
+          >
+            <template #default>
+              <span class="text-3xl font-bold">{{ textoTaxaRetrabalhoExec }}</span>
+            </template>
+            <template #subtitulo>
+              <span>{{ textoTotalReabertosExec }}</span>
+            </template>
+          </KpiCard>
         </template>
       </div>
 
@@ -243,16 +258,54 @@
             Notas 4 ou 5 (CSAT)
           </p>
         </div>
-        <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-4">
-          <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-            Avaliações recebidas
+        <div
+          class="rounded-xl border px-5 py-4"
+          :class="classeCardRetrabalhoQualidade"
+        >
+          <p class="text-xs font-semibold uppercase tracking-wide opacity-80">
+            Taxa de retrabalho
           </p>
-          <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-            {{ formatarNumero(dadosQualidade.resumo.total_avaliacoes) }}
+          <p class="mt-1 text-2xl font-bold">
+            {{ dadosQualidade.resumo.taxa_retrabalho_formatada || '—' }}
           </p>
-          <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-            {{ dadosQualidade.unidades?.length || 0 }} secretarias na matriz
+          <p class="text-xs mt-1 opacity-90">
+            {{ formatarNumero(dadosQualidade.resumo.total_reabertos) }} protocolo(s) reaberto(s) entre
+            {{ formatarNumero(dadosQualidade.resumo.total_resolvidos) }} concluídos
           </p>
+        </div>
+      </div>
+
+      <div
+        v-if="!carregandoQualidade && dadosQualidade?.matriz_servicos?.length"
+        class="mt-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden"
+      >
+        <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 class="text-base font-semibold text-gray-900 dark:text-white">Retrabalho por serviço</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 dark:bg-gray-900/60 text-xs uppercase text-gray-500">
+              <tr>
+                <th class="px-5 py-3 text-left">Serviço</th>
+                <th class="px-5 py-3 text-right">Concluídos</th>
+                <th class="px-5 py-3 text-right">Reabertos</th>
+                <th class="px-5 py-3 text-right">Taxa</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+              <tr v-for="s in dadosQualidade.matriz_servicos" :key="s.servico_id || s.nome">
+                <td class="px-5 py-3 font-medium text-gray-900 dark:text-white">{{ s.nome }}</td>
+                <td class="px-5 py-3 text-right tabular-nums">{{ formatarNumero(s.total_resolvidos) }}</td>
+                <td class="px-5 py-3 text-right tabular-nums">{{ formatarNumero(s.total_reabertos) }}</td>
+                <td
+                  class="px-5 py-3 text-right tabular-nums font-semibold"
+                  :class="Number(s.taxa_retrabalho_percentual) > 10 ? 'text-amber-700 dark:text-amber-300' : ''"
+                >
+                  {{ formatarPercentual(s.taxa_retrabalho_percentual) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -351,6 +404,30 @@ const contextoPercentualVencidos = computed(() => {
   if (!d?.total_protocolos) return '—'
   const pct = ((Number(d.total_vencido) || 0) / d.total_protocolos) * 100
   return `${pct.toFixed(1)}% do total`
+})
+
+const textoTaxaRetrabalhoExec = computed(() => dados.value?.resumo_executivo?.taxa_retrabalho_formatada ?? '—')
+
+const textoTotalReabertosExec = computed(() => {
+  const n = Number(dados.value?.resumo_executivo?.total_reabertos)
+  if (!Number.isFinite(n)) return '—'
+  return `${n} protocolo(s) reaberto(s) no período`
+})
+
+const tipoKpiRetrabalho = computed(() => {
+  const taxa = Number(dados.value?.resumo_executivo?.taxa_retrabalho_percentual)
+  if (!Number.isFinite(taxa) || taxa <= 0) return 'primary'
+  if (taxa > 10) return 'danger'
+  if (taxa > 5) return 'warning'
+  return 'success'
+})
+
+const classeCardRetrabalhoQualidade = computed(() => {
+  const taxa = Number(dadosQualidade.value?.resumo?.taxa_retrabalho_percentual)
+  if (Number.isFinite(taxa) && taxa > 10) {
+    return 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 text-amber-950 dark:text-amber-100'
+  }
+  return 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
 })
 
 const minimoAvaliacoesMatriz = computed(() => {

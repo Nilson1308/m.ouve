@@ -48,6 +48,10 @@
             <BellAlertIcon class="w-3.5 h-3.5" aria-hidden="true" />
             {{ protocolo.qtdCobrancasCidadao === 1 ? '1 cobrança' : `${protocolo.qtdCobrancasCidadao} cobranças` }}
           </span>
+          <BadgeReabertoProtocolo
+            :qtd-reaberturas="protocolo.qtdReaberturas ?? protocolo.qtd_reaberturas"
+            :reaberto="protocolo.reaberto"
+          />
         </div>
         
         <!-- Serviço -->
@@ -269,6 +273,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import TriagemSugeridaIndicador from '@/components/backoffice/protocolo/TriagemSugeridaIndicador.vue'
+import BadgeReabertoProtocolo from '@/components/backoffice/protocolo/BadgeReabertoProtocolo.vue'
 import { temTriagemEncaminhamento as protocoloTemTriagem } from '@/utils/triagemEncaminhamento'
 import {
   resumoNos,

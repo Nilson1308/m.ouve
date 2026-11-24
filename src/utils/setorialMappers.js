@@ -1,6 +1,7 @@
 /** Normaliza payloads de GET /backoffice/setorial/ordens (API v4.14.2) */
 
 import { mapDiligenciaFromApi } from '@/utils/diligenciaHelpers'
+import { mapReaberturaFromApi } from '@/utils/reaberturaHelpers'
 
 export function mapEvidenciaSetorial(api) {
   return {
@@ -71,7 +72,29 @@ export function mapOrdemSetorial(api) {
     motivo_bloqueio_diligencia: api.motivo_bloqueio_diligencia ?? null,
     motivoBloqueioDiligencia: api.motivo_bloqueio_diligencia ?? null,
     tempo_sla_pausado_segundos: Number(api.tempo_sla_pausado_segundos ?? 0),
-    tempoSlaPausadoSegundos: Number(api.tempo_sla_pausado_segundos ?? 0)
+    tempoSlaPausadoSegundos: Number(api.tempo_sla_pausado_segundos ?? 0),
+    protocolo_qtd_reaberturas: Number(api.protocolo_qtd_reaberturas ?? 0),
+    protocolo_reaberto: Boolean(api.protocolo_reaberto),
+    protocolo_reaberturas: Array.isArray(api.protocolo_reaberturas)
+      ? api.protocolo_reaberturas.map(mapReaberturaFromApi).filter(Boolean)
+      : [],
+    protocoloQtdReaberturas: Number(api.protocolo_qtd_reaberturas ?? 0),
+    protocoloReaberto: Boolean(api.protocolo_reaberto)
+  }
+}
+
+export function protocoloReaberturaFromOrdem(ordem) {
+  if (!ordem) return null
+  const reaberturas = Array.isArray(ordem.protocolo_reaberturas)
+    ? ordem.protocolo_reaberturas
+    : ordem.protocoloReaberturas || []
+  return {
+    id: ordem.protocolo_uuid || ordem.protocolo_id,
+    qtdReaberturas: Number(ordem.protocoloQtdReaberturas ?? ordem.protocolo_qtd_reaberturas ?? 0),
+    qtd_reaberturas: Number(ordem.protocoloQtdReaberturas ?? ordem.protocolo_qtd_reaberturas ?? 0),
+    reaberto: Boolean(ordem.protocoloReaberto ?? ordem.protocolo_reaberto),
+    reaberturas,
+    status: 'resolvido'
   }
 }
 

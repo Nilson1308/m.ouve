@@ -1,3 +1,5 @@
+import { formatarTaxaRetrabalho } from '@/utils/reaberturaHelpers'
+
 /**
  * Mapeia GET /backoffice/dashboard/eficiencia (contrato v3.5+) → view do dashboard.
  */
@@ -150,10 +152,21 @@ export function mapDashboardEficiencia(api) {
         : 0
   }
 
+  const rex = api.resumo_executivo || {}
+  const totalReabertosExec = Number(rex.total_reabertos)
+  const taxaRetrabalhoExec = Number(rex.taxa_retrabalho_percentual)
+
   return {
     escopo: api.escopo,
     unidade_id: api.unidade_id,
     gerado_em: api.gerado_em,
+    resumo_executivo: {
+      total_reabertos: Number.isFinite(totalReabertosExec) ? totalReabertosExec : 0,
+      taxa_retrabalho_percentual: Number.isFinite(taxaRetrabalhoExec) ? taxaRetrabalhoExec : 0,
+      taxa_retrabalho_formatada: formatarTaxaRetrabalho(
+        Number.isFinite(taxaRetrabalhoExec) ? taxaRetrabalhoExec : null
+      )
+    },
     tma_global_horas: api.tma_geral?.horas ?? null,
     tma_variacao: null,
     taxa_sla_cumprido: taxaSla,
@@ -204,9 +217,19 @@ export function mapDashboardQualidade(api) {
       total_avaliacoes: Number(u.total_avaliacoes) || 0,
       total_resolvidos: Number(u.total_resolvidos) || 0,
       resolvidos_no_prazo: Number(u.resolvidos_no_prazo) || 0,
-      sem_vinculo_catalogo: Boolean(u.sem_vinculo_catalogo)
+      sem_vinculo_catalogo: Boolean(u.sem_vinculo_catalogo),
+      total_reabertos: Number(u.total_reabertos) || 0,
+      taxa_retrabalho_percentual: Number(u.taxa_retrabalho_percentual) || 0
     })
   )
+
+  const matrizServicos = (Array.isArray(api.matriz_servicos) ? api.matriz_servicos : []).map((s) => ({
+    servico_id: s.servico_id,
+    nome: s.nome || '',
+    total_resolvidos: Number(s.total_resolvidos) || 0,
+    total_reabertos: Number(s.total_reabertos) || 0,
+    taxa_retrabalho_percentual: Number(s.taxa_retrabalho_percentual) || 0
+  }))
 
   const r = api.resumo_geral || {}
   return {
@@ -215,6 +238,7 @@ export function mapDashboardQualidade(api) {
     gerado_em: api.gerado_em ?? null,
     filtros_aplicados: api.filtros_aplicados || {},
     unidades,
+    matriz_servicos: matrizServicos,
     resumo: {
       total_resolvidos: Number(r.total_resolvidos) || 0,
       taxa_sla_cumprido:
@@ -225,7 +249,13 @@ export function mapDashboardQualidade(api) {
       percentual_satisfeitos:
         r.percentual_satisfeitos != null && Number.isFinite(Number(r.percentual_satisfeitos))
           ? Number(r.percentual_satisfeitos)
-          : null
+          : null,
+      total_reabertos: Number(r.total_reabertos) || 0,
+      taxa_retrabalho_percentual:
+        r.taxa_retrabalho_percentual != null ? Number(r.taxa_retrabalho_percentual) : 0,
+      taxa_retrabalho_formatada: formatarTaxaRetrabalho(
+        r.taxa_retrabalho_percentual != null ? Number(r.taxa_retrabalho_percentual) : null
+      )
     }
   }
 }

@@ -286,6 +286,17 @@ export const protocolosService = {
   },
 
   /**
+   * Contestação / reabertura (v4.15) — POST sem trailing slash.
+   */
+  async reabrir(protocoloId, { motivo, anexos_ids = [] }) {
+    const response = await api.post(`/protocolos/${encodeURIComponent(protocoloId)}/reabrir`, {
+      motivo,
+      anexos_ids
+    })
+    return response.data
+  },
+
+  /**
    * Cria novo protocolo
    */
   async create(data) {
