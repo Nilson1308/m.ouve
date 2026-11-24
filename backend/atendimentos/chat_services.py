@@ -145,13 +145,16 @@ def _transferir_anexos_para_protocolo(sessao: SessaoChat, protocolo: Protocolo) 
 
 
 def finalizar_sessao_com_protocolo(sessao: SessaoChat) -> Protocolo:
+    from atendimentos.lookup_campos import higienizar_lookup_na_sessao, limpar_campos_lookup_invalidos
     from atendimentos.slot_filling_service import aplicar_equipamento_rede_seguranca_sessao
 
+    higienizar_lookup_na_sessao(sessao)
     aplicar_equipamento_rede_seguranca_sessao(sessao)
     sessao.refresh_from_db()
 
     servico = sessao.servico_identificado
     dados_brutos = {k: v for k, v in (sessao.dados_coletados or {}).items() if not str(k).startswith("_")}
+    dados_brutos = limpar_campos_lookup_invalidos(servico, dados_brutos)
     bloqueio = _avaliar_regras_elegibilidade(servico, dados_brutos)
     if bloqueio:
         raise drf_serializers.ValidationError(

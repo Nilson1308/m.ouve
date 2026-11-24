@@ -33,7 +33,9 @@ from atendimentos.llm_schemas import (
     EXTRACAO_DADOS_SCHEMA,
 )
 from atendimentos.models import AnexoChatSessao, SessaoChat
+from atendimentos.lookup_campos import campo_lookup_valido, higienizar_lookup_na_sessao
 from catalogo.datasources import LOOKUP_DATASOURCE_EQUIPAMENTOS
+from catalogo.schema_props import property_tem_lookup_datasource
 from catalogo.models import ServicoCatalogo, UnidadeAdministrativa
 from catalogo.views import _filtrar_servicos_por_categoria
 
@@ -213,6 +215,9 @@ def _sanitizar_extraidos_campos_especiais(
                 limpos.pop(chave, None)
         if tipo == "image" and sessao and _qtd_anexos(sessao) < 1:
             limpos.pop(chave, None)
+        if property_tem_lookup_datasource(prop):
+            if not campo_lookup_valido(prop, limpos.get(chave)):
+                limpos.pop(chave, None)
     return limpos
 
 
@@ -730,6 +735,8 @@ def _campo_ainda_falta(
             det = dados.get(outro_key)
             return det is None or (isinstance(det, str) and not det.strip())
         return False
+    if property_tem_lookup_datasource(prop):
+        return not campo_lookup_valido(prop, valor)
     if valor is None or (isinstance(valor, str) and not valor.strip()):
         return True
     if isinstance(valor, str) and valor.lower() == "outro":
@@ -1191,6 +1198,12 @@ class LLMOrchestrator:
                 resposta_cidadao="Preciso identificar o serviço antes de continuar.",
                 acao_ui=None,
             )
+
+        higienizar_lookup_na_sessao(sessao)
+        from atendimentos.slot_filling_service import aplicar_equipamento_rede_seguranca_sessao
+
+        aplicar_equipamento_rede_seguranca_sessao(sessao)
+        sessao.refresh_from_db()
 
         dados_atuais = _dados_negocio(sessao)
         qtd_anexos = _qtd_anexos(sessao)

@@ -159,15 +159,16 @@ def sincronizar_localidade_protocolo(protocolo, *, persistir: bool = True) -> bo
     alterou_dados = False
     alterou_endereco = False
 
-    bairro = bairro_de_dados_dinamicos(dados)
-    if not bairro:
-        bairro = _bairro_equipamento_vinculado(protocolo)
-    if not bairro:
-        bairro = bairro_de_endereco_texto(protocolo.endereco_texto or "")
-    if not bairro:
-        bairro = _bairro_usuario(protocolo)
-    cidade = (dados.get("cidade") or "").strip()
     bairro_equipamento = _bairro_equipamento_vinculado(protocolo)
+    if bairro_equipamento:
+        bairro = bairro_equipamento
+    else:
+        bairro = bairro_de_dados_dinamicos(dados)
+        if not bairro:
+            bairro = bairro_de_endereco_texto(protocolo.endereco_texto or "")
+        if not bairro:
+            bairro = _bairro_usuario(protocolo)
+    cidade = (dados.get("cidade") or "").strip()
 
     if not cidade or (not bairro and not bairro_equipamento):
         geo_bairro, geo_cidade, geo_endereco = _enriquecer_via_geocode(protocolo)
