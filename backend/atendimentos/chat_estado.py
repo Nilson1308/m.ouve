@@ -165,8 +165,63 @@ def usuario_pediu_confirmar_protocolo(*, texto: str, confirmar_protocolo: bool) 
     return confirmacao_protocolo_usuario(texto)
 
 
+def usuario_declina_informacao_campo(texto: str) -> bool:
+    """
+    Cidadão não possui o dado solicitado (campo opcional no schema).
+    Textos curtos do tipo «não tenho», «não sei», «não tem», etc.
+    """
+    import re
+
+    t = re.sub(r"[^\w\sàáâãéêíóôõúç]", " ", (texto or "").strip().lower())
+    t = re.sub(r"\s+", " ", t).strip()
+    if not t or len(t) > 140:
+        return False
+    # resposta com número concreto provavelmente não é declínio
+    if re.search(r"\d{2,}", t):
+        return False
+
+    frases = (
+        "não tenho",
+        "nao tenho",
+        "não sei",
+        "nao sei",
+        "não tenho a informação",
+        "nao tenho a informacao",
+        "sem informação",
+        "sem informacao",
+        "sem essa informação",
+        "sem essa informacao",
+        "sem número",
+        "sem numero",
+        "sem o número",
+        "sem o numero",
+        "não possuo",
+        "nao possuo",
+        "desconheço",
+        "desconheco",
+        "não tenho como",
+        "nao tenho como",
+        "não tem",
+        "nao tem",
+        "não há",
+        "nao ha",
+        "não há número",
+        "nao ha numero",
+        "pular",
+        "pode pular",
+        "não precisa",
+        "nao precisa",
+        "segue sem",
+    )
+    if any(f in t for f in frases):
+        return True
+    if t in ("n/a", "na", "não", "nao", "nenhum", "nenhuma"):
+        return True
+    return False
+
+
 def registrar_campo_pulado(sessao: SessaoChat, campo: str) -> None:
-    """Marca campo lookup opcional como explicitamente pulado na sessão."""
+    """Marca campo opcional como explicitamente pulado na sessão (_campos_pulados)."""
     nome = (campo or "").strip()
     if not nome:
         return
@@ -177,4 +232,5 @@ def registrar_campo_pulado(sessao: SessaoChat, campo: str) -> None:
     dados["_campos_pulados"] = pulados
     dados.pop(nome, None)
     sessao.dados_coletados = dados
-    sessao.save(update_fields=["dados_coletados", "atualizado_em"])
+    if hasattr(sessao, "save"):
+        sessao.save(update_fields=["dados_coletados", "atualizado_em"])

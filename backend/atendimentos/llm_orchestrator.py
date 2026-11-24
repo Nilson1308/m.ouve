@@ -20,13 +20,15 @@ from openai import OpenAI
 
 from atendimentos.chat_estado import (
     FaseChat,
+    confirmacao_protocolo_usuario,
     confirmacao_servico_usuario,
     get_fase,
     get_meta,
+    registrar_campo_pulado,
     servico_pendente_id,
     set_meta,
+    usuario_declina_informacao_campo,
 )
-from atendimentos.chat_estado import confirmacao_protocolo_usuario
 from atendimentos.llm_schemas import (
     ACOES_UI_ENUM,
     CLASSIFICACAO_INTENCAO_SCHEMA,
@@ -482,6 +484,45 @@ def _valor_campo_extraido_valido(servico: ServicoCatalogo, campo: str, valor) ->
     return s in canon or s.lower() == "outro"
 
 
+def _campo_e_opcional(servico: ServicoCatalogo, campo: str) -> bool:
+    schema = _schema_sem_metadados(servico.schema_formulario)
+    required = set(schema.get("required") or [])
+    return bool(campo) and campo not in required
+
+
+def _pular_opcional_se_declinio(
+    sessao: SessaoChat,
+    servico: ServicoCatalogo,
+    campo: str | None,
+    texto_usuario: str,
+) -> bool:
+    """Se o cidadão declina informação em campo opcional, marca como pulado."""
+    if not campo or not _campo_e_opcional(servico, campo):
+        return False
+    if not usuario_declina_informacao_campo(texto_usuario):
+        return False
+    registrar_campo_pulado(sessao, campo)
+    return True
+
+
+def _remover_declinio_disfarcado_extraidos(
+    sessao: SessaoChat,
+    servico: ServicoCatalogo,
+    extraidos: dict | None,
+) -> dict:
+    """LLM às vezes grava o próprio 'não tenho' como valor — trata como pulo."""
+    if not extraidos:
+        return {}
+    out = dict(extraidos)
+    for campo, valor in list(out.items()):
+        if not _campo_e_opcional(servico, campo):
+            continue
+        if isinstance(valor, str) and usuario_declina_informacao_campo(valor):
+            out.pop(campo, None)
+            registrar_campo_pulado(sessao, campo)
+    return out
+
+
 def _deve_repescar_campo(
     servico: ServicoCatalogo,
     campo_foco: str | None,
@@ -490,6 +531,8 @@ def _deve_repescar_campo(
 ) -> bool:
     """Repescagem quando o cidadão respondeu mas o slot esperado não foi preenchido ou é inválido."""
     if not campo_foco or not _deve_extrair_texto(texto_usuario):
+        return False
+    if _campo_e_opcional(servico, campo_foco) and usuario_declina_informacao_campo(texto_usuario):
         return False
     limpos = extraidos_limpos or {}
     if campo_foco not in limpos:
@@ -1305,6 +1348,12 @@ class LLMOrchestrator:
             faltantes = _campos_faltantes(servico, dados_atuais, sessao)
             if faltantes:
                 campo_foco = faltantes[0]
+                if _pular_opcional_se_declinio(sessao, servico, campo_foco, texto_usuario):
+                    sessao.refresh_from_db()
+                    return self.passo_deterministico_preenchimento(
+                        sessao,
+                        anexos_novos=anexos_novos,
+                    )
                 prop0 = _propriedade_campo(servico, campo_foco)
                 if _tipo_ui_campo(prop0) not in ("geolocation", "image"):
                     try:
@@ -1314,6 +1363,7 @@ class LLMOrchestrator:
                     except ChatOrchestrationError:
                         logger.warning("Falha na extração; seguindo com dados atuais apenas.")
                         extraidos = {}
+                    extraidos = _remover_declinio_disfarcado_extraidos(sessao, servico, extraidos)
                     extraidos_limpos = _sanitizar_extraidos_campos_especiais(
                         servico, extraidos, sessao
                     )
@@ -1356,6 +1406,13 @@ class LLMOrchestrator:
             faltantes = _campos_faltantes(servico, dados_atuais, sessao_sandbox)
             if faltantes:
                 campo_foco = faltantes[0]
+                if _pular_opcional_se_declinio(
+                    sessao_sandbox, servico, campo_foco, texto_usuario
+                ):
+                    return self.passo_deterministico_preenchimento(
+                        sessao_sandbox,
+                        anexos_novos=anexos_novos,
+                    )
                 prop0 = _propriedade_campo(servico, campo_foco)
                 if _tipo_ui_campo(prop0) not in ("geolocation", "image"):
                     try:
@@ -1364,6 +1421,9 @@ class LLMOrchestrator:
                         )
                     except ChatOrchestrationError:
                         extraidos = {}
+                    extraidos = _remover_declinio_disfarcado_extraidos(
+                        sessao_sandbox, servico, extraidos
+                    )
                     extraidos_limpos = _sanitizar_extraidos_campos_especiais(
                         servico, extraidos, sessao_sandbox
                     )

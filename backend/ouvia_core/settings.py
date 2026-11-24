@@ -244,6 +244,23 @@ PASSWORD_RESET_FRONTEND_URL = config(
 )
 PASSWORD_RESET_TOKEN_TTL_HOURS = config("PASSWORD_RESET_TOKEN_TTL_HOURS", default=1, cast=int)
 
+# E-mail (SMTP) — digest SLA, recuperação de senha, etc.
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = config("EMAIL_HOST", default="localhost")
+EMAIL_PORT = config("EMAIL_PORT", default=25, cast=int)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=False, cast=bool)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+_email_pwd = config("EMAIL_HOST_PASSWORD", default="")
+# Senhas de app do Gmail às vezes vêm com espaços na colagem.
+EMAIL_HOST_PASSWORD = _email_pwd.replace(" ", "") if _email_pwd else ""
+DEFAULT_FROM_EMAIL = config(
+    "DEFAULT_FROM_EMAIL",
+    default=EMAIL_HOST_USER or "noreply@ouve.local",
+)
+
 # Web Push (VAPID) — PWA cidadão (Onda 4)
 VAPID_PUBLIC_KEY = config("VAPID_PUBLIC_KEY", default="")
 VAPID_PRIVATE_KEY = config("VAPID_PRIVATE_KEY", default="")
