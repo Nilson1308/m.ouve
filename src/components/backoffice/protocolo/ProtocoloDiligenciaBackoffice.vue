@@ -76,9 +76,10 @@
           <p v-if="d.resposta_cidadao" class="mt-2 text-gray-700 dark:text-gray-300 whitespace-pre-line">
             <strong>Resposta:</strong> {{ d.resposta_cidadao }}
           </p>
-          <p v-if="d.anexos_ids?.length" class="text-xs text-gray-500 mt-1">
-            {{ d.anexos_ids.length }} anexo(s) vinculado(s) na resposta
-          </p>
+          <DiligenciaAnexosGrade
+            v-if="d.anexos?.length"
+            :anexos="d.anexos"
+          />
         </li>
       </ul>
     </div>
@@ -95,6 +96,7 @@ import {
   labelStatusDiligencia,
   textoMotivoBloqueioDiligencia
 } from '@/utils/diligenciaHelpers'
+import DiligenciaAnexosGrade from '@/components/diligencia/DiligenciaAnexosGrade.vue'
 import { useDialog } from '@/composables/useDialog'
 
 const { confirm } = useDialog()

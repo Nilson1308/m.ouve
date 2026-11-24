@@ -75,7 +75,7 @@ class SetorialEvidenciaSerializer(serializers.ModelSerializer):
         return mapa.get(obj.tipo_evidencia, obj.nome_original or "Evidência")
 
 
-class SetorialOrdemServicoSerializer(serializers.ModelSerializer):
+class SetorialOrdemServicoResumoSerializer(serializers.ModelSerializer):
     unidade_nome = serializers.CharField(source="unidade.nome", read_only=True)
     unidade_sigla = serializers.CharField(source="unidade.sigla", read_only=True)
     protocolo_id = serializers.SerializerMethodField()
@@ -114,6 +114,11 @@ class SetorialOrdemServicoSerializer(serializers.ModelSerializer):
     protocolo_codigo = serializers.SerializerMethodField()
     exigir_validacao_ouvidoria = serializers.SerializerMethodField()
     encerramento_direto_secretaria = serializers.SerializerMethodField()
+    aguardando_cidadao = serializers.SerializerMethodField()
+    sla_pausado = serializers.SerializerMethodField()
+    qtd_diligencias_respondidas = serializers.SerializerMethodField()
+    ultima_diligencia_respondida_em = serializers.SerializerMethodField()
+    qtd_anexos_diligencias = serializers.SerializerMethodField()
 
     class Meta:
         model = OrdemServico
@@ -152,6 +157,11 @@ class SetorialOrdemServicoSerializer(serializers.ModelSerializer):
             "protocolo_codigo",
             "exigir_validacao_ouvidoria",
             "encerramento_direto_secretaria",
+            "aguardando_cidadao",
+            "sla_pausado",
+            "qtd_diligencias_respondidas",
+            "ultima_diligencia_respondida_em",
+            "qtd_anexos_diligencias",
         )
 
     def _governanca_protocolo(self, obj):
@@ -246,6 +256,81 @@ class SetorialOrdemServicoSerializer(serializers.ModelSerializer):
         if obj.formalizado_por_id:
             return obj.formalizado_por.nome
         return ""
+
+    def _campos_diligencia_resumo(self, obj):
+        cached = getattr(obj, "_cache_diligencia_resumo", None)
+        if cached is None:
+            from atendimentos.services.diligencia_service import campos_diligencia_setorial_resumo
+
+            cached = campos_diligencia_setorial_resumo(obj.protocolo, obj)
+            obj._cache_diligencia_resumo = cached
+        return cached
+
+    def get_aguardando_cidadao(self, obj):
+        return self._campos_diligencia_resumo(obj).get("aguardando_cidadao", False)
+
+    def get_sla_pausado(self, obj):
+        return self._campos_diligencia_resumo(obj).get("sla_pausado", False)
+
+    def get_qtd_diligencias_respondidas(self, obj):
+        return self._campos_diligencia_resumo(obj).get("qtd_diligencias_respondidas", 0)
+
+    def get_ultima_diligencia_respondida_em(self, obj):
+        return self._campos_diligencia_resumo(obj).get("ultima_diligencia_respondida_em")
+
+    def get_qtd_anexos_diligencias(self, obj):
+        return self._campos_diligencia_resumo(obj).get("qtd_anexos_diligencias", 0)
+
+
+class SetorialOrdemServicoSerializer(SetorialOrdemServicoResumoSerializer):
+    """Detalhe da OS no painel setorial (drawer) — inclui histórico de diligências."""
+
+    diligencia_ativa = serializers.SerializerMethodField()
+    diligencias = serializers.SerializerMethodField()
+    pode_abrir_diligencia = serializers.SerializerMethodField()
+    motivo_bloqueio_diligencia = serializers.SerializerMethodField()
+    tempo_sla_pausado_segundos = serializers.SerializerMethodField()
+
+    class Meta(SetorialOrdemServicoResumoSerializer.Meta):
+        fields = SetorialOrdemServicoResumoSerializer.Meta.fields + (
+            "diligencia_ativa",
+            "diligencias",
+            "pode_abrir_diligencia",
+            "motivo_bloqueio_diligencia",
+            "tempo_sla_pausado_segundos",
+        )
+
+    def _campos_diligencia_detalhe(self, obj):
+        cached = getattr(obj, "_cache_diligencia_detalhe", None)
+        if cached is None:
+            from atendimentos.services.diligencia_service import (
+                campos_diligencia_setorial_detalhe,
+            )
+
+            request = self.context.get("request")
+            user = getattr(request, "user", None) if request else None
+            cached = campos_diligencia_setorial_detalhe(
+                obj, request=request, user=user
+            )
+            obj._cache_diligencia_detalhe = cached
+        return cached
+
+    def get_diligencia_ativa(self, obj):
+        return self._campos_diligencia_detalhe(obj).get("diligencia_ativa")
+
+    def get_diligencias(self, obj):
+        return self._campos_diligencia_detalhe(obj).get("diligencias", [])
+
+    def get_pode_abrir_diligencia(self, obj):
+        return self._campos_diligencia_detalhe(obj).get("pode_abrir_diligencia", False)
+
+    def get_motivo_bloqueio_diligencia(self, obj):
+        return self._campos_diligencia_detalhe(obj).get("motivo_bloqueio_diligencia")
+
+    def get_tempo_sla_pausado_segundos(self, obj):
+        return self._campos_diligencia_detalhe(obj).get(
+            "tempo_sla_pausado_segundos", 0
+        )
 
 
 class GerarMagicLinkResponseSerializer(serializers.Serializer):

@@ -189,6 +189,45 @@
         @respondido="onDiligenciaRespondida"
       />
 
+      <section
+        v-if="diligenciasHistorico.length"
+        class="card min-w-0"
+        aria-labelledby="titulo-historico-diligencias"
+      >
+        <h2
+          id="titulo-historico-diligencias"
+          class="text-sm font-bold text-gray-900 dark:text-white high-contrast:text-yellow-300 mb-4"
+        >
+          Histórico de complementações
+        </h2>
+        <ul class="space-y-4">
+          <li
+            v-for="d in diligenciasHistorico"
+            :key="d.id"
+            class="rounded-card border border-gray-200 dark:border-gray-700 p-4 text-sm"
+          >
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <span class="text-xs font-bold uppercase text-gray-500">
+                {{ labelStatusDiligencia(d.status) }}
+              </span>
+              <time v-if="d.criado_em" class="text-xs text-gray-500" :datetime="d.criado_em">
+                {{ formatarDataCompleta(d.criado_em) }}
+              </time>
+            </div>
+            <p class="text-gray-800 dark:text-gray-200 whitespace-pre-line">
+              <span class="font-semibold">Pergunta:</span> {{ d.pergunta }}
+            </p>
+            <p
+              v-if="d.resposta_cidadao"
+              class="mt-2 text-gray-700 dark:text-gray-300 whitespace-pre-line"
+            >
+              <span class="font-semibold">Sua resposta:</span> {{ d.resposta_cidadao }}
+            </p>
+            <DiligenciaAnexosGrade v-if="d.anexos?.length" :anexos="d.anexos" />
+          </li>
+        </ul>
+      </section>
+
       <ProtocoloCobrancaCard
         v-if="protocolo"
         :protocolo-id="protocolo.codigo || props.id"
@@ -499,6 +538,7 @@ import PwaA11yMenu from '@/components/pwa/PwaA11yMenu.vue'
 import ProtocoloCsatCard from '@/components/pwa/protocolo/ProtocoloCsatCard.vue'
 import ProtocoloCobrancaCard from '@/components/pwa/protocolo/ProtocoloCobrancaCard.vue'
 import ProtocoloDiligenciaCard from '@/components/pwa/protocolo/ProtocoloDiligenciaCard.vue'
+import DiligenciaAnexosGrade from '@/components/diligencia/DiligenciaAnexosGrade.vue'
 import PwaWebPushNudge from '@/components/pwa/PwaWebPushNudge.vue'
 import { labelStatusDiligencia } from '@/utils/diligenciaHelpers'
 import {
@@ -720,6 +760,16 @@ const historico = computed(() => {
     })
   }
   return items
+})
+
+const diligenciasHistorico = computed(() => {
+  const lista = protocolo.value?.diligencias || []
+  const ativaId = protocolo.value?.diligenciaAtiva?.id || protocolo.value?.diligencia_ativa?.id
+  return lista.filter(
+    (d) =>
+      d.status !== 'aguardando_cidadao' &&
+      (!ativaId || String(d.id) !== String(ativaId))
+  )
 })
 
 const timelineCompleta = computed(() => {

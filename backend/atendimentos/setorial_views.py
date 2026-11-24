@@ -26,10 +26,17 @@ from atendimentos.magic_link_services import (
     magic_link_payload,
     registrar_assinatura_hash,
 )
-from atendimentos.models import AnexoOrdemServico, OrdemServico, Protocolo, ProtocoloHistorico
+from atendimentos.models import (
+    AnexoOrdemServico,
+    DiligenciaProtocolo,
+    OrdemServico,
+    Protocolo,
+    ProtocoloHistorico,
+)
 from atendimentos.notificacoes_internas import notificar_os_formalizada_ouvidor
 from atendimentos.setorial_serializers import (
     FormalizarOrdemSerializer,
+    SetorialOrdemServicoResumoSerializer,
     SetorialOrdemServicoSerializer,
 )
 from core_auth.permissions import IsSetorialStaff
@@ -174,7 +181,15 @@ def queryset_ordem_setorial(user):
                 distinct=True,
             )
         )
-        .prefetch_related(Prefetch("anexos", queryset=AnexoOrdemServico.objects.order_by("criado_em")))
+        .prefetch_related(
+            Prefetch("anexos", queryset=AnexoOrdemServico.objects.order_by("criado_em")),
+            Prefetch(
+                "protocolo__diligencias",
+                queryset=DiligenciaProtocolo.objects.select_related(
+                    "unidade_solicitante", "autor_servidor"
+                ).order_by("-criado_em"),
+            ),
+        )
         .exclude(status=OrdemServico.Status.CANCELADA)
         .order_by("-criado_em")
     )
@@ -193,12 +208,24 @@ def usuario_pode_gerir_ordem(user, ordem: OrdemServico) -> bool:
 
 class SetorialOrdensListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsSetorialStaff]
-    serializer_class = SetorialOrdemServicoSerializer
+    serializer_class = SetorialOrdemServicoResumoSerializer
     pagination_class = None
     filterset_class = SetorialOrdemFilterSet
 
     def get_queryset(self):
         return queryset_ordem_setorial(self.request.user)
+
+
+class SetorialOrdemDetalheView(APIView):
+    """GET — detalhe de OS da unidade (diligências com anexos resolvidos)."""
+
+    permission_classes = [IsAuthenticated, IsSetorialStaff]
+
+    def get(self, request, ordem_id):
+        ordem = get_object_or_404(queryset_ordem_setorial(request.user), pk=ordem_id)
+        return Response(
+            SetorialOrdemServicoSerializer(ordem, context={"request": request}).data
+        )
 
 
 class GerarMagicLinkOrdemView(APIView):

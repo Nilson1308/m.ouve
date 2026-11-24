@@ -450,7 +450,9 @@ class BackofficeProtocoloDetalheSerializer(BackofficeProtocoloKanbanSerializer):
         if cached is None:
             from atendimentos.services.diligencia_service import campos_diligencia_backoffice
 
-            cached = campos_diligencia_backoffice(obj)
+            request = self.context.get("request")
+            user = getattr(request, "user", None) if request else None
+            cached = campos_diligencia_backoffice(obj, request=request, user=user)
             obj._cache_campos_diligencia = cached
         return cached
 

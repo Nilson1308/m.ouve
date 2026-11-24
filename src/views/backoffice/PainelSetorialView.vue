@@ -187,6 +187,7 @@
       @enviar-evidencias="onEnviarEvidencias"
       @gerar-link="onGerarLink"
       @toast="mostrarToast"
+      @diligencia-atualizada="onDiligenciaAtualizada"
     />
 
     <ModalFiltrosAvancadosSetorial
@@ -432,10 +433,31 @@ async function atualizarDados() {
   }
 }
 
-function abrirOS(ordem) {
+async function abrirOS(ordem) {
   osIdModal.value = ordem.id
   modalAberto.value = true
   carregarTextosPadrao()
+  try {
+    await setorialStore.carregarOrdemDetalhe(ordem.id)
+  } catch (e) {
+    mostrarToast(
+      getApiErrorMessage(e, 'Não foi possível carregar o detalhe da OS.'),
+      true
+    )
+  }
+}
+
+async function onDiligenciaAtualizada() {
+  if (!osIdModal.value) return
+  try {
+    await Promise.all([
+      setorialStore.carregarOrdemDetalhe(osIdModal.value),
+      setorialStore.carregarOrdens()
+    ])
+    mostrarToast('Diligência atualizada.')
+  } catch (e) {
+    mostrarToast(getApiErrorMessage(e, 'Diligência salva, mas falhou ao atualizar a lista.'), true)
+  }
 }
 
 function fecharModal() {

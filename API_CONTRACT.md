@@ -739,7 +739,7 @@ Campos adicionais no serializer de detalhe:
 | `motivo_bloqueio_cobranca` | string \| null | (v4.12) `dentro_do_prazo`, `em_cooldown`, `encerrado`, `desabilitado`, (v4.14) `aguardando_cidadao` ou `null` |
 | `aguardando_cidadao` | bool | (v4.14) `true` enquanto protocolo aguarda complementação |
 | `diligencia_ativa` | objeto \| null | (v4.14) diligência aberta para resposta (pergunta, prazo, unidade, `exige_anexo`) |
-| `diligencias` | array | (v4.14) histórico resumido de diligências |
+| `diligencias` | array | (v4.14) histórico de diligências; (v4.14.2) cada item inclui `anexos` resolvidos além de `anexos_ids` |
 | `proxima_cobranca_em` | string \| null | (v4.12) ISO8601 quando em cooldown (anti-spam) |
 | `qtd_cobrancas_cidadao` | int | (v4.12) total de cobranças registradas |
 | `prazo_sla` | string | (v4.12) deadline calculado a partir do `sla_horas` do serviço |
@@ -801,16 +801,29 @@ Os mesmos campos de cobrança/SLA aparecem na **listagem** `GET /api/v1/protocol
 | `max_diligencias_por_protocolo` | Limite anti-abuso (≥ 1) |
 | `acao_expiracao_diligencia` | `devolver_fila` ou `encerrar_sem_resposta` |
 
+**Objeto diligência (v4.14.2)** — em backoffice, PWA e setorial; `anexos_ids` mantido por retrocompatibilidade:
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `anexos_ids` | array[uuid] | IDs referenciados na resposta do cidadão |
+| `anexos` | array | Objetos resolvidos (`AnexoProtocolo`): `id`, `url` (absoluta), `nome_arquivo`, `nome` (alias), `tipo`, `mime_type`, `criado_em` |
+
 **Backoffice**
 
 - `POST /api/v1/backoffice/protocolos/<id>/diligencias` — body: `{ "pergunta", "exige_anexo"?, "ordem_servico_id"? }` → `201` e pausa SLA (`aguardando_cidadao`).
-- `POST /api/v1/backoffice/diligencias/<uuid>/cancelar` — body opcional `{ "motivo" }`.
-- `GET /api/v1/backoffice/protocolos/<id>` inclui: `diligencia_ativa`, `diligencias[]`, `sla_pausado`, `tempo_sla_pausado_segundos`, `pode_abrir_diligencia`, `motivo_bloqueio_diligencia`.
+- **Permissão (v4.14.2):** `mesa_trabalho.criar` **ou** `painel_setorial.criar` com unidade vinculada. Gestor setorial deve informar `ordem_servico_id` da própria unidade.
+- `POST /api/v1/backoffice/diligencias/<uuid>/cancelar` — body opcional `{ "motivo" }`. Setorial só cancela diligências abertas pela **própria unidade** (`unidade_solicitante`).
+- `GET /api/v1/backoffice/protocolos/<id>` inclui: `diligencia_ativa`, `diligencias[]` (com `anexos`), `sla_pausado`, `tempo_sla_pausado_segundos`, `pode_abrir_diligencia`, `motivo_bloqueio_diligencia` (incl. `sem_permissao`, `ordem_outra_unidade`).
 
 **PWA**
 
-- `POST /api/v1/protocolos/<id>/responder-diligencia` — body: `{ "resposta", "anexos_ids"? }` (sem trailing slash; mesmo padrão de `/cobrar`).
-- `POST /api/v1/protocolos/<id>/anexos` — anexar fotos ao protocolo antes de responder (v4.14.1); multipart `fotos[]` ou `fotos` (mesmo padrão do `POST /protocolos` na criação). **Response 201:** `{ "anexos": [{ "id", "url", "tipo" }, ...] }` — use os `id` em `anexos_ids` na resposta da diligência.
+- `POST /api/v1/protocolos/<id>/responder-diligencia` — body: `{ "resposta", "anexos_ids"? }` (sem trailing slash; mesmo padrão de `/cobrar`). Response inclui `anexos` resolvidos (v4.14.2).
+- `POST /api/v1/protocolos/<id>/anexos` — anexar fotos ao protocolo antes de responder (v4.14.1); multipart `fotos[]` ou `fotos` (mesmo padrão do `POST /protocolos` na criação). **Response 201:** `{ "anexos": [{ "id", "url", "tipo", "mime_type", "nome_arquivo", "criado_em" }, ...] }` — anexos ficam na galeria `GET /protocolos/<id>` (`anexos[]`); use os `id` em `anexos_ids` na resposta da diligência.
+
+**Painel setorial (v4.14.2)**
+
+- `GET /api/v1/backoffice/setorial/ordens` — badges por OS: `aguardando_cidadao`, `sla_pausado`, `qtd_diligencias_respondidas`, `ultima_diligencia_respondida_em`, `qtd_anexos_diligencias`.
+- `GET /api/v1/backoffice/setorial/ordens/<uuid:ordem_id>` — detalhe/drawer: `diligencia_ativa`, `diligencias[]` (com `anexos`), `pode_abrir_diligencia`, `motivo_bloqueio_diligencia`, `tempo_sla_pausado_segundos` (+ campos já existentes da OS).
 
 **SLA:** Enquanto `sla_pausado_desde` preenchido, protocolo **não** entra em atraso, cobrança (`pode_cobrar=false`, motivo `aguardando_cidadao`), escalonamento nem digest. Ao responder/cancelar/expirar, `prazo_sla` é prorrogado pelo tempo pausado.
 
@@ -1501,7 +1514,19 @@ Lista ordens da unidade do servidor logado (sem dados sensíveis completos do ci
 
 **Response 200:** array de objetos compatíveis com o Painel Setorial (`magic_link`, `evidencias`, `status` UI: `nova`, `aguardando_campo`, `concluida`, etc.).
 
+**Campos de diligência na fila (v4.14.2):** `aguardando_cidadao`, `sla_pausado`, `qtd_diligencias_respondidas`, `ultima_diligencia_respondida_em`, `qtd_anexos_diligencias`.
+
 **Erros:** `403` sem unidade vinculada (não superuser).
+
+### GET `/api/v1/backoffice/setorial/ordens/<uuid:ordem_id>`
+
+Detalhe da OS no painel setorial (drawer), incluindo diligências do protocolo com anexos resolvidos.
+
+**Permissão:** `painel_setorial.ler` + OS da unidade do usuário.
+
+**Response 200:** mesmo contrato do item da lista, mais `diligencia_ativa`, `diligencias[]`, `pode_abrir_diligencia`, `motivo_bloqueio_diligencia`, `tempo_sla_pausado_segundos`.
+
+**Erros:** `404` — OS inexistente ou fora da unidade.
 
 ---
 
@@ -2340,7 +2365,7 @@ Scatter-gather da Super OS — mesmo contrato do despacho de protocolo.
 **Versão:** 2.2  
 **Data:** Novembro 2026  
 **Última Atualização:** Nov 17, 2026  
-**Versão do contrato:** 4.14.1
+**Versão do contrato:** 4.14.2
 
 ---
 
@@ -3588,6 +3613,7 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.14.2** (Nov 24, 2026): Sprint 3.1 — `anexos` resolvidos em objetos de diligência (backoffice/PWA/setorial); `AnexoProtocolo` enriquecido no PWA; `GET /backoffice/setorial/ordens/<id>`; badges de diligência na listagem setorial; RBAC `painel_setorial.criar` para abrir/cancelar diligência na OS da unidade; `pode_abrir_diligencia` considera permissão do usuário
 - **v4.14.1** (Nov 24, 2026): `POST /protocolos/<id>/anexos` (multipart) para upload de fotos na resposta à diligência; UI Sprint 3 PWA + backoffice (Kanban, config, detalhe 360º)
 - **v4.14** (Nov 24, 2026): Sprint 3 diligência com solicitante — `DiligenciaProtocolo`; status `aguardando_cidadao`; pausa/retomada SLA (`prazo_sla`, `sla_pausado_desde`, `tempo_sla_pausado_segundos`); params em `ConfiguracaoSlaCobranca` (`diligencia_ativa`, `prazo_diligencia_dias`, `max_diligencias_por_protocolo`, `acao_expiracao_diligencia`); `POST /backoffice/protocolos/<id>/diligencias`, `POST /backoffice/diligencias/<id>/cancelar`, `POST /protocolos/<id>/responder-diligencia`; campos backoffice/PWA de diligência; Celery `verificar_expiracao_diligencias_task`; exclusão de SLA pausado em cobrança/escalonamento/digest
 - **v4.13** (Nov 24, 2026): Sprint 2.5 governança de fluxos — remoção de `hibrido`; `executor_padrao`, `exigir_validacao_ouvidoria`; auto-despacho entrada (`direto_secretaria`); encerramento direto ou homologação na saída; triagem `catalogo_executor_padrao`; metadados `encerramento_direto_secretaria` no backoffice

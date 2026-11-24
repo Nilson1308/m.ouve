@@ -37,6 +37,15 @@ def _perfil_mesa():
     return aplicar_regras_automaticas(base)
 
 
+def _perfil_setorial():
+    base = permissoes_padrao()
+    base["mesa_trabalho"] = {"ler": True, "criar": False, "editar": False, "excluir": False}
+    base["painel_setorial"] = {"ler": True, "criar": True, "editar": True, "excluir": False}
+    base["regras"]["exige_unidade"] = True
+    base["regras"]["acesso_staff"] = True
+    return aplicar_regras_automaticas(base, requer_vinculo=True, codigo="gestor_setorial")
+
+
 class DiligenciaBase(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -268,6 +277,194 @@ class ExpiracaoDiligenciaTests(DiligenciaBase):
             verificar_expiracao_diligencias_task()
         p.refresh_from_db()
         self.assertEqual(p.status, Protocolo.Status.REJEITADO)
+
+
+class AnexosDiligenciaSerializacaoTests(DiligenciaBase):
+    @patch("atendimentos.services.diligencia_service.criar_notificacao_cidadao")
+    def test_diligencia_retorna_anexos_com_url(self, _mock):
+        from atendimentos.models import AnexoProtocolo
+        from atendimentos.services.diligencia_service import (
+            responder_diligencia,
+            serializar_diligencia_resumo,
+        )
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        p = self._protocolo()
+        abrir_diligencia(
+            p,
+            autor=self.servidor,
+            unidade_solicitante_id=self.unidade.pk,
+            pergunta="Envie foto.",
+            exige_anexo=True,
+        )
+        p.refresh_from_db()
+        d = diligencia_aguardando(p)
+        anexo = AnexoProtocolo.objects.create(
+            protocolo=p,
+            arquivo=SimpleUploadedFile("foto.jpg", b"jpeg-bytes", content_type="image/jpeg"),
+            tipo_mime="image/jpeg",
+        )
+
+        with patch(
+            "atendimentos.services.diligencia_service._notificar_unidade_resposta"
+        ):
+            d = responder_diligencia(
+                p,
+                d.id,
+                resposta="Segue foto.",
+                anexos_ids=[str(anexo.id)],
+            )
+
+        payload = serializar_diligencia_resumo(d)
+        self.assertEqual(len(payload["anexos"]), 1)
+        self.assertEqual(payload["anexos"][0]["id"], str(anexo.id))
+        self.assertTrue(payload["anexos"][0]["url"])
+        self.assertEqual(payload["anexos_ids"], [str(anexo.id)])
+
+    @patch("atendimentos.services.diligencia_service.criar_notificacao_cidadao")
+    def test_pwa_resposta_expoe_anexos_no_protocolo(self, _mock):
+        from atendimentos.models import AnexoProtocolo
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        p = self._protocolo()
+        abrir_diligencia(
+            p,
+            autor=self.servidor,
+            unidade_solicitante_id=self.unidade.pk,
+            pergunta="Anexo obrigatório",
+            exige_anexo=True,
+        )
+        client = APIClient()
+        anexo = AnexoProtocolo.objects.create(
+            protocolo=p,
+            arquivo=SimpleUploadedFile("comprovante.png", b"png", content_type="image/png"),
+            tipo_mime="image/png",
+        )
+        client.force_authenticate(user=self.cidadao)
+        with patch(
+            "atendimentos.services.diligencia_service._notificar_unidade_resposta"
+        ):
+            resp = client.post(
+                f"/api/v1/protocolos/{p.codigo}/responder-diligencia",
+                {"resposta": "Pronto", "anexos_ids": [str(anexo.id)]},
+                format="json",
+            )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(resp.data["anexos"]), 1)
+        self.assertIn("url", resp.data["anexos"][0])
+
+        detail = client.get(f"/api/v1/protocolos/{p.codigo}")
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
+        hist = detail.data.get("diligencias") or []
+        self.assertTrue(hist)
+        self.assertEqual(len(hist[0].get("anexos") or []), 1)
+        anexos_proto = detail.data.get("anexos") or []
+        ids_proto = {a["id"] for a in anexos_proto}
+        self.assertIn(str(anexo.id), ids_proto)
+
+
+class SetorialDiligenciaApiTests(DiligenciaBase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.gestor = User.objects.create_user(
+            cpf="11144477735",
+            password="x",
+            nome="Gestor Setorial Dilig",
+            email="gestor-dilig@test.local",
+            is_staff=True,
+            unidade=cls.unidade,
+        )
+        perfil = PerfilAcesso.objects.create(
+            codigo="gestor_setorial_dilig_test",
+            nome="Gestor Setorial Test",
+            permissoes=_perfil_setorial(),
+            ativo=True,
+        )
+        cls.gestor.perfil_acesso = perfil
+        cls.gestor.save()
+
+    def _ordem(self, protocolo):
+        return OrdemServico.objects.create(
+            protocolo=protocolo,
+            unidade=self.unidade,
+            descricao="OS teste diligência",
+            prazo_horas=48,
+        )
+
+    @patch("atendimentos.services.diligencia_service.criar_notificacao_cidadao")
+    def test_gestor_setorial_abre_cancela_e_setorial_expoe_campos(self, _mock):
+        p = self._protocolo()
+        ordem = self._ordem(p)
+        client = APIClient()
+        client.force_authenticate(user=self.gestor)
+
+        abrir = client.post(
+            f"/api/v1/backoffice/protocolos/{p.pk}/diligencias",
+            {
+                "pergunta": "Qual o número do imóvel?",
+                "ordem_servico_id": str(ordem.pk),
+            },
+            format="json",
+        )
+        self.assertEqual(abrir.status_code, status.HTTP_201_CREATED, abrir.data)
+
+        lista = client.get("/api/v1/backoffice/setorial/ordens")
+        self.assertEqual(lista.status_code, status.HTTP_200_OK)
+        item = next(x for x in lista.data if x["id"] == str(ordem.pk))
+        self.assertTrue(item["aguardando_cidadao"])
+        self.assertTrue(item["sla_pausado"])
+
+        detalhe = client.get(f"/api/v1/backoffice/setorial/ordens/{ordem.pk}")
+        self.assertEqual(detalhe.status_code, status.HTTP_200_OK)
+        self.assertTrue(detalhe.data["pode_abrir_diligencia"] is False)
+        self.assertIsNotNone(detalhe.data["diligencia_ativa"])
+
+        d_id = abrir.data["id"]
+        cancelar = client.post(
+            f"/api/v1/backoffice/diligencias/{d_id}/cancelar",
+            {"motivo": "Desistiu"},
+            format="json",
+        )
+        self.assertEqual(cancelar.status_code, status.HTTP_200_OK)
+
+    @patch("atendimentos.services.diligencia_service.criar_notificacao_cidadao")
+    def test_setorial_conta_anexos_em_respostas(self, _mock):
+        from atendimentos.models import AnexoProtocolo
+        from atendimentos.services.diligencia_service import responder_diligencia
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        p = self._protocolo()
+        ordem = self._ordem(p)
+        abrir_diligencia(
+            p,
+            autor=self.gestor,
+            unidade_solicitante_id=self.unidade.pk,
+            pergunta="Foto",
+            ordem_servico_id=ordem.pk,
+        )
+        d = diligencia_aguardando(p)
+        anexo = AnexoProtocolo.objects.create(
+            protocolo=p,
+            arquivo=SimpleUploadedFile("a.jpg", b"x", content_type="image/jpeg"),
+            tipo_mime="image/jpeg",
+        )
+        with patch(
+            "atendimentos.services.diligencia_service._notificar_unidade_resposta"
+        ):
+            responder_diligencia(
+                p, d.id, resposta="Ok", anexos_ids=[str(anexo.id)]
+            )
+
+        client = APIClient()
+        client.force_authenticate(user=self.gestor)
+        det = client.get(f"/api/v1/backoffice/setorial/ordens/{ordem.pk}")
+        self.assertEqual(det.status_code, status.HTTP_200_OK)
+        self.assertEqual(det.data["qtd_diligencias_respondidas"], 1)
+        self.assertEqual(det.data["qtd_anexos_diligencias"], 1)
+        dilig = det.data["diligencias"][0]
+        self.assertEqual(len(dilig["anexos"]), 1)
+        self.assertTrue(dilig["anexos"][0]["url"])
 
 
 class ApiResponderDiligenciaTests(DiligenciaBase):

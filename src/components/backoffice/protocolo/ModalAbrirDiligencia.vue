@@ -59,7 +59,7 @@
             </div>
           </div>
 
-          <div v-if="ordensAbertas.length > 1">
+          <div v-if="ordensAbertas.length > 1 && !ordemServicoIdInicial">
             <label for="diligencia-os" class="block text-sm font-semibold mb-1">Vincular ordem de serviço (opcional)</label>
             <select id="diligencia-os" v-model="ordemServicoId" class="input w-full">
               <option value="">— Todas / protocolo geral —</option>
@@ -100,7 +100,9 @@ import { noAberto, nomeSecretariaNo } from '@/utils/scatterGather'
 const props = defineProps({
   aberto: { type: Boolean, default: false },
   protocolo: { type: Object, required: true },
-  unidadeUsuarioId: { type: String, default: null }
+  unidadeUsuarioId: { type: String, default: null },
+  /** v4.14.2 — painel setorial vincula automaticamente a OS aberta */
+  ordemServicoIdInicial: { type: String, default: '' }
 })
 
 const emit = defineEmits(['fechar', 'criada'])
@@ -132,7 +134,8 @@ watch(
       exigeAnexo.value = false
       erro.value = ''
       ordemServicoId.value =
-        ordensAbertas.value.length === 1 ? String(ordensAbertas.value[0].id) : ''
+        props.ordemServicoIdInicial ||
+        (ordensAbertas.value.length === 1 ? String(ordensAbertas.value[0].id) : '')
     }
   }
 )
@@ -155,7 +158,8 @@ async function confirmar() {
       pergunta: pergunta.value.trim(),
       exige_anexo: exigeAnexo.value
     }
-    if (ordemServicoId.value) body.ordem_servico_id = ordemServicoId.value
+    const osId = ordemServicoId.value || props.ordemServicoIdInicial
+    if (osId) body.ordem_servico_id = osId
     const data = await diligenciaBackofficeService.abrir(props.protocolo.id, body)
     emit('criada', data)
     emit('fechar')

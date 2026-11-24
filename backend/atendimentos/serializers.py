@@ -21,10 +21,22 @@ from catalogo.validators import validar_dados_dinamicos
 class AnexoSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
     tipo = serializers.SerializerMethodField()
+    mime_type = serializers.CharField(source="tipo_mime", read_only=True)
+    nome_arquivo = serializers.SerializerMethodField()
+    nome = serializers.SerializerMethodField()
+    criado_em = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%SZ", read_only=True)
 
     class Meta:
         model = AnexoProtocolo
-        fields = ("id", "url", "tipo")
+        fields = (
+            "id",
+            "url",
+            "tipo",
+            "mime_type",
+            "nome_arquivo",
+            "nome",
+            "criado_em",
+        )
 
     def get_url(self, obj):
         from ouvia_core.url_utils import public_absolute_uri
@@ -34,6 +46,14 @@ class AnexoSerializer(serializers.ModelSerializer):
 
     def get_tipo(self, obj):
         return obj.tipo_mime or "application/octet-stream"
+
+    def get_nome_arquivo(self, obj):
+        if obj.arquivo and obj.arquivo.name:
+            return obj.arquivo.name.rsplit("/", 1)[-1]
+        return ""
+
+    def get_nome(self, obj):
+        return self.get_nome_arquivo(obj)
 
 
 class OrdemServicoSerializer(serializers.ModelSerializer):
@@ -122,7 +142,7 @@ class ProtocoloListSerializer(ProtocoloServicoMixin, serializers.ModelSerializer
             from atendimentos.services.diligencia_service import campos_diligencia_pwa
 
             data.update(campos_cobranca_protocolo_pwa(instance, request.user))
-            data.update(campos_diligencia_pwa(instance))
+            data.update(campos_diligencia_pwa(instance, request=request))
         return data
 
     def get_localizacao(self, obj):

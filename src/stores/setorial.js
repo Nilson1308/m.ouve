@@ -239,6 +239,19 @@ export const useSetorialStore = defineStore('setorial', () => {
     return ordens.value.find((o) => o.id === id) || null
   }
 
+  const carregandoDetalhe = ref(false)
+
+  async function carregarOrdemDetalhe(ordemId) {
+    if (!ordemId) return null
+    carregandoDetalhe.value = true
+    try {
+      const { data } = await api.get(`/backoffice/setorial/ordens/${ordemId}`)
+      return atualizarOrdemNoState(data)
+    } finally {
+      carregandoDetalhe.value = false
+    }
+  }
+
   return {
     ordens,
     loading,
@@ -262,6 +275,8 @@ export const useSetorialStore = defineStore('setorial', () => {
     gerarLinkMagico,
     formalizarOrdem,
     ordemPorId,
-    atualizarOrdemNoState
+    atualizarOrdemNoState,
+    carregarOrdemDetalhe,
+    carregandoDetalhe
   }
 })

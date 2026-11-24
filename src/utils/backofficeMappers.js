@@ -1,4 +1,5 @@
 import { mapEquipamentoProtocolo } from '@/utils/equipamentoMappers'
+import { mapDiligenciaFromApi } from '@/utils/diligenciaHelpers'
 
 /** Normaliza payloads da API /backoffice/* para o UI da Mesa de Trabalho. */
 
@@ -92,9 +93,11 @@ export function mapProtocoloBackoffice(api) {
     sla_pausado: Boolean(api.sla_pausado) || api.status === 'aguardando_cidadao',
     tempoSlaPausadoSegundos: Number(api.tempo_sla_pausado_segundos ?? 0),
     tempo_sla_pausado_segundos: Number(api.tempo_sla_pausado_segundos ?? 0),
-    diligenciaAtiva: api.diligencia_ativa ?? null,
-    diligencia_ativa: api.diligencia_ativa ?? null,
-    diligencias: Array.isArray(api.diligencias) ? api.diligencias : [],
+    diligenciaAtiva: api.diligencia_ativa ? mapDiligenciaFromApi(api.diligencia_ativa) : null,
+    diligencia_ativa: api.diligencia_ativa ? mapDiligenciaFromApi(api.diligencia_ativa) : null,
+    diligencias: Array.isArray(api.diligencias)
+      ? api.diligencias.map(mapDiligenciaFromApi).filter(Boolean)
+      : [],
     podeAbrirDiligencia: Boolean(api.pode_abrir_diligencia),
     pode_abrir_diligencia: Boolean(api.pode_abrir_diligencia),
     motivoBloqueioDiligencia: api.motivo_bloqueio_diligencia ?? null,

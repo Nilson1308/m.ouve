@@ -175,6 +175,43 @@
             </div>
           </div>
 
+          <section
+            v-if="protocoloDiligencia"
+            class="bg-white dark:bg-gray-800 rounded-card shadow-card p-6"
+            aria-labelledby="titulo-diligencia-setorial"
+          >
+            <ProtocoloDiligenciaBackoffice
+              :protocolo="protocoloDiligencia"
+              @abrir-modal="modalDiligenciaAberto = true"
+              @atualizado="onDiligenciaAtualizada"
+            />
+            <div
+              v-if="ultimaDiligenciaRespondida"
+              class="mt-6 rounded-lg border border-cyan-200 dark:border-cyan-800 bg-cyan-50/70 dark:bg-cyan-950/30 p-4 print:border print:break-inside-avoid"
+            >
+              <h4 class="text-sm font-bold text-cyan-950 dark:text-cyan-100 mb-2">
+                Resumo para equipe de campo
+              </h4>
+              <p class="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                Última complementação respondida —
+                {{ formatarPrazoHumano(ultimaDiligenciaRespondida.respondida_em || ultimaDiligenciaRespondida.criado_em) }}
+              </p>
+              <p class="text-sm text-gray-900 dark:text-white whitespace-pre-line">
+                <strong>Pergunta:</strong> {{ ultimaDiligenciaRespondida.pergunta }}
+              </p>
+              <p
+                v-if="ultimaDiligenciaRespondida.resposta_cidadao"
+                class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-line mt-2"
+              >
+                <strong>Resposta:</strong> {{ ultimaDiligenciaRespondida.resposta_cidadao }}
+              </p>
+              <DiligenciaAnexosGrade
+                v-if="ultimaDiligenciaRespondida.anexos?.length"
+                :anexos="ultimaDiligenciaRespondida.anexos"
+              />
+            </div>
+          </section>
+
           <!-- Seção: Equipe de Rua e Evidências -->
           <div class="bg-white dark:bg-gray-800 rounded-card shadow-card p-6">
             <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
@@ -425,6 +462,15 @@
       </div>
     </Transition>
   </Teleport>
+
+  <ModalAbrirDiligencia
+    v-if="protocoloDiligencia"
+    :aberto="modalDiligenciaAberto"
+    :protocolo="protocoloDiligencia"
+    :ordem-servico-id-inicial="String(ordem.id)"
+    @fechar="modalDiligenciaAberto = false"
+    @criada="onDiligenciaAtualizada"
+  />
 </template>
 
 <script setup>
@@ -444,6 +490,11 @@ import MagicLinkPanel from './MagicLinkPanel.vue'
 import GaleriaEvidencias from './GaleriaEvidencias.vue'
 import BadgeSuperOS from './BadgeSuperOS.vue'
 import Editor from '@/components/shared/Editor.vue'
+import ProtocoloDiligenciaBackoffice from '@/components/backoffice/protocolo/ProtocoloDiligenciaBackoffice.vue'
+import ModalAbrirDiligencia from '@/components/backoffice/protocolo/ModalAbrirDiligencia.vue'
+import DiligenciaAnexosGrade from '@/components/diligencia/DiligenciaAnexosGrade.vue'
+import { protocoloDiligenciaFromOrdem } from '@/utils/setorialMappers'
+import { formatarPrazoHumano } from '@/utils/diligenciaHelpers'
 
 const props = defineProps({
   ordem: {
@@ -493,8 +544,28 @@ const emit = defineEmits([
   'enviar-gestor',
   'gerar-link',
   'toast',
-  'enviar-evidencias'
+  'enviar-evidencias',
+  'diligencia-atualizada'
 ])
+
+const modalDiligenciaAberto = ref(false)
+
+const protocoloDiligencia = computed(() => protocoloDiligenciaFromOrdem(props.ordem))
+
+const ultimaDiligenciaRespondida = computed(() => {
+  const lista = props.ordem?.diligencias || []
+  const resp = lista.filter((d) => d.status === 'respondida')
+  if (!resp.length) return null
+  return [...resp].sort(
+    (a, b) =>
+      new Date(b.respondida_em || b.criado_em) - new Date(a.respondida_em || a.criado_em)
+  )[0]
+})
+
+function onDiligenciaAtualizada() {
+  modalDiligenciaAberto.value = false
+  emit('diligencia-atualizada')
+}
 
 const textoPadraoSelecionado = ref('')
 

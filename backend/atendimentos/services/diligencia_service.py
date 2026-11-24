@@ -22,6 +22,8 @@ from atendimentos.models import (
 )
 from atendimentos.notificacoes_cidadao import criar_notificacao_cidadao
 from atendimentos.servicos_notificacao import criar_notificacao_interna
+from core_auth.rbac import usuario_e_super_admin, usuario_tem_permissao
+from ouvia_core.url_utils import public_absolute_uri
 
 logger = logging.getLogger(__name__)
 
@@ -180,6 +182,66 @@ def avaliar_pode_abrir_diligencia(protocolo: Protocolo) -> ElegibilidadeAbrirDil
     if _contagem_diligencias(protocolo) >= int(cfg.max_diligencias_por_protocolo):
         return ElegibilidadeAbrirDiligencia(False, "limite_diligencias")
     return ElegibilidadeAbrirDiligencia(True)
+
+
+def avaliar_pode_abrir_diligencia_usuario(
+    protocolo: Protocolo,
+    user,
+    *,
+    ordem: OrdemServico | None = None,
+) -> ElegibilidadeAbrirDiligencia:
+    base = avaliar_pode_abrir_diligencia(protocolo)
+    if not base.pode or not user:
+        return base
+    if usuario_e_super_admin(user) or usuario_tem_permissao(user, "mesa_trabalho", "criar"):
+        return base
+    if not usuario_tem_permissao(user, "painel_setorial", "criar"):
+        return ElegibilidadeAbrirDiligencia(False, "sem_permissao")
+    uid = getattr(user, "unidade_id", None)
+    if not uid:
+        return ElegibilidadeAbrirDiligencia(False, "sem_unidade")
+    if ordem and ordem.unidade_id != uid:
+        return ElegibilidadeAbrirDiligencia(False, "ordem_outra_unidade")
+    return base
+
+
+def estatisticas_diligencia_protocolo(protocolo: Protocolo) -> dict[str, Any]:
+    respondidas = protocolo.diligencias.filter(
+        status=DiligenciaProtocolo.Status.RESPONDIDA
+    )
+    qtd = respondidas.count()
+    ultima = (
+        respondidas.order_by("-respondida_em")
+        .values_list("respondida_em", flat=True)
+        .first()
+    )
+    qtd_anexos = 0
+    for ids in respondidas.values_list("anexos_ids", flat=True):
+        if ids:
+            qtd_anexos += len(ids)
+    return {
+        "qtd_diligencias_respondidas": qtd,
+        "ultima_diligencia_respondida_em": (
+            ultima.strftime("%Y-%m-%dT%H:%M:%SZ") if ultima else None
+        ),
+        "qtd_anexos_diligencias": qtd_anexos,
+    }
+
+
+def _serializar_lista_diligencias(
+    diligencias,
+    protocolo: Protocolo,
+    *,
+    request=None,
+) -> list[dict[str, Any]]:
+    lista = list(diligencias)
+    todos_ids: set[str] = set()
+    for d in lista:
+        todos_ids.update(str(x) for x in (d.anexos_ids or []))
+    mapa = carregar_mapa_anexos_protocolo(protocolo.pk, todos_ids)
+    return [
+        serializar_diligencia_resumo(d, request=request, mapa_anexos=mapa) for d in lista
+    ]
 
 
 def _validar_anexos(protocolo: Protocolo, anexos_ids: list) -> list[str]:
@@ -480,7 +542,76 @@ def verificar_expiracao_diligencias(*, limite: int = 200) -> int:
     return n
 
 
-def serializar_diligencia_resumo(d: DiligenciaProtocolo) -> dict[str, Any]:
+def serializar_anexo_protocolo(
+    anexo: AnexoProtocolo,
+    *,
+    request=None,
+) -> dict[str, Any]:
+    """Formato canônico de anexo de protocolo (PWA / backoffice / diligência)."""
+    mime = anexo.tipo_mime or "application/octet-stream"
+    nome_arquivo = ""
+    if anexo.arquivo and anexo.arquivo.name:
+        nome_arquivo = anexo.arquivo.name.rsplit("/", 1)[-1]
+    return {
+        "id": str(anexo.id),
+        "url": public_absolute_uri(
+            request, anexo.arquivo.url if anexo.arquivo else None
+        ),
+        "nome_arquivo": nome_arquivo,
+        "nome": nome_arquivo,
+        "tipo": mime,
+        "mime_type": mime,
+        "criado_em": anexo.criado_em.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+
+
+def carregar_mapa_anexos_protocolo(
+    protocolo_id,
+    anexos_ids: list[str] | set[str],
+) -> dict[str, AnexoProtocolo]:
+    if not anexos_ids:
+        return {}
+    uuids = []
+    for raw in anexos_ids:
+        try:
+            uuids.append(UUID(str(raw)))
+        except (TypeError, ValueError):
+            continue
+    if not uuids:
+        return {}
+    return {
+        str(a.id): a
+        for a in AnexoProtocolo.objects.filter(protocolo_id=protocolo_id, pk__in=uuids)
+    }
+
+
+def serializar_anexos_diligencia(
+    anexos_ids: list | None,
+    *,
+    protocolo_id,
+    request=None,
+    mapa: dict[str, AnexoProtocolo] | None = None,
+) -> list[dict[str, Any]]:
+    ids = [str(x) for x in (anexos_ids or []) if x]
+    if not ids:
+        return []
+    if mapa is None:
+        mapa = carregar_mapa_anexos_protocolo(protocolo_id, ids)
+    out: list[dict[str, Any]] = []
+    for aid in ids:
+        anexo = mapa.get(aid)
+        if anexo:
+            out.append(serializar_anexo_protocolo(anexo, request=request))
+    return out
+
+
+def serializar_diligencia_resumo(
+    d: DiligenciaProtocolo,
+    *,
+    request=None,
+    mapa_anexos: dict[str, AnexoProtocolo] | None = None,
+) -> dict[str, Any]:
+    protocolo_id = d.protocolo_id
     return {
         "id": str(d.id),
         "status": d.status,
@@ -489,6 +620,12 @@ def serializar_diligencia_resumo(d: DiligenciaProtocolo) -> dict[str, Any]:
         "prazo_resposta": d.prazo_resposta.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "resposta_cidadao": d.resposta_cidadao or "",
         "anexos_ids": d.anexos_ids or [],
+        "anexos": serializar_anexos_diligencia(
+            d.anexos_ids,
+            protocolo_id=protocolo_id,
+            request=request,
+            mapa=mapa_anexos,
+        ),
         "respondida_em": (
             d.respondida_em.strftime("%Y-%m-%dT%H:%M:%SZ") if d.respondida_em else None
         ),
@@ -510,15 +647,32 @@ def serializar_diligencia_ativa_pwa(d: DiligenciaProtocolo | None) -> dict | Non
     }
 
 
-def campos_diligencia_backoffice(protocolo: Protocolo) -> dict[str, Any]:
+def campos_diligencia_backoffice(
+    protocolo: Protocolo,
+    *,
+    request=None,
+    user=None,
+    ordem: OrdemServico | None = None,
+) -> dict[str, Any]:
     ativa = diligencia_aguardando(protocolo)
-    eleg = avaliar_pode_abrir_diligencia(protocolo)
-    historico = [
-        serializar_diligencia_resumo(d)
-        for d in protocolo.diligencias.all().order_by("-criado_em")[:20]
-    ]
+    if user is not None:
+        eleg = avaliar_pode_abrir_diligencia_usuario(protocolo, user, ordem=ordem)
+    else:
+        eleg = avaliar_pode_abrir_diligencia(protocolo)
+    historico = _serializar_lista_diligencias(
+        protocolo.diligencias.all().order_by("-criado_em")[:20],
+        protocolo,
+        request=request,
+    )
+    mapa = None
+    if ativa and ativa.anexos_ids:
+        mapa = carregar_mapa_anexos_protocolo(protocolo.pk, ativa.anexos_ids)
     return {
-        "diligencia_ativa": serializar_diligencia_resumo(ativa) if ativa else None,
+        "diligencia_ativa": (
+            serializar_diligencia_resumo(ativa, request=request, mapa_anexos=mapa)
+            if ativa
+            else None
+        ),
         "diligencias": historico,
         "sla_pausado": sla_pausado(protocolo),
         "tempo_sla_pausado_segundos": int(protocolo.tempo_sla_pausado_segundos or 0),
@@ -527,22 +681,56 @@ def campos_diligencia_backoffice(protocolo: Protocolo) -> dict[str, Any]:
     }
 
 
-def campos_diligencia_pwa(protocolo: Protocolo) -> dict[str, Any]:
+def campos_diligencia_setorial_resumo(protocolo: Protocolo, ordem: OrdemServico) -> dict[str, Any]:
+    stats = estatisticas_diligencia_protocolo(protocolo)
+    aguardando = (
+        protocolo.status == Protocolo.Status.AGUARDANDO_CIDADAO
+        or ordem.status == OrdemServico.Status.AGUARDANDO_CIDADAO
+    )
+    sla_ordem = bool(ordem.sla_pausado_desde)
+    return {
+        **stats,
+        "aguardando_cidadao": aguardando,
+        "sla_pausado": sla_pausado(protocolo) or sla_ordem,
+    }
+
+
+def campos_diligencia_setorial_detalhe(
+    ordem: OrdemServico,
+    *,
+    request=None,
+    user=None,
+) -> dict[str, Any]:
+    protocolo = ordem.protocolo
+    campos = campos_diligencia_backoffice(
+        protocolo, request=request, user=user, ordem=ordem
+    )
+    campos.update(campos_diligencia_setorial_resumo(protocolo, ordem))
+    return campos
+
+
+def campos_diligencia_pwa(protocolo: Protocolo, *, request=None) -> dict[str, Any]:
     ativa = diligencia_aguardando(protocolo)
-    historico = [
-        {
-            "id": str(d.id),
-            "status": d.status,
-            "pergunta": d.pergunta,
-            "resposta_cidadao": d.resposta_cidadao or "",
-            "criado_em": d.criado_em.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        }
-        for d in protocolo.diligencias.exclude(
-            status=DiligenciaProtocolo.Status.CANCELADA
-        ).order_by("-criado_em")[:10]
-    ]
+    qs = protocolo.diligencias.exclude(status=DiligenciaProtocolo.Status.CANCELADA).order_by(
+        "-criado_em"
+    )[:10]
+    historico = _serializar_lista_diligencias(qs, protocolo, request=request)
+    mapa = None
+    if ativa and ativa.anexos_ids:
+        mapa = carregar_mapa_anexos_protocolo(protocolo.pk, ativa.anexos_ids)
+    ativa_payload = None
+    if ativa:
+        base = serializar_diligencia_ativa_pwa(ativa)
+        base["anexos_ids"] = ativa.anexos_ids or []
+        base["anexos"] = serializar_anexos_diligencia(
+            ativa.anexos_ids,
+            protocolo_id=protocolo.pk,
+            request=request,
+            mapa=mapa,
+        )
+        ativa_payload = base
     return {
         "aguardando_cidadao": protocolo.status == Protocolo.Status.AGUARDANDO_CIDADAO,
-        "diligencia_ativa": serializar_diligencia_ativa_pwa(ativa),
+        "diligencia_ativa": ativa_payload,
         "diligencias": historico,
     }

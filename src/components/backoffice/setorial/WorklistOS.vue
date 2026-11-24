@@ -121,6 +121,7 @@
 
               <!-- Status -->
               <td class="px-6 py-4">
+                <BadgeDiligenciaOS :ordem="ordem" class="mb-2" />
                 <span
                   :class="[
                     'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-badge text-xs font-semibold',
@@ -328,6 +329,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import CardOrdemKanban from './CardOrdemKanban.vue'
 import BadgeSuperOS from './BadgeSuperOS.vue'
+import BadgeDiligenciaOS from './BadgeDiligenciaOS.vue'
 
 const props = defineProps({
   ordens: {

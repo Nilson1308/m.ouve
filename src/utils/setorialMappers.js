@@ -1,4 +1,6 @@
-/** Normaliza payloads de GET /backoffice/setorial/ordens */
+/** Normaliza payloads de GET /backoffice/setorial/ordens (API v4.14.2) */
+
+import { mapDiligenciaFromApi } from '@/utils/diligenciaHelpers'
 
 export function mapEvidenciaSetorial(api) {
   return {
@@ -48,7 +50,47 @@ export function mapOrdemSetorial(api) {
     super_os_codigo: api.super_os_codigo || null,
     protocolo_codigo: api.protocolo_codigo || null,
     exigir_validacao_ouvidoria: Boolean(api.exigir_validacao_ouvidoria),
-    encerramento_direto_secretaria: Boolean(api.encerramento_direto_secretaria)
+    encerramento_direto_secretaria: Boolean(api.encerramento_direto_secretaria),
+    aguardando_cidadao: Boolean(api.aguardando_cidadao),
+    aguardandoCidadao: Boolean(api.aguardando_cidadao),
+    sla_pausado: Boolean(api.sla_pausado),
+    slaPausado: Boolean(api.sla_pausado),
+    qtd_diligencias_respondidas: Number(api.qtd_diligencias_respondidas ?? 0),
+    qtdDiligenciasRespondidas: Number(api.qtd_diligencias_respondidas ?? 0),
+    ultima_diligencia_respondida_em: api.ultima_diligencia_respondida_em ?? null,
+    ultimaDiligenciaRespondidaEm: api.ultima_diligencia_respondida_em ?? null,
+    qtd_anexos_diligencias: Number(api.qtd_anexos_diligencias ?? 0),
+    qtdAnexosDiligencias: Number(api.qtd_anexos_diligencias ?? 0),
+    diligencia_ativa: api.diligencia_ativa ? mapDiligenciaFromApi(api.diligencia_ativa) : null,
+    diligenciaAtiva: api.diligencia_ativa ? mapDiligenciaFromApi(api.diligencia_ativa) : null,
+    diligencias: Array.isArray(api.diligencias)
+      ? api.diligencias.map(mapDiligenciaFromApi).filter(Boolean)
+      : [],
+    pode_abrir_diligencia: Boolean(api.pode_abrir_diligencia),
+    podeAbrirDiligencia: Boolean(api.pode_abrir_diligencia),
+    motivo_bloqueio_diligencia: api.motivo_bloqueio_diligencia ?? null,
+    motivoBloqueioDiligencia: api.motivo_bloqueio_diligencia ?? null,
+    tempo_sla_pausado_segundos: Number(api.tempo_sla_pausado_segundos ?? 0),
+    tempoSlaPausadoSegundos: Number(api.tempo_sla_pausado_segundos ?? 0)
+  }
+}
+
+/** Payload UI para ProtocoloDiligenciaBackoffice a partir da OS setorial. */
+export function protocoloDiligenciaFromOrdem(ordem) {
+  if (!ordem) return null
+  return {
+    id: ordem.protocolo_uuid || ordem.protocolo_id,
+    protocolo_uuid: ordem.protocolo_uuid,
+    diligenciaAtiva: ordem.diligenciaAtiva ?? ordem.diligencia_ativa,
+    diligencia_ativa: ordem.diligencia_ativa ?? ordem.diligenciaAtiva,
+    diligencias: ordem.diligencias || [],
+    podeAbrirDiligencia: Boolean(ordem.podeAbrirDiligencia ?? ordem.pode_abrir_diligencia),
+    pode_abrir_diligencia: Boolean(ordem.pode_abrir_diligencia ?? ordem.podeAbrirDiligencia),
+    motivoBloqueioDiligencia:
+      ordem.motivoBloqueioDiligencia ?? ordem.motivo_bloqueio_diligencia ?? null,
+    motivo_bloqueio_diligencia:
+      ordem.motivo_bloqueio_diligencia ?? ordem.motivoBloqueioDiligencia ?? null,
+    ordens_servico: [{ id: ordem.id }]
   }
 }
 

@@ -8,14 +8,19 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from atendimentos.backoffice_services import get_protocolo_backoffice
+from atendimentos.diligencia_permissions import (
+    PermissaoDiligenciaProtocolo,
+    resolver_ordem_abertura_diligencia,
+    usuario_pode_gerir_diligencia,
+)
 from atendimentos.models import DiligenciaProtocolo
 from atendimentos.services.diligencia_service import (
     abrir_diligencia,
     cancelar_diligencia,
     diligencia_aguardando,
     responder_diligencia,
+    serializar_diligencia_resumo,
 )
-from core_auth.permissions import IsBackofficeStaff, PermissaoMesaTrabalho
 
 
 class AbrirDiligenciaSerializer(serializers.Serializer):
@@ -38,7 +43,7 @@ class ResponderDiligenciaSerializer(serializers.Serializer):
 
 
 class BackofficeAbrirDiligenciaView(APIView):
-    permission_classes = [IsAuthenticated, PermissaoMesaTrabalho]
+    permission_classes = [IsAuthenticated, PermissaoDiligenciaProtocolo]
 
     def post(self, request, protocolo_id):
         protocolo = get_protocolo_backoffice(protocolo_id, user=request.user)
@@ -52,30 +57,53 @@ class BackofficeAbrirDiligenciaView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        ordem = resolver_ordem_abertura_diligencia(
+            request.user,
+            protocolo,
+            ser.validated_data.get("ordem_servico_id"),
+        )
+
         diligencia = abrir_diligencia(
             protocolo,
             autor=request.user,
             unidade_solicitante_id=unidade_id,
             pergunta=ser.validated_data["pergunta"],
             exige_anexo=ser.validated_data.get("exige_anexo", False),
-            ordem_servico_id=ser.validated_data.get("ordem_servico_id"),
+            ordem_servico_id=ordem.pk if ordem else ser.validated_data.get("ordem_servico_id"),
             request=request,
         )
-        from atendimentos.services.diligencia_service import serializar_diligencia_resumo
+        diligencia = DiligenciaProtocolo.objects.select_related(
+            "unidade_solicitante", "protocolo"
+        ).get(pk=diligencia.pk)
 
-        return Response(serializar_diligencia_resumo(diligencia), status=status.HTTP_201_CREATED)
+        return Response(
+            serializar_diligencia_resumo(diligencia, request=request),
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class BackofficeCancelarDiligenciaView(APIView):
-    permission_classes = [IsAuthenticated, PermissaoMesaTrabalho]
+    permission_classes = [IsAuthenticated, PermissaoDiligenciaProtocolo]
 
     def post(self, request, diligencia_id):
         try:
-            diligencia = DiligenciaProtocolo.objects.select_related("protocolo").get(
-                pk=diligencia_id
-            )
+            diligencia = DiligenciaProtocolo.objects.select_related(
+                "protocolo", "unidade_solicitante"
+            ).get(pk=diligencia_id)
         except DiligenciaProtocolo.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
+
+        if not usuario_pode_gerir_diligencia(request.user, diligencia=diligencia):
+            return Response(
+                {
+                    "detail": (
+                        "Sem permissão para cancelar esta diligência "
+                        "(somente a unidade solicitante ou mesa com criação)."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         get_protocolo_backoffice(diligencia.protocolo_id, user=request.user)
 
         ser = CancelarDiligenciaSerializer(data=request.data)
@@ -86,9 +114,11 @@ class BackofficeCancelarDiligenciaView(APIView):
             motivo=ser.validated_data.get("motivo") or "",
             request=request,
         )
-        from atendimentos.services.diligencia_service import serializar_diligencia_resumo
+        diligencia = DiligenciaProtocolo.objects.select_related(
+            "unidade_solicitante", "protocolo"
+        ).get(pk=diligencia.pk)
 
-        return Response(serializar_diligencia_resumo(diligencia))
+        return Response(serializar_diligencia_resumo(diligencia, request=request))
 
 
 class ProtocoloResponderDiligenciaMixin:
@@ -114,6 +144,11 @@ class ProtocoloResponderDiligenciaMixin:
             anexos_ids=ser.validated_data.get("anexos_ids"),
             request=request,
         )
-        from atendimentos.services.diligencia_service import serializar_diligencia_resumo
+        diligencia = DiligenciaProtocolo.objects.select_related(
+            "unidade_solicitante", "protocolo"
+        ).get(pk=diligencia.pk)
 
-        return Response(serializar_diligencia_resumo(diligencia), status=status.HTTP_200_OK)
+        return Response(
+            serializar_diligencia_resumo(diligencia, request=request),
+            status=status.HTTP_200_OK,
+        )

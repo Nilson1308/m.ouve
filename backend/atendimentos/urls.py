@@ -68,6 +68,7 @@ from atendimentos.setorial_views import (
     FormalizarOrdemServicoView,
     GerarMagicLinkOrdemView,
     SetorialFiltrosOpcoesView,
+    SetorialOrdemDetalheView,
     SetorialOrdensListView,
     UploadEvidenciasOrdemSetorialView,
 )
@@ -156,6 +157,10 @@ urlpatterns = [
     ),
     path("backoffice/setorial/filtros", SetorialFiltrosOpcoesView.as_view()),
     path("backoffice/setorial/ordens", SetorialOrdensListView.as_view()),
+    path(
+        "backoffice/setorial/ordens/<uuid:ordem_id>",
+        SetorialOrdemDetalheView.as_view(),
+    ),
     path("backoffice/textos-padrao", TextoPadraoListCreateView.as_view()),
     path(
         "backoffice/textos-padrao/<uuid:pk>",
