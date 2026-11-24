@@ -32,6 +32,14 @@
             class="badge badge-sm bg-danger-100 text-danger-700 dark:bg-danger-900 dark:text-danger-300"
           >
             Atrasado
+            <template v-if="protocolo.diasAtraso > 0"> · {{ protocolo.diasAtraso }}d</template>
+          </span>
+          <span
+            v-if="protocolo.qtdCobrancasCidadao > 0"
+            class="inline-flex items-center gap-1 badge badge-sm bg-amber-100 text-amber-900 dark:bg-amber-900/50 dark:text-amber-100 border border-amber-300/60"
+          >
+            <BellAlertIcon class="w-3.5 h-3.5" aria-hidden="true" />
+            {{ protocolo.qtdCobrancasCidadao === 1 ? '1 cobrança' : `${protocolo.qtdCobrancasCidadao} cobranças` }}
           </span>
         </div>
         
@@ -239,6 +247,7 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSuperOSStore } from '@/stores/super_os'
 import {
+  BellAlertIcon,
   MapPinIcon,
   BuildingOffice2Icon,
   UserIcon,

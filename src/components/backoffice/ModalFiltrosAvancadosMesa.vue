@@ -204,6 +204,14 @@
               </section>
 
               <section>
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Cobrança do cidadão</h3>
+                <label class="flex items-center gap-3 min-h-[44px] cursor-pointer">
+                  <input v-model="local.apenasCobrados" type="checkbox" class="w-4 h-4 rounded text-primary-600" />
+                  <span class="text-sm text-gray-700 dark:text-gray-300">Apenas protocolos cobrados pelo cidadão</span>
+                </label>
+              </section>
+
+              <section>
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Urgência</h3>
                 <div class="flex flex-wrap gap-2">
                   <button
@@ -277,7 +285,8 @@ const local = reactive({
   statusLista: [],
   urgenciaLista: [],
   equipamentoId: '',
-  equipamentoRotulo: ''
+  equipamentoRotulo: '',
+  apenasCobrados: false
 })
 
 function snapshotFromStore() {
@@ -290,6 +299,7 @@ function snapshotFromStore() {
   local.equipamentoId = f.equipamentoId || ''
   local.equipamentoRotulo = f.equipamentoRotulo || ''
   buscaEquipamento.value = f.equipamentoRotulo || ''
+  local.apenasCobrados = Boolean(f.apenasCobrados)
 }
 
 async function buscarEquipamentosLookup() {
@@ -378,7 +388,8 @@ const totalSelecionados = computed(
     local.bairros.length +
     local.statusLista.length +
     local.urgenciaLista.length +
-    (local.equipamentoId ? 1 : 0)
+    (local.equipamentoId ? 1 : 0) +
+    (local.apenasCobrados ? 1 : 0)
 )
 
 function toggleItem(arr, value) {
@@ -424,6 +435,7 @@ function limparLocal() {
   local.equipamentoId = ''
   local.equipamentoRotulo = ''
   buscaEquipamento.value = ''
+  local.apenasCobrados = false
 }
 
 function aplicar() {
@@ -434,7 +446,8 @@ function aplicar() {
     statusLista: [...local.statusLista],
     urgenciaLista: [...local.urgenciaLista],
     equipamentoId: local.equipamentoId,
-    equipamentoRotulo: local.equipamentoRotulo
+    equipamentoRotulo: local.equipamentoRotulo,
+    apenasCobrados: local.apenasCobrados
   })
 }
 </script>

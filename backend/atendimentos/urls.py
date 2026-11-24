@@ -32,6 +32,13 @@ from atendimentos.admin_notificacoes_views import (
     NotificacaoBroadcastView,
 )
 from atendimentos.configuracao_sistema_views import ConfiguracaoSistemaAdminView
+from atendimentos.sla_cobranca_views import (
+    ConfiguracaoSlaCobrancaView,
+    RelatorioSlaAtrasadosExportarView,
+    RelatorioSlaAtrasadosView,
+    RelatorioSlaDispararView,
+    RelatorioSlaEnviosListView,
+)
 from atendimentos.saude_infra_views import SaudeInfraAdminView
 from atendimentos.dashboard_views import (
     DashboardBairrosView,
@@ -145,6 +152,46 @@ urlpatterns = [
     path(
         "backoffice/admin/configuracao-sistema",
         ConfiguracaoSistemaAdminView.as_view(),
+    ),
+    path(
+        "backoffice/configuracoes/sla-cobranca",
+        ConfiguracaoSlaCobrancaView.as_view(),
+    ),
+    path(
+        "backoffice/configuracoes/sla-cobranca/",
+        ConfiguracaoSlaCobrancaView.as_view(),
+    ),
+    path(
+        "backoffice/relatorios/sla-atrasados",
+        RelatorioSlaAtrasadosView.as_view(),
+    ),
+    path(
+        "backoffice/relatorios/sla-atrasados/",
+        RelatorioSlaAtrasadosView.as_view(),
+    ),
+    path(
+        "backoffice/relatorios/sla-atrasados/exportar",
+        RelatorioSlaAtrasadosExportarView.as_view(),
+    ),
+    path(
+        "backoffice/relatorios/sla-atrasados/exportar/",
+        RelatorioSlaAtrasadosExportarView.as_view(),
+    ),
+    path(
+        "backoffice/relatorios/sla-atrasados/disparar-agora",
+        RelatorioSlaDispararView.as_view(),
+    ),
+    path(
+        "backoffice/relatorios/sla-atrasados/disparar-agora/",
+        RelatorioSlaDispararView.as_view(),
+    ),
+    path(
+        "backoffice/relatorios/sla-atrasados/envios",
+        RelatorioSlaEnviosListView.as_view(),
+    ),
+    path(
+        "backoffice/relatorios/sla-atrasados/envios/",
+        RelatorioSlaEnviosListView.as_view(),
     ),
     path(
         "backoffice/admin/saude-infra",

@@ -1,0 +1,8 @@
+{{ titulo }}
+
+Total: {{ total_protocolos }} protocolo(s) em atraso
+Com cobrança do cidadão: {{ total_cobrados }}
+
+{% for row in linhas %}
+- {{ row.codigo }} | {{ row.servico }} | {{ row.equipamento }} | {{ row.dias_atraso }} dia(s) | cobranças: {{ row.cobrancas }} | {{ row.link }}
+{% endfor %}

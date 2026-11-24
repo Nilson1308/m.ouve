@@ -114,6 +114,15 @@ class ProtocoloListSerializer(ProtocoloServicoMixin, serializers.ModelSerializer
             "anexos",
         )
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if request and getattr(request, "user", None) and request.user.is_authenticated:
+            from atendimentos.sla_cobranca_views import campos_cobranca_protocolo_pwa
+
+            data.update(campos_cobranca_protocolo_pwa(instance, request.user))
+        return data
+
     def get_localizacao(self, obj):
         if not obj.localizacao and not obj.endereco_texto:
             return None

@@ -1,6 +1,8 @@
 <template>
   <div class="space-y-6">
     <!-- Vitais: sempre visíveis -->
+    <ProtocoloSlaCobrancaResumo :protocolo="protocolo" />
+
     <section class="card" aria-labelledby="titulo-cidadao">
       <div class="flex items-center gap-3 mb-4">
         <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
@@ -224,6 +226,7 @@
 </template>
 
 <script setup>
+import ProtocoloSlaCobrancaResumo from '@/components/backoffice/protocolo/ProtocoloSlaCobrancaResumo.vue'
 import { computed } from 'vue'
 import {
   CpuChipIcon,

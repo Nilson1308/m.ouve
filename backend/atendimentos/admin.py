@@ -5,7 +5,10 @@ from atendimentos.models import (
     AnexoOrdemServico,
     AnexoProtocolo,
     AvaliacaoProtocolo,
+    CobrancaProtocolo,
+    ConfiguracaoSlaCobranca,
     ConfiguracaoSistema,
+    RelatorioSlaEnvio,
     MensagemChat,
     NotificacaoCidadao,
     NotificacaoInterna,
@@ -70,6 +73,40 @@ class AvaliacaoProtocoloAdmin(admin.ModelAdmin):
     list_display = ("protocolo", "nota", "criada_em")
     list_filter = ("nota",)
     raw_id_fields = ("protocolo",)
+
+
+@admin.register(ConfiguracaoSlaCobranca)
+class ConfiguracaoSlaCobrancaAdmin(admin.ModelAdmin):
+    list_display = (
+        "singleton_id",
+        "cobranca_cidadao_ativa",
+        "cooldown_cobranca_horas",
+        "digest_email_ativo",
+        "digest_periodicidade",
+        "digest_hora_envio",
+        "atualizado_em",
+    )
+    readonly_fields = ("atualizado_em",)
+
+    def has_add_permission(self, request):
+        return not ConfiguracaoSlaCobranca.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(CobrancaProtocolo)
+class CobrancaProtocoloAdmin(admin.ModelAdmin):
+    list_display = ("protocolo", "solicitante", "criado_em")
+    raw_id_fields = ("protocolo", "solicitante")
+    search_fields = ("protocolo__codigo",)
+
+
+@admin.register(RelatorioSlaEnvio)
+class RelatorioSlaEnvioAdmin(admin.ModelAdmin):
+    list_display = ("tipo", "status", "total_protocolos", "criado_em")
+    list_filter = ("tipo", "status")
+    raw_id_fields = ("unidade", "disparado_por")
 
 
 @admin.register(ConfiguracaoSistema)

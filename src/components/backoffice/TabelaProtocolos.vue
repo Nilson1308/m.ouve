@@ -92,6 +92,18 @@
                     >
                       ✨ IA Cluster
                     </span>
+                    <span
+                      v-if="protocolo.qtdCobrancasCidadao > 0"
+                      class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 border border-amber-300/50"
+                    >
+                      🔔 {{ protocolo.qtdCobrancasCidadao === 1 ? '1 cobrança' : `${protocolo.qtdCobrancasCidadao} cobranças` }}
+                    </span>
+                    <span
+                      v-if="protocolo.sla?.vencido && protocolo.diasAtraso > 0"
+                      class="text-[10px] font-semibold text-red-700 dark:text-red-300"
+                    >
+                      {{ protocolo.diasAtraso }}d atraso
+                    </span>
                   </div>
                   <div class="text-xs text-gray-500 dark:text-gray-400">
                     {{ formatarData(protocolo.criadoEm) }}

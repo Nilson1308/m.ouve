@@ -177,6 +177,7 @@ import {
   BellAlertIcon,
   DocumentTextIcon,
   BookOpenIcon,
+  ClockIcon,
   ChevronDoubleLeftIcon,
   ChevronRightIcon
 } from '@heroicons/vue/24/outline'
@@ -208,6 +209,13 @@ const menuDef = computed(() => [
     to: '/backoffice/mesa-trabalho',
     icon: ClipboardDocumentListIcon,
     label: 'Mesa de Trabalho',
+    perm: 'mesa_trabalho.ler'
+  },
+  {
+    key: 'sla-cobrancas',
+    to: '/backoffice/relatorios/sla-cobrancas',
+    icon: ClockIcon,
+    label: 'SLA & Cobranças',
     perm: 'mesa_trabalho.ler'
   },
   {

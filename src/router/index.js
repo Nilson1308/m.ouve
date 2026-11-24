@@ -143,6 +143,12 @@ const router = createRouter({
           meta: { requirePermission: 'mesa_trabalho.ler', pageTitle: 'Mesa de Trabalho' }
         },
         {
+          path: 'relatorios/sla-cobrancas',
+          name: 'backoffice-sla-cobrancas',
+          component: () => import('@/views/backoffice/SlaCobrancasView.vue'),
+          meta: { requirePermission: 'mesa_trabalho.ler', pageTitle: 'SLA & Cobranças' }
+        },
+        {
           path: 'protocolo/:id',
           name: 'backoffice-protocolo-detalhes',
           component: () => import('@/views/backoffice/DetalhesProtocoloInternoView.vue'),

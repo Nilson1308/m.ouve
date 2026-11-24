@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 
 from atendimentos.geocoding import reverse_geocode, search_address
 from atendimentos.models import AnexoProtocolo, Protocolo, ProtocoloComentario
+from atendimentos.sla_cobranca_views import ProtocoloCobrarMixin
 from atendimentos.serializers import (
     ComentarioSerializer,
     ProtocoloCreateSerializer,
@@ -36,7 +37,7 @@ def _filtrar_por_categoria_legada(qs, valor: str):
     )
 
 
-class ProtocoloViewSet(viewsets.ModelViewSet):
+class ProtocoloViewSet(ProtocoloCobrarMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     lookup_field = "pk"
     lookup_value_regex = r"[^/]+"
@@ -110,6 +111,10 @@ class ProtocoloViewSet(viewsets.ModelViewSet):
                 arquivo=audio,
                 tipo_mime=audio.content_type or "audio/mpeg",
             )
+
+    @action(detail=True, methods=["post"], url_path="cobrar")
+    def cobrar(self, request, pk=None):
+        return self.cobrar_protocolo(request, self.get_object())
 
     @action(detail=True, methods=["post"], url_path="comentarios")
     def comentarios(self, request, codigo=None):

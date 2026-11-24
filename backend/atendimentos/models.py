@@ -91,6 +91,9 @@ class Protocolo(models.Model):
         blank=True,
         related_name="protocolos",
     )
+    qtd_cobrancas_cidadao = models.PositiveIntegerField(default=0, db_index=True)
+    ultima_cobranca_em = models.DateTimeField(null=True, blank=True)
+    ultimo_alerta_sla_nivel = models.CharField(max_length=32, blank=True, default="")
 
     class Meta:
         ordering = ["-data_criacao"]
@@ -101,6 +104,7 @@ class Protocolo(models.Model):
             models.Index(fields=["super_os"]),
             models.Index(fields=["nota_satisfacao"]),
             models.Index(fields=["equipamento"]),
+            models.Index(fields=["qtd_cobrancas_cidadao"]),
         ]
 
     def __str__(self):
@@ -655,6 +659,112 @@ class PushSubscription(models.Model):
 
     def __str__(self):
         return f"Push {self.usuario_id} ({self.endpoint[:48]}…)"
+
+
+class ConfiguracaoSlaCobranca(models.Model):
+    """Parâmetros de SLA, cobrança do cidadão e digest (singleton id=1)."""
+
+    singleton_id = models.PositiveSmallIntegerField(
+        primary_key=True,
+        default=1,
+        editable=False,
+    )
+    cobranca_cidadao_ativa = models.BooleanField(default=True)
+    cooldown_cobranca_horas = models.PositiveIntegerField(default=48)
+    alerta_preventivo_percentual = models.PositiveIntegerField(default=80)
+    escalonamento_controladoria_dias = models.PositiveIntegerField(default=3)
+    emails_controladoria = models.JSONField(default=list, blank=True)
+    digest_email_ativo = models.BooleanField(default=True)
+    digest_periodicidade = models.CharField(
+        max_length=16,
+        choices=(
+            ("diario", "Diário"),
+            ("semanal", "Semanal"),
+        ),
+        default="diario",
+    )
+    digest_hora_envio = models.PositiveSmallIntegerField(default=8)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Configuração SLA e cobrança"
+        verbose_name_plural = "Configuração SLA e cobrança"
+
+    def save(self, *args, **kwargs):
+        self.singleton_id = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> "ConfiguracaoSlaCobranca":
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return "Configuração SLA e cobrança"
+
+
+class CobrancaProtocolo(models.Model):
+    """Registro de cobrança do munícipe sobre protocolo em atraso."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    protocolo = models.ForeignKey(
+        Protocolo,
+        on_delete=models.CASCADE,
+        related_name="cobrancas_cidadao",
+    )
+    solicitante = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="cobrancas_protocolo",
+    )
+    mensagem = models.TextField(blank=True, default="", max_length=300)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+        indexes = [
+            models.Index(fields=["protocolo", "-criado_em"]),
+        ]
+
+
+class RelatorioSlaEnvio(models.Model):
+    """Auditoria de envios de digest / disparo manual de SLA."""
+
+    class Tipo(models.TextChoices):
+        DIGEST_UNIDADE = "digest_unidade", "Digest unidade"
+        DIGEST_CONTROLADORIA = "digest_controladoria", "Digest controladoria"
+        DISPARO_MANUAL = "disparo_manual", "Disparo manual"
+
+    class Status(models.TextChoices):
+        ENVIADO = "enviado", "Enviado"
+        ERRO = "erro", "Erro"
+        SEM_PENDENCIAS = "sem_pendencias", "Sem pendências"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tipo = models.CharField(max_length=32, choices=Tipo.choices)
+    unidade = models.ForeignKey(
+        "catalogo.UnidadeAdministrativa",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="relatorios_sla_enviados",
+    )
+    destinatarios = models.JSONField(default=list, blank=True)
+    total_protocolos = models.PositiveIntegerField(default=0)
+    total_cobrados = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=24, choices=Status.choices)
+    erro_detalhe = models.TextField(blank=True, default="")
+    disparado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="relatorios_sla_disparados",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
 
 
 class ConfiguracaoSistema(models.Model):

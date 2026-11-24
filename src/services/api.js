@@ -236,6 +236,17 @@ export const protocolosService = {
   },
 
   /**
+   * Cobrança de retorno pelo cidadão (SLA vencido) — POST sem trailing slash (v4.12).
+   */
+  async cobrar(protocoloId, { mensagem = '' } = {}) {
+    const response = await api.post(
+      `/protocolos/${encodeURIComponent(protocoloId)}/cobrar`,
+      { mensagem }
+    )
+    return response.data
+  },
+
+  /**
    * Registra avaliação CSAT (nota 1–5) no protocolo resolvido.
    */
   async avaliar(protocoloId, { nota, comentario = '' }) {
@@ -615,6 +626,42 @@ export const chatService = {
       comentario
     })
     return response.data
+  }
+}
+
+// ==================== SLA & COBRANÇA (v4.12) ====================
+
+export const slaCobrancaService = {
+  async obterConfiguracao() {
+    const { data } = await api.get('/backoffice/configuracoes/sla-cobranca')
+    return data
+  },
+
+  async salvarConfiguracao(patch) {
+    const { data } = await api.patch('/backoffice/configuracoes/sla-cobranca', patch)
+    return data
+  },
+
+  async listarAtrasados(params = {}) {
+    const { data } = await api.get('/backoffice/relatorios/sla-atrasados', { params })
+    return data
+  },
+
+  async exportarAtrasadosCsv(params = {}) {
+    return api.get('/backoffice/relatorios/sla-atrasados/exportar', {
+      params,
+      responseType: 'blob'
+    })
+  },
+
+  async dispararDigest(body = {}) {
+    const { data } = await api.post('/backoffice/relatorios/sla-atrasados/disparar-agora', body)
+    return data
+  },
+
+  async listarEnvios(params = {}) {
+    const { data } = await api.get('/backoffice/relatorios/sla-atrasados/envios', { params })
+    return data
   }
 }
 

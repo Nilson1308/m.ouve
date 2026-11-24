@@ -188,6 +188,21 @@ CELERY_TASK_ROUTES = {
     "ia_orchestrator.*": {"queue": "ouve"},
 }
 
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = {
+    "verificar-escalonamento-sla-horario": {
+        "task": "atendimentos.tasks.verificar_escalonamento_sla_task",
+        "schedule": crontab(minute=0),
+    },
+    "digest-sla-atrasados-agendado": {
+        "task": "atendimentos.tasks.enviar_digest_sla_atrasados_task",
+        "schedule": crontab(minute=0),
+    },
+}
+
+BACKOFFICE_FRONTEND_BASE_URL = config("BACKOFFICE_FRONTEND_BASE_URL", default="")
+
 GOVBR_AUTHORIZE_URL = config(
     "GOVBR_AUTHORIZE_URL",
     default="https://sso.staging.acesso.gov.br/authorize",

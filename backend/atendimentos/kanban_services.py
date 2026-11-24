@@ -248,6 +248,10 @@ def filtrar_protocolos_kanban(qs, params):
             Q(codigo__icontains=busca) | Q(descricao__icontains=busca)
         )
 
+    apenas_cobrados = params.get("apenas_cobrados")
+    if apenas_cobrados is not None and str(apenas_cobrados).lower() in ("1", "true", "yes"):
+        qs = qs.filter(qtd_cobrancas_cidadao__gte=1)
+
     sla_vencido = params.get("sla_vencido")
     if sla_vencido is not None:
         flag = str(sla_vencido).lower() in ("1", "true", "yes")

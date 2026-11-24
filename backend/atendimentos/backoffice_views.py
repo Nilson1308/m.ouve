@@ -64,6 +64,7 @@ class BackofficeProtocoloFilterSet(filters.FilterSet):
     servico_id = filters.BaseInFilter(field_name="servico_id")
     bairro = filters.BaseInFilter(method="filter_bairro")
     equipamento_id = filters.UUIDFilter(field_name="equipamento_id")
+    apenas_cobrados = filters.BooleanFilter(method="filter_apenas_cobrados")
 
     class Meta:
         model = Protocolo
@@ -118,6 +119,11 @@ class BackofficeProtocoloFilterSet(filters.FilterSet):
         if value:
             return qs.filter(_prazo_sla__lt=Now())
         return qs.filter(_prazo_sla__gte=Now())
+
+    def filter_apenas_cobrados(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(qtd_cobrancas_cidadao__gte=1)
 
 
 class BackofficeFiltrosMesaView(APIView):

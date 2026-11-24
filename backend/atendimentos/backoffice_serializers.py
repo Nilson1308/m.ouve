@@ -203,6 +203,12 @@ class BackofficeProtocoloKanbanSerializer(serializers.ModelSerializer):
     data_atualizacao = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%SZ")
     triagem_sugerida = serializers.JSONField(read_only=True)
     equipamento = serializers.SerializerMethodField()
+    qtd_cobrancas_cidadao = serializers.IntegerField(read_only=True)
+    ultima_cobranca_em = serializers.DateTimeField(
+        format="%Y-%m-%dT%H:%M:%SZ", read_only=True, allow_null=True
+    )
+    ultimo_alerta_sla_nivel = serializers.CharField(read_only=True)
+    dias_atraso = serializers.SerializerMethodField()
 
     class Meta:
         model = Protocolo
@@ -227,7 +233,16 @@ class BackofficeProtocoloKanbanSerializer(serializers.ModelSerializer):
             "ordens_servico",
             "triagem_sugerida",
             "equipamento",
+            "qtd_cobrancas_cidadao",
+            "ultima_cobranca_em",
+            "ultimo_alerta_sla_nivel",
+            "dias_atraso",
         )
+
+    def get_dias_atraso(self, obj):
+        from atendimentos.services.sla_cobranca_service import dias_atraso
+
+        return dias_atraso(obj)
 
     def get_equipamento(self, obj):
         eq = getattr(obj, "equipamento", None)

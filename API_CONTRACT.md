@@ -735,6 +735,57 @@ Campos adicionais no serializer de detalhe:
 |-------|------|-----------|
 | `pode_avaliar` | bool | `true` se `status=resolvido` e ainda não há `AvaliacaoProtocolo` |
 | `avaliacao` | objeto \| null | `{ "nota", "comentario", "criada_em" }` quando já avaliado |
+| `pode_cobrar` | bool | (v4.12) elegível para `POST .../cobrar` |
+| `motivo_bloqueio_cobranca` | string \| null | (v4.12) `dentro_do_prazo`, `em_cooldown`, `encerrado`, `desabilitado` ou `null` |
+| `proxima_cobranca_em` | string \| null | (v4.12) ISO8601 quando em cooldown (anti-spam) |
+| `qtd_cobrancas_cidadao` | int | (v4.12) total de cobranças registradas |
+| `prazo_sla` | string | (v4.12) deadline calculado a partir do `sla_horas` do serviço |
+| `dias_atraso` | int | (v4.12) dias corridos após o vencimento do SLA (0 se no prazo) |
+| `ultimo_alerta_sla_nivel` | string | (v4.12) último nível da régua (`preventivo_80`, `vencido`, `escalonado_controladoria`, `""`) |
+
+Os mesmos campos de cobrança/SLA aparecem na **listagem** `GET /api/v1/protocolos` (PWA).
+
+### POST `/api/v1/protocolos/<id>/cobrar` (v4.12)
+
+**Auth:** Bearer JWT — **apenas o cidadão dono** do protocolo.
+
+**`<id>`:** UUID ou código `PROT-YYYY-NNN` (mesma regra do detalhe).
+
+**Request (JSON, opcional):**
+
+```json
+{
+  "mensagem": "Opcional — até 300 caracteres"
+}
+```
+
+**Regras:**
+
+- Protocolo em aberto (não `resolvido` / `rejeitado` / arquivado).
+- `ConfiguracaoSlaCobranca.cobranca_cidadao_ativa = true`.
+- SLA vencido (`prazo_sla < now()`); caso contrário `400`.
+- Cooldown via Redis (`cobranca_cidadao:{protocolo_id}`) com fallback em `ultima_cobranca_em` — duração `cooldown_cobranca_horas` (padrão 48h) → `429` com `proxima_cobranca_em`.
+
+**Response 201:**
+
+```json
+{
+  "id": "uuid-da-cobranca",
+  "protocolo": "PROT-2026-014",
+  "qtd_cobrancas_cidadao": 1,
+  "ultima_cobranca_em": "2026-11-24T14:00:00Z"
+}
+```
+
+**Erros:**
+
+| Código | Situação |
+|--------|----------|
+| `400` | Dentro do prazo, protocolo encerrado, cobrança desabilitada ou usuário não autorizado (`{ "detalhe": "..." }`) |
+| `404` | Protocolo inexistente ou de outro usuário |
+| `429` | Em cooldown — corpo inclui `proxima_cobranca_em` (ISO8601) |
+
+**Efeitos:** grava `CobrancaProtocolo`, incrementa contadores, histórico administrativo, TTL Redis e notificação in-app para gestores da unidade (e unidades com OS em aberto, scatter-gather).
 
 ### POST `/api/v1/chat/sessao/<sessao_id>/avaliar-abertura`
 
@@ -1018,6 +1069,101 @@ Desativa a conta e remove PII (mesmo fluxo técnico da anonimização). Body opc
 
 ---
 
+## ⏱️ SLA, Cobrança do Cidadão e Relatórios (v4.12)
+
+Configuração **singleton** `ConfiguracaoSlaCobranca` (banco — sem prazos/e-mails fixos no código).  
+Workers Celery Beat: `verificar_escalonamento_sla_task` (horária) e `enviar_digest_sla_atrasados_task` (respeita `digest_email_ativo`, `digest_periodicidade`, `digest_hora_envio`).
+
+**Níveis de alerta (`ultimo_alerta_sla_nivel`):** `preventivo_80` (≥ percentual configurado do prazo), `vencido`, `escalonado_controladoria` (atraso ≥ N dias **ou** vencido com ≥1 cobrança do cidadão).
+
+### GET / PATCH `/api/v1/backoffice/configuracoes/sla-cobranca`
+
+**Permissão:** `configuracoes.ler` (GET) / `configuracoes.editar` (PATCH).
+
+**Campos:**
+
+| Campo | Tipo | Padrão | Descrição |
+|-------|------|--------|-----------|
+| `cobranca_cidadao_ativa` | bool | `true` | Habilita botão de cobrança no PWA |
+| `cooldown_cobranca_horas` | int | `48` | Intervalo mínimo entre cobranças |
+| `alerta_preventivo_percentual` | int | `80` | 50–99 — gatilho preventivo |
+| `escalonamento_controladoria_dias` | int | `3` | Dias de atraso para escalonar |
+| `emails_controladoria` | string[] | `[]` | Destinatários do digest executivo |
+| `digest_email_ativo` | bool | `true` | Liga envio automático Celery |
+| `digest_periodicidade` | string | `diario` | `diario` \| `semanal` |
+| `digest_hora_envio` | int | `8` | 0–23 (fuso do servidor) |
+| `atualizado_em` | string | — | ISO8601 (read-only) |
+
+### GET `/api/v1/backoffice/relatorios/sla-atrasados`
+
+**Permissão:** `mesa_trabalho.ler` + escopo `escopo_dados` (mesma governança da Mesa).
+
+**Query:**
+
+| Parâmetro | Tipo | Descrição |
+|-----------|------|-----------|
+| `unidade_id` | uuid | Filtra por unidade responsável / OS |
+| `servico_id` | uuid | Serviço do catálogo |
+| `equipamento_id` | uuid | Equipamento vinculado |
+| `apenas_cobrados` | bool | Somente protocolos com `qtd_cobrancas_cidadao >= 1` |
+| `dias_atraso_min` | int | Mínimo de dias após vencimento |
+| `ordenacao` | string | `atraso_desc` (padrão) \| `cobrancas_desc` |
+| `page` / `page_size` | int | Paginação (máx. 100) |
+
+**Response 200:**
+
+```json
+{
+  "resumo": {
+    "total_atrasados": 12,
+    "total_com_cobranca": 3,
+    "total_escalonados": 2,
+    "por_unidade": [
+      { "unidade_id": "uuid", "nome": "Secretaria X", "total": 5, "com_cobranca": 1 }
+    ]
+  },
+  "paginacao": { "pagina": 1, "tamanho_pagina": 25, "total": 12 },
+  "resultados": [
+    {
+      "protocolo_id": "uuid",
+      "codigo": "PROT-2026-014",
+      "servico_nome": "...",
+      "unidade_nome": "...",
+      "equipamento": "UBS Centro",
+      "responsavel_nome": "...",
+      "prazo_sla": "2026-11-20T12:00:00Z",
+      "dias_atraso": 4,
+      "qtd_cobrancas_cidadao": 2,
+      "ultima_cobranca_em": "2026-11-22T10:00:00Z",
+      "ultimo_alerta_sla_nivel": "vencido"
+    }
+  ]
+}
+```
+
+### GET `/api/v1/backoffice/relatorios/sla-atrasados/exportar`
+
+Mesmos filtros da listagem. **Response:** `text/csv; charset=utf-8` com BOM UTF-8 (`utf-8-sig`) — colunas: código, serviço, unidade, equipamento, responsável, prazo SLA, dias atraso, cobranças, última cobrança, nível alerta.
+
+### POST `/api/v1/backoffice/relatorios/sla-atrasados/disparar-agora`
+
+**Permissão:** `mesa_trabalho.criar` (gestor / controladoria conforme RBAC).
+
+```json
+{
+  "unidade_id": "uuid-opcional",
+  "incluir_controladoria": true
+}
+```
+
+Executa o digest imediato (1 e-mail consolidado por unidade + resumo controladoria — não 1 e-mail por protocolo). **Response 202:** lista de `RelatorioSlaEnvio` gerados.
+
+### GET `/api/v1/backoffice/relatorios/sla-atrasados/envios`
+
+Histórico paginado de envios (`tipo`: `digest_unidade`, `digest_controladoria`, `disparo_manual`; `status`: `enviado`, `erro`, `sem_pendencias`).
+
+---
+
 ## 🏛️ Backoffice — Mesa de Trabalho (`/api/v1/backoffice/*`)
 
 Endpoints para o **Backoffice (Vue 3)**: Kanban, tabela densa e despacho **Scatter-Gather**.
@@ -1062,6 +1208,7 @@ Lista protocolos otimizada para Kanban / tabela, com ordens de serviço aninhada
 | `busca`       | string  | Busca em `codigo` e `descricao`                        |
 | `urgencia`    | string  | Valor em `dados_dinamicos` (urgencia/prioridade)       |
 | `sla_vencido` | boolean | `true` = fora do prazo do catálogo (`sla_horas`)       |
+| `apenas_cobrados` | boolean | (v4.12) `true` = `qtd_cobrancas_cidadao >= 1`      |
 | `page`        | int     | Página (padrão 1)                                      |
 | `per_page`    | int     | Itens por página (máx. 100)                            |
 | `ordering`    | string  | Ex.: `-data_criacao`, `codigo`, `status`               |
@@ -1210,6 +1357,10 @@ Detalhamento **360º** para a tela interna: dados coletados pela IA, histórico 
 | `resposta_cidadao` / `observacoes_internas` | Preenchidos após validação |
 | `triagem_sugerida` | Objeto do motor determinístico (v4.9); `{}` se não aplicável |
 | `equipamento` | `{ id, nome, tipo, bairro }` ou `null` (v4.11) |
+| `qtd_cobrancas_cidadao` | int (v4.12) |
+| `ultima_cobranca_em` | string \| null (v4.12) |
+| `dias_atraso` | int (v4.12) |
+| `ultimo_alerta_sla_nivel` | string (v4.12) |
 | `ordens_servico[]` | Inclui `observacoes_execucao`, `concluido_em`, `anexos[]`, `fotos_execucao[]`, `prazo_em` |
 
 **Erros:** `403`, `404`.
@@ -2148,7 +2299,7 @@ Scatter-gather da Super OS — mesmo contrato do despacho de protocolo.
 **Versão:** 2.2  
 **Data:** Novembro 2026  
 **Última Atualização:** Nov 17, 2026  
-**Versão do contrato:** 3.3
+**Versão do contrato:** 4.12
 
 ---
 
@@ -3393,6 +3544,7 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.12** (Nov 24, 2026): Sprint 2 SLA — `ConfiguracaoSlaCobranca`, `CobrancaProtocolo`, `RelatorioSlaEnvio`; `POST /protocolos/<id>/cobrar` (400/429 + cooldown Redis); campos PWA `pode_cobrar`/`motivo_bloqueio_cobranca`; régua Celery `preventivo_80` → `vencido` → `escalonado_controladoria`; digest e-mail consolidado; `GET/PATCH /backoffice/configuracoes/sla-cobranca`; painel `GET /backoffice/relatorios/sla-atrasados` (+ export CSV, disparo manual, histórico envios); filtro `apenas_cobrados` na Mesa
 - **v4.11.1** (Nov 23, 2026): Georreferência de equipamentos — `latitude`/`longitude`/`georreferenciado` no CRUD governança, filtro `georreferenciado`, lookup com coords e ordenação por `lat`+`lng`, herança de `Protocolo.localizacao` a partir do equipamento
 - **v4.11** (Nov 23, 2026): Equipamentos públicos — modelo `EquipamentoPublico`, CRUD `GET/POST/PATCH/DELETE /backoffice/equipamentos`, lookup `GET /catalogo/lookup/equipamentos`, datasource `equipamentos_publicos`, `Protocolo.equipamento`, triagem `fonte=equipamento_publico`, slot filling por apelido
 - **v4.10.1** (Nov 23, 2026): Mesa — `triagem_sugerida` no `GET /backoffice/kanban`; indicadores no kanban/lista e painel no modal de despacho; slot filling na abertura do chat (Redis + schema)

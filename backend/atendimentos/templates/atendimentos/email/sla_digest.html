@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>{{ titulo }}</title></head>
+<body style="font-family: sans-serif; font-size: 14px;">
+  <h2>{{ titulo }}</h2>
+  <p>Total de protocolos: <strong>{{ total_protocolos }}</strong> — com cobrança do cidadão: <strong>{{ total_cobrados }}</strong></p>
+  {% if ranking %}
+  <h3>Ranking por secretaria</h3>
+  <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">
+    <tr><th>Unidade</th><th>Total vencido</th><th>Com cobrança</th><th>Maior atraso (dias)</th></tr>
+    {% for r in ranking %}
+    <tr>
+      <td>{{ r.unidade }}</td>
+      <td>{{ r.total }}</td>
+      <td>{{ r.cobrados }}</td>
+      <td>{{ r.dias_max }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+  <h3>Protocolos</h3>
+  <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">
+    <tr>
+      <th>Protocolo</th>
+      <th>Serviço</th>
+      <th>Equipamento</th>
+      <th>Dias atraso</th>
+      <th>Cobranças</th>
+      <th>Link</th>
+    </tr>
+    {% for row in linhas %}
+    <tr>
+      <td>{{ row.codigo }}</td>
+      <td>{{ row.servico }}</td>
+      <td>{{ row.equipamento }}</td>
+      <td>{{ row.dias_atraso }}</td>
+      <td>{{ row.cobrancas }}</td>
+      <td><a href="{{ row.link }}">Abrir no backoffice</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

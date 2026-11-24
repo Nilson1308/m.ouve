@@ -80,7 +80,11 @@ export function mapProtocoloBackoffice(api) {
     superOsCodigo: api.super_os_codigo || null,
     descricao: api.descricao || '',
     triagemSugerida: api.triagem_sugerida || null,
-    equipamento: mapEquipamentoProtocolo(api.equipamento)
+    equipamento: mapEquipamentoProtocolo(api.equipamento),
+    qtdCobrancasCidadao: Number(api.qtd_cobrancas_cidadao ?? 0),
+    ultimaCobrancaEm: api.ultima_cobranca_em ?? null,
+    diasAtraso: Number(api.dias_atraso ?? 0),
+    ultimoAlertaSlaNivel: api.ultimo_alerta_sla_nivel || ''
   }
 }
 

@@ -78,6 +78,26 @@ def processar_mensagem_ia(
 
 
 @shared_task
+def verificar_escalonamento_sla_task() -> int:
+    from atendimentos.services.sla_cobranca_service import verificar_escalonamento_sla
+
+    return verificar_escalonamento_sla()
+
+
+@shared_task
+def enviar_digest_sla_atrasados_task() -> int:
+    from atendimentos.services.sla_cobranca_service import (
+        digest_agendado_se_aplica,
+        enviar_digest_sla_atrasados,
+    )
+
+    if not digest_agendado_se_aplica():
+        return 0
+    envios = enviar_digest_sla_atrasados()
+    return len(envios)
+
+
+@shared_task
 def notificar_sla_vencido_task() -> int:
     """Job Celery — alertas de SLA (respeita ``ConfiguracaoSistema.notificar_sla_vencido``)."""
     from atendimentos.notificacoes_internas import notificar_sla_vencido_protocolos

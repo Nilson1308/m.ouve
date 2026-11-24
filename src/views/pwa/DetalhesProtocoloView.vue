@@ -182,6 +182,16 @@
         descricao="Ative as notificações para ser avisado sobre o andamento desta solicitação."
       />
 
+      <ProtocoloCobrancaCard
+        v-if="protocolo"
+        :protocolo-id="protocolo.codigo || props.id"
+        :pode-cobrar="Boolean(protocolo.podeCobrar ?? protocolo.pode_cobrar)"
+        :motivo="protocolo.motivoBloqueioCobranca ?? protocolo.motivo_bloqueio_cobranca"
+        :qtd-cobrancas="Number(protocolo.qtdCobrancasCidadao ?? protocolo.qtd_cobrancas_cidadao ?? 0)"
+        :proxima-cobranca-em="protocolo.proximaCobrancaEm ?? protocolo.proxima_cobranca_em"
+        @atualizado="onCobrancaAtualizada"
+      />
+
       <ProtocoloCsatCard
         v-if="exibirCsat"
         :protocolo-id="props.id"
@@ -480,6 +490,7 @@ import LocationMap from '@/components/pwa/LocationMap.vue'
 import ThemeToggle from '@/components/shared/ThemeToggle.vue'
 import PwaA11yMenu from '@/components/pwa/PwaA11yMenu.vue'
 import ProtocoloCsatCard from '@/components/pwa/protocolo/ProtocoloCsatCard.vue'
+import ProtocoloCobrancaCard from '@/components/pwa/protocolo/ProtocoloCobrancaCard.vue'
 import PwaWebPushNudge from '@/components/pwa/PwaWebPushNudge.vue'
 import {
   ChevronLeftIcon,
@@ -539,6 +550,26 @@ function onProtocoloAvaliado(avaliacao) {
     avaliacao,
     podeAvaliar: false,
     pode_avaliar: false
+  }
+}
+
+async function onCobrancaAtualizada(patch) {
+  const result = await protocolosStore.buscarProtocolo(props.id)
+  if (result.success) {
+    protocolo.value = result.protocolo
+  } else if (protocolo.value && patch) {
+    protocolo.value = {
+      ...protocolo.value,
+      ...patch,
+      podeCobrar: patch.pode_cobrar ?? false,
+      pode_cobrar: patch.pode_cobrar ?? false,
+      motivoBloqueioCobranca: patch.motivo_bloqueio_cobranca,
+      motivo_bloqueio_cobranca: patch.motivo_bloqueio_cobranca,
+      qtdCobrancasCidadao: patch.qtd_cobrancas_cidadao,
+      qtd_cobrancas_cidadao: patch.qtd_cobrancas_cidadao,
+      proximaCobrancaEm: patch.proxima_cobranca_em,
+      proxima_cobranca_em: patch.proxima_cobranca_em
+    }
   }
 }
 

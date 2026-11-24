@@ -84,7 +84,11 @@ export function mapKanbanItem(api) {
           tipo: api.equipamento.tipo,
           bairro: api.equipamento.bairro || ''
         }
-      : null
+      : null,
+    qtdCobrancasCidadao: Number(api.qtd_cobrancas_cidadao ?? 0),
+    ultimaCobrancaEm: api.ultima_cobranca_em ?? null,
+    diasAtraso: Number(api.dias_atraso ?? 0),
+    ultimoAlertaSlaNivel: api.ultimo_alerta_sla_nivel || ''
   }
   if (tipo === 'super_os') {
     base.numero = api.codigo

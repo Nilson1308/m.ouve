@@ -49,6 +49,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
     urgenciaLista: [],
     equipamentoId: '',
     equipamentoRotulo: '',
+    apenasCobrados: false,
     page: 1
   })
 
@@ -92,6 +93,9 @@ export const useBackofficeStore = defineStore('backoffice', () => {
     if (filtros.value.equipamentoId?.trim()) {
       p.equipamento_id = filtros.value.equipamentoId.trim()
     }
+    if (filtros.value.apenasCobrados) {
+      p.apenas_cobrados = 'true'
+    }
     return p
   }
 
@@ -122,7 +126,8 @@ export const useBackofficeStore = defineStore('backoffice', () => {
       (f.bairros?.length || 0) +
       (f.statusLista?.length || 0) +
       (f.urgenciaLista?.length || 0) +
-      (f.equipamentoId ? 1 : 0)
+      (f.equipamentoId ? 1 : 0) +
+      (f.apenasCobrados ? 1 : 0)
     )
   })
 
@@ -263,6 +268,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
       urgenciaLista: [],
       equipamentoId: '',
       equipamentoRotulo: '',
+      apenasCobrados: false,
       page: 1
     }
   }
@@ -275,6 +281,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
     filtros.value.urgenciaLista = payload.urgenciaLista || []
     filtros.value.equipamentoId = payload.equipamentoId || ''
     filtros.value.equipamentoRotulo = payload.equipamentoRotulo || ''
+    filtros.value.apenasCobrados = Boolean(payload.apenasCobrados)
     filtros.value.page = 1
   }
 
