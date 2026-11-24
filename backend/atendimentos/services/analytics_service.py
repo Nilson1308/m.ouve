@@ -184,6 +184,30 @@ def _query_params_dict(query_params) -> dict:
     return dict(query_params)
 
 
+def _aplicar_filtro_periodo_conclusao(qs, params: dict):
+    from atendimentos.services.mapa_calor_service import _parse_data_fim, _parse_data_inicio
+
+    ini = _parse_data_inicio(params.get("data_inicio"))
+    fim = _parse_data_fim(params.get("data_fim"))
+    if ini:
+        qs = qs.filter(data_atualizacao__gte=ini)
+    if fim:
+        qs = qs.filter(data_atualizacao__lte=fim)
+    return qs
+
+
+def calcular_kpi_retrabalho(qs) -> dict[str, Any]:
+    """Taxa sobre protocolos resolvidos no recorte (inclui reabertura ≥ 1)."""
+    concluidos = qs.filter(status__in=STATUS_TMA)
+    total = int(concluidos.count())
+    reabertos = int(concluidos.filter(qtd_reaberturas__gte=1).count())
+    taxa = round(100.0 * reabertos / total, 1) if total else 0.0
+    return {
+        "total_reabertos": reabertos,
+        "taxa_retrabalho_percentual": taxa,
+    }
+
+
 def _tma_horas_protocolos(protocolos: list[Protocolo]) -> float | None:
     duracoes = []
     for p in protocolos:
@@ -359,11 +383,17 @@ def dashboard_eficiencia(user, query_params=None) -> dict[str, Any]:
     params = _query_params_dict(query_params)
     qs = queryset_protocolos_escopo(user)
     qs, bairro = aplicar_filtro_bairro(qs, params.get("bairro"))
+    qs_kpi = _aplicar_filtro_periodo_conclusao(qs, params)
     resumo_mesa = calcular_resumo_sla_mesa(user, qs_escopo=qs)
+    kpi_retrabalho = calcular_kpi_retrabalho(qs_kpi)
 
     filtros_aplicados: dict[str, Any] = {}
     if bairro:
         filtros_aplicados["bairro"] = bairro
+    if params.get("data_inicio"):
+        filtros_aplicados["data_inicio"] = params.get("data_inicio")
+    if params.get("data_fim"):
+        filtros_aplicados["data_fim"] = params.get("data_fim")
 
     return {
         "escopo": escopo["tipo"],
@@ -374,6 +404,7 @@ def dashboard_eficiencia(user, query_params=None) -> dict[str, Any]:
         "funil_status": calcular_funil_status(qs),
         "ranking_sla_unidades": calcular_ranking_gargalos_mesa(user, qs_escopo=qs),
         "resumo_sla_mesa": resumo_mesa,
+        "resumo_executivo": kpi_retrabalho,
         "totais": {
             "protocolos": qs.count(),
             "itens_mesa": resumo_mesa["total_itens"],
@@ -413,6 +444,7 @@ def calcular_matriz_qualidade_unidades(qs) -> list[dict[str, Any]]:
         .annotate(
             total_resolvidos=Count("id"),
             resolvidos_no_prazo=Sum("_cumprido_sla"),
+            total_reabertos=Count("id", filter=Q(qtd_reaberturas__gte=1)),
             media_satisfacao=Avg("avaliacao__nota"),
             total_avaliacoes=Count("avaliacao"),
             _satisfeitos=Count("id", filter=Q(avaliacao__nota__gte=4)),
@@ -428,6 +460,8 @@ def calcular_matriz_qualidade_unidades(qs) -> list[dict[str, Any]]:
 
         no_prazo = int(row["resolvidos_no_prazo"] or 0)
         taxa_sla = round(100.0 * no_prazo / total, 2)
+        total_reab = int(row["total_reabertos"] or 0)
+        taxa_retrab = round(100.0 * total_reab / total, 1) if total else 0.0
 
         media_raw = row["media_satisfacao"]
         media = round(float(media_raw), 1) if media_raw is not None else None
@@ -460,6 +494,8 @@ def calcular_matriz_qualidade_unidades(qs) -> list[dict[str, Any]]:
                 "percentual_satisfeitos": pct_satisfeitos,
                 "total_resolvidos": total,
                 "resolvidos_no_prazo": no_prazo,
+                "total_reabertos": total_reab,
+                "taxa_retrabalho_percentual": taxa_retrab,
                 "sem_vinculo_catalogo": sem_vinculo,
             }
         )
@@ -471,6 +507,48 @@ def calcular_matriz_qualidade_unidades(qs) -> list[dict[str, Any]]:
         )
     )
     return matriz
+
+
+def calcular_matriz_qualidade_servicos(qs) -> list[dict[str, Any]]:
+    """Mesmas métricas da matriz por secretaria, agrupadas por serviço do catálogo."""
+    base = qs.filter(status__in=STATUS_TMA).annotate(
+        _prazo_sla=ExpressionWrapper(
+            F("data_criacao") + timedelta(hours=1) * F("servico__sla_horas"),
+            output_field=DateTimeField(),
+        )
+    ).annotate(
+        _cumprido_sla=Case(
+            When(data_atualizacao__lte=F("_prazo_sla"), then=1),
+            default=0,
+            output_field=IntegerField(),
+        )
+    )
+    grouped = (
+        base.values("servico_id", "servico__nome")
+        .annotate(
+            total_resolvidos=Count("id"),
+            resolvidos_no_prazo=Sum("_cumprido_sla"),
+            total_reabertos=Count("id", filter=Q(qtd_reaberturas__gte=1)),
+        )
+        .order_by("-total_resolvidos")
+    )
+    out: list[dict[str, Any]] = []
+    for row in grouped:
+        total = int(row["total_resolvidos"] or 0)
+        if total <= 0:
+            continue
+        reab = int(row["total_reabertos"] or 0)
+        out.append(
+            {
+                "servico_id": str(row["servico_id"]),
+                "nome": row["servico__nome"] or "",
+                "total_resolvidos": total,
+                "resolvidos_no_prazo": int(row["resolvidos_no_prazo"] or 0),
+                "total_reabertos": reab,
+                "taxa_retrabalho_percentual": round(100.0 * reab / total, 1) if total else 0.0,
+            }
+        )
+    return out
 
 
 def dashboard_qualidade(user, query_params=None) -> dict[str, Any]:
@@ -492,14 +570,21 @@ def dashboard_qualidade(user, query_params=None) -> dict[str, Any]:
         ).distinct()
 
     qs, bairro = aplicar_filtro_bairro(qs, params.get("bairro"))
+    qs = _aplicar_filtro_periodo_conclusao(qs, params)
 
     filtros_aplicados: dict[str, Any] = {}
     if bairro:
         filtros_aplicados["bairro"] = bairro
     if req_unidade:
         filtros_aplicados["unidade_responsavel_id"] = req_unidade
+    if params.get("data_inicio"):
+        filtros_aplicados["data_inicio"] = params.get("data_inicio")
+    if params.get("data_fim"):
+        filtros_aplicados["data_fim"] = params.get("data_fim")
 
     matriz = calcular_matriz_qualidade_unidades(qs)
+    matriz_servicos = calcular_matriz_qualidade_servicos(qs)
+    kpi_retrabalho = calcular_kpi_retrabalho(qs)
 
     tot_resolvidos = sum(u["total_resolvidos"] for u in matriz)
     tot_no_prazo = sum(u["resolvidos_no_prazo"] for u in matriz)
@@ -518,5 +603,7 @@ def dashboard_qualidade(user, query_params=None) -> dict[str, Any]:
             "total_resolvidos": tot_resolvidos,
             "taxa_sla_cumprido": taxa_geral,
             **resumo_csat,
+            **kpi_retrabalho,
         },
+        "matriz_servicos": matriz_servicos,
     }

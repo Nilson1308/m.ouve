@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 
 from atendimentos.geocoding import reverse_geocode, search_address
 from atendimentos.models import AnexoProtocolo, Protocolo, ProtocoloComentario
+from atendimentos.reabertura_views import ProtocoloReabrirMixin
 from atendimentos.sla_cobranca_views import ProtocoloCobrarMixin
 from atendimentos.serializers import (
     AnexoSerializer,
@@ -38,7 +39,7 @@ def _filtrar_por_categoria_legada(qs, valor: str):
     )
 
 
-class ProtocoloViewSet(ProtocoloCobrarMixin, viewsets.ModelViewSet):
+class ProtocoloViewSet(ProtocoloCobrarMixin, ProtocoloReabrirMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     lookup_field = "pk"
     lookup_value_regex = r"[^/]+"
@@ -68,8 +69,8 @@ class ProtocoloViewSet(ProtocoloCobrarMixin, viewsets.ModelViewSet):
         elif tipo_param:
             qs = _filtrar_por_categoria_legada(qs, tipo_param)
         qs = qs.select_related("servico", "servico__categoria")
-        if self.action == "retrieve":
-            qs = qs.select_related("avaliacao")
+        if self.action in ("retrieve", "list", "reabrir"):
+            qs = qs.select_related("avaliacao").prefetch_related("reaberturas")
         return qs
 
     def get_serializer_class(self):
@@ -124,10 +125,26 @@ class ProtocoloViewSet(ProtocoloCobrarMixin, viewsets.ModelViewSet):
         mixin = ProtocoloResponderDiligenciaMixin()
         return mixin.responder_diligencia_protocolo(request, self.get_object())
 
+    @action(detail=True, methods=["post"], url_path="reabrir")
+    def reabrir(self, request, pk=None):
+        return self.reabrir_protocolo_cidadao(request, self.get_object())
+
     @action(detail=True, methods=["post"], url_path="anexos")
     def anexos(self, request, pk=None):
         """Anexa fotos ao protocolo do cidadão (v4.14 — complementação / diligência)."""
         protocolo = self.get_object()
+        from atendimentos.services.reabertura_service import cidadao_pode_anexar
+
+        if not cidadao_pode_anexar(protocolo):
+            return Response(
+                {
+                    "detail": (
+                        "Não é possível enviar anexos neste momento. "
+                        "Aguarde a conclusão ou utilize a janela de contestação."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         fotos = request.FILES.getlist("fotos[]") or request.FILES.getlist("fotos")
         if not fotos:
             return Response(

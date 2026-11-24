@@ -428,6 +428,15 @@ class BackofficeProtocoloDetalheSerializer(BackofficeProtocoloKanbanSerializer):
     tempo_sla_pausado_segundos = serializers.SerializerMethodField()
     pode_abrir_diligencia = serializers.SerializerMethodField()
     motivo_bloqueio_diligencia = serializers.SerializerMethodField()
+    qtd_reaberturas = serializers.IntegerField(read_only=True)
+    ultima_reabertura_em = serializers.DateTimeField(
+        format="%Y-%m-%dT%H:%M:%SZ", read_only=True, allow_null=True
+    )
+    reabertura_ate = serializers.DateTimeField(
+        format="%Y-%m-%dT%H:%M:%SZ", read_only=True, allow_null=True
+    )
+    reaberto = serializers.SerializerMethodField()
+    reaberturas = serializers.SerializerMethodField()
 
     class Meta(BackofficeProtocoloKanbanSerializer.Meta):
         fields = BackofficeProtocoloKanbanSerializer.Meta.fields + (
@@ -443,6 +452,11 @@ class BackofficeProtocoloDetalheSerializer(BackofficeProtocoloKanbanSerializer):
             "tempo_sla_pausado_segundos",
             "pode_abrir_diligencia",
             "motivo_bloqueio_diligencia",
+            "qtd_reaberturas",
+            "ultima_reabertura_em",
+            "reabertura_ate",
+            "reaberto",
+            "reaberturas",
         )
 
     def _campos_diligencia(self, obj):
@@ -473,6 +487,22 @@ class BackofficeProtocoloDetalheSerializer(BackofficeProtocoloKanbanSerializer):
 
     def get_motivo_bloqueio_diligencia(self, obj):
         return self._campos_diligencia(obj).get("motivo_bloqueio_diligencia")
+
+    def _campos_reabertura(self, obj):
+        cached = getattr(obj, "_cache_campos_reabertura", None)
+        if cached is None:
+            from atendimentos.services.reabertura_service import campos_reabertura_backoffice
+
+            request = self.context.get("request")
+            cached = campos_reabertura_backoffice(obj, request=request)
+            obj._cache_campos_reabertura = cached
+        return cached
+
+    def get_reaberto(self, obj):
+        return self._campos_reabertura(obj).get("reaberto", False)
+
+    def get_reaberturas(self, obj):
+        return self._campos_reabertura(obj).get("reaberturas", [])
 
     def get_dados_coletados(self, obj):
         brutos = mesclar_dados_coletados(obj)

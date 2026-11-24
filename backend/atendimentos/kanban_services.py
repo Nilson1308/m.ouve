@@ -252,6 +252,10 @@ def filtrar_protocolos_kanban(qs, params):
     if apenas_cobrados is not None and str(apenas_cobrados).lower() in ("1", "true", "yes"):
         qs = qs.filter(qtd_cobrancas_cidadao__gte=1)
 
+    apenas_reabertos = params.get("apenas_reabertos")
+    if apenas_reabertos is not None and str(apenas_reabertos).lower() in ("1", "true", "yes"):
+        qs = qs.filter(qtd_reaberturas__gte=1)
+
     sla_vencido = params.get("sla_vencido")
     if sla_vencido is not None:
         flag = str(sla_vencido).lower() in ("1", "true", "yes")

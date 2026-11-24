@@ -59,6 +59,7 @@ class SetorialOrdemFilterSet(filters.FilterSet):
     bairro = filters.BaseInFilter(method="filter_bairro")
     status_ui = filters.BaseInFilter(method="filter_status_ui")
     urgencia = filters.BaseInFilter(method="filter_urgencia")
+    apenas_reabertos = filters.BooleanFilter(method="filter_apenas_reabertos")
 
     class Meta:
         model = OrdemServico
@@ -114,6 +115,11 @@ class SetorialOrdemFilterSet(filters.FilterSet):
                 | Q(protocolo__dados_dinamicos__urgencia_estimada__iexact=val)
             )
         return queryset.filter(q).distinct()
+
+    def filter_apenas_reabertos(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(protocolo__qtd_reaberturas__gte=1)
 
 
 class SetorialFiltrosOpcoesView(APIView):

@@ -34,14 +34,19 @@ def _resposta_avaliacao(avaliacao: AvaliacaoProtocolo) -> dict:
     }
 
 
-def _resposta_avaliacao_pwa(avaliacao: AvaliacaoProtocolo) -> dict:
+def _resposta_avaliacao_pwa(protocolo: Protocolo, avaliacao: AvaliacaoProtocolo) -> dict:
     """Payload enxuto para o PWA."""
+    from atendimentos.services.reabertura_service import avaliar_elegibilidade_reabertura
+
+    eleg = avaliar_elegibilidade_reabertura(protocolo)
     return {
         "nota": avaliacao.nota,
         "comentario": avaliacao.comentario or "",
         "criada_em": avaliacao.criada_em.strftime("%Y-%m-%dT%H:%M:%SZ")
         if avaliacao.criada_em
         else None,
+        "pode_reabrir": eleg.pode,
+        "sugerir_reabertura_csat": eleg.sugerir_reabertura_csat,
     }
 
 
@@ -73,4 +78,8 @@ class AvaliarProtocoloAppView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         avaliacao = serializer.save()
-        return Response(_resposta_avaliacao_pwa(avaliacao), status=status.HTTP_201_CREATED)
+        protocolo.refresh_from_db()
+        return Response(
+            _resposta_avaliacao_pwa(protocolo, avaliacao),
+            status=status.HTTP_201_CREATED,
+        )

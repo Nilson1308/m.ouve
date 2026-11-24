@@ -30,20 +30,33 @@ class _BaseAvaliacaoSerializer(serializers.Serializer):
                     )
                 }
             )
-        if AvaliacaoProtocolo.objects.filter(protocolo=protocolo).exists():
-            raise serializers.ValidationError(
-                {"protocolo_id": "Este protocolo já foi avaliado."}
+        av_existente = AvaliacaoProtocolo.objects.filter(protocolo=protocolo).first()
+        if av_existente:
+            permite_nova = (
+                protocolo.ultima_reabertura_em
+                and av_existente.criada_em < protocolo.ultima_reabertura_em
             )
+            if not permite_nova:
+                raise serializers.ValidationError(
+                    {"protocolo_id": "Este protocolo já foi avaliado."}
+                )
         return attrs
 
     def create(self, validated_data):
         protocolo = self._protocolo_do_contexto()
         comentario = (validated_data.get("comentario") or "").strip()
-        avaliacao = AvaliacaoProtocolo.objects.create(
-            protocolo=protocolo,
-            nota=validated_data["nota"],
-            comentario=comentario,
-        )
+        av_existente = AvaliacaoProtocolo.objects.filter(protocolo=protocolo).first()
+        if av_existente:
+            av_existente.nota = validated_data["nota"]
+            av_existente.comentario = comentario
+            av_existente.save(update_fields=["nota", "comentario"])
+            avaliacao = av_existente
+        else:
+            avaliacao = AvaliacaoProtocolo.objects.create(
+                protocolo=protocolo,
+                nota=validated_data["nota"],
+                comentario=comentario,
+            )
         protocolo.nota_satisfacao = validated_data["nota"]
         protocolo.comentario_satisfacao = comentario or None
         protocolo.save(update_fields=["nota_satisfacao", "comentario_satisfacao"])

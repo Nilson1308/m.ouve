@@ -65,6 +65,7 @@ class BackofficeProtocoloFilterSet(filters.FilterSet):
     bairro = filters.BaseInFilter(method="filter_bairro")
     equipamento_id = filters.UUIDFilter(field_name="equipamento_id")
     apenas_cobrados = filters.BooleanFilter(method="filter_apenas_cobrados")
+    apenas_reabertos = filters.BooleanFilter(method="filter_apenas_reabertos")
 
     class Meta:
         model = Protocolo
@@ -124,6 +125,11 @@ class BackofficeProtocoloFilterSet(filters.FilterSet):
         if not value:
             return queryset
         return queryset.filter(qtd_cobrancas_cidadao__gte=1)
+
+    def filter_apenas_reabertos(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(qtd_reaberturas__gte=1)
 
 
 class BackofficeFiltrosMesaView(APIView):
@@ -303,10 +309,13 @@ def _protocolo_detalhe_queryset():
         .order_by("criado_em")
     )
     historico_qs = ProtocoloHistorico.objects.order_by("registrado_em")
-    from atendimentos.models import DiligenciaProtocolo
+    from atendimentos.models import DiligenciaProtocolo, ReaberturaProtocolo
 
     diligencias_qs = DiligenciaProtocolo.objects.select_related(
         "unidade_solicitante", "autor_servidor"
+    ).order_by("-criado_em")
+    reaberturas_qs = ReaberturaProtocolo.objects.select_related(
+        "solicitante", "ordem_servico_criada"
     ).order_by("-criado_em")
     return (
         Protocolo.objects.select_related(
@@ -319,6 +328,7 @@ def _protocolo_detalhe_queryset():
             Prefetch("ordens_servico", queryset=ordens_qs),
             Prefetch("historico", queryset=historico_qs),
             Prefetch("diligencias", queryset=diligencias_qs),
+            Prefetch("reaberturas", queryset=reaberturas_qs),
         )
         .annotate(_tem_anexos=Count("anexos", distinct=True))
     )
@@ -488,7 +498,9 @@ class BackofficeValidarProtocoloView(APIView):
         )
 
         from atendimentos.notificacoes_cidadao import notificar_status_protocolo
+        from atendimentos.services.reabertura_service import aplicar_janela_reabertura_apos_conclusao
 
+        aplicar_janela_reabertura_apos_conclusao(protocolo)
         notificar_status_protocolo(protocolo, Protocolo.Status.RESOLVIDO)
 
         return Response(

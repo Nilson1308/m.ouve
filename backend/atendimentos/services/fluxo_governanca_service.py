@@ -181,6 +181,8 @@ def tentar_encerramento_direto_secretaria(
     )
 
     from atendimentos.notificacoes_cidadao import notificar_status_protocolo
+    from atendimentos.services.reabertura_service import aplicar_janela_reabertura_apos_conclusao
 
+    aplicar_janela_reabertura_apos_conclusao(protocolo)
     notificar_status_protocolo(protocolo, Protocolo.Status.RESOLVIDO)
     return True

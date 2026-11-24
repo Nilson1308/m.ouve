@@ -32,6 +32,11 @@ class ConfiguracaoSlaCobrancaSerializer(serializers.ModelSerializer):
             "prazo_diligencia_dias",
             "max_diligencias_por_protocolo",
             "acao_expiracao_diligencia",
+            "reabertura_ativa",
+            "prazo_reabertura_dias",
+            "max_reaberturas_por_protocolo",
+            "nota_csat_gatilho_reabertura",
+            "prazo_sla_reabertura_dias",
             "atualizado_em",
         )
         read_only_fields = ("atualizado_em",)
@@ -58,3 +63,23 @@ class ConfiguracaoSlaCobrancaSerializer(serializers.ModelSerializer):
 
     def validate_emails_controladoria(self, value):
         return _validar_emails(value)
+
+    def validate_prazo_reabertura_dias(self, value):
+        if value < 1:
+            raise serializers.ValidationError("Informe pelo menos 1 dia de prazo.")
+        return value
+
+    def validate_max_reaberturas_por_protocolo(self, value):
+        if value < 1:
+            raise serializers.ValidationError("Informe pelo menos 1 reabertura permitida.")
+        return value
+
+    def validate_nota_csat_gatilho_reabertura(self, value):
+        if value < 1 or value > 3:
+            raise serializers.ValidationError("A nota gatilho deve estar entre 1 e 3.")
+        return value
+
+    def validate_prazo_sla_reabertura_dias(self, value):
+        if value is not None and value < 1:
+            raise serializers.ValidationError("Informe pelo menos 1 dia ou deixe em branco.")
+        return value

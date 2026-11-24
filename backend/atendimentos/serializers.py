@@ -140,9 +140,11 @@ class ProtocoloListSerializer(ProtocoloServicoMixin, serializers.ModelSerializer
         if request and getattr(request, "user", None) and request.user.is_authenticated:
             from atendimentos.sla_cobranca_views import campos_cobranca_protocolo_pwa
             from atendimentos.services.diligencia_service import campos_diligencia_pwa
+            from atendimentos.services.reabertura_service import campos_reabertura_pwa
 
             data.update(campos_cobranca_protocolo_pwa(instance, request.user))
             data.update(campos_diligencia_pwa(instance, request=request))
+            data.update(campos_reabertura_pwa(instance, request=request))
         return data
 
     def get_localizacao(self, obj):
@@ -210,7 +212,12 @@ class ProtocoloDetailSerializer(ProtocoloListSerializer):
     def get_pode_avaliar(self, obj):
         if obj.status != Protocolo.Status.RESOLVIDO:
             return False
-        return self._avaliacao_objeto(obj) is None
+        av = self._avaliacao_objeto(obj)
+        if av is None:
+            return True
+        if obj.ultima_reabertura_em and av.criada_em < obj.ultima_reabertura_em:
+            return True
+        return False
 
     def get_avaliacao(self, obj):
         av = self._avaliacao_objeto(obj)

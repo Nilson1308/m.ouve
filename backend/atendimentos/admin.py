@@ -7,6 +7,7 @@ from atendimentos.models import (
     AvaliacaoProtocolo,
     CobrancaProtocolo,
     DiligenciaProtocolo,
+    ReaberturaProtocolo,
     ConfiguracaoSlaCobranca,
     ConfiguracaoSistema,
     RelatorioSlaEnvio,
@@ -94,6 +95,14 @@ class ConfiguracaoSlaCobrancaAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(ReaberturaProtocolo)
+class ReaberturaProtocoloAdmin(admin.ModelAdmin):
+    list_display = ("protocolo", "solicitante", "nota_csat_origem", "criado_em")
+    list_filter = ("criado_em",)
+    raw_id_fields = ("protocolo", "solicitante", "ordem_servico_criada")
+    search_fields = ("protocolo__codigo", "motivo")
 
 
 @admin.register(DiligenciaProtocolo)

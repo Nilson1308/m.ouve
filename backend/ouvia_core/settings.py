@@ -203,6 +203,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "atendimentos.tasks.verificar_expiracao_diligencias_task",
         "schedule": crontab(minute=15),
     },
+    "encerrar-janelas-reabertura": {
+        "task": "atendimentos.tasks.encerrar_janelas_reabertura_expiradas_task",
+        "schedule": crontab(minute=30),
+    },
 }
 
 BACKOFFICE_FRONTEND_BASE_URL = config("BACKOFFICE_FRONTEND_BASE_URL", default="")

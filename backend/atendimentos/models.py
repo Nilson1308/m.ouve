@@ -103,6 +103,10 @@ class Protocolo(models.Model):
     sla_pausado_desde = models.DateTimeField(null=True, blank=True)
     tempo_sla_pausado_segundos = models.PositiveIntegerField(default=0)
     status_anterior_diligencia = models.CharField(max_length=40, blank=True, default="")
+    qtd_reaberturas = models.PositiveIntegerField(default=0, db_index=True)
+    ultima_reabertura_em = models.DateTimeField(null=True, blank=True)
+    reabertura_ate = models.DateTimeField(null=True, blank=True, db_index=True)
+    encerrado_definitivamente_em = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-data_criacao"]
@@ -709,6 +713,11 @@ class ConfiguracaoSlaCobranca(models.Model):
         ),
         default="devolver_fila",
     )
+    reabertura_ativa = models.BooleanField(default=True)
+    prazo_reabertura_dias = models.PositiveIntegerField(default=7)
+    max_reaberturas_por_protocolo = models.PositiveIntegerField(default=1)
+    nota_csat_gatilho_reabertura = models.PositiveSmallIntegerField(default=2)
+    prazo_sla_reabertura_dias = models.PositiveIntegerField(null=True, blank=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -726,6 +735,43 @@ class ConfiguracaoSlaCobranca(models.Model):
 
     def __str__(self):
         return "Configuração SLA e cobrança"
+
+
+class ReaberturaProtocolo(models.Model):
+    """Contestação do cidadão — reabertura dentro da janela configurável."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    protocolo = models.ForeignKey(
+        Protocolo,
+        on_delete=models.CASCADE,
+        related_name="reaberturas",
+    )
+    solicitante = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="reaberturas_solicitadas",
+    )
+    motivo = models.TextField()
+    anexos_ids = models.JSONField(default=list, blank=True)
+    nota_csat_origem = models.PositiveSmallIntegerField(null=True, blank=True)
+    prazo_sla_anterior = models.DateTimeField(null=True, blank=True)
+    novo_prazo_sla = models.DateTimeField(null=True, blank=True)
+    ordem_servico_criada = models.ForeignKey(
+        "OrdemServico",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reabertura_origem",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+        verbose_name = "reabertura de protocolo"
+        verbose_name_plural = "reaberturas de protocolo"
+
+    def __str__(self):
+        return f"Reabertura {self.protocolo_id} — {self.criado_em:%Y-%m-%d}"
 
 
 class DiligenciaProtocolo(models.Model):

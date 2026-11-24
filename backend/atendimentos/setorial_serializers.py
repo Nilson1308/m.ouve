@@ -119,6 +119,9 @@ class SetorialOrdemServicoResumoSerializer(serializers.ModelSerializer):
     qtd_diligencias_respondidas = serializers.SerializerMethodField()
     ultima_diligencia_respondida_em = serializers.SerializerMethodField()
     qtd_anexos_diligencias = serializers.SerializerMethodField()
+    protocolo_qtd_reaberturas = serializers.SerializerMethodField()
+    protocolo_reaberto = serializers.SerializerMethodField()
+    protocolo_reaberturas = serializers.SerializerMethodField()
 
     class Meta:
         model = OrdemServico
@@ -162,6 +165,9 @@ class SetorialOrdemServicoResumoSerializer(serializers.ModelSerializer):
             "qtd_diligencias_respondidas",
             "ultima_diligencia_respondida_em",
             "qtd_anexos_diligencias",
+            "protocolo_qtd_reaberturas",
+            "protocolo_reaberto",
+            "protocolo_reaberturas",
         )
 
     def _governanca_protocolo(self, obj):
@@ -280,6 +286,29 @@ class SetorialOrdemServicoResumoSerializer(serializers.ModelSerializer):
 
     def get_qtd_anexos_diligencias(self, obj):
         return self._campos_diligencia_resumo(obj).get("qtd_anexos_diligencias", 0)
+
+    def _campos_reabertura_protocolo(self, obj):
+        protocolo = obj.protocolo
+        if not protocolo:
+            return {"reaberturas": [], "reaberto": False}
+        cached = getattr(protocolo, "_cache_campos_reabertura", None)
+        if cached is None:
+            from atendimentos.services.reabertura_service import campos_reabertura_backoffice
+
+            request = self.context.get("request")
+            cached = campos_reabertura_backoffice(protocolo, request=request)
+            protocolo._cache_campos_reabertura = cached
+        return cached
+
+    def get_protocolo_qtd_reaberturas(self, obj):
+        p = obj.protocolo
+        return int(p.qtd_reaberturas or 0) if p else 0
+
+    def get_protocolo_reaberto(self, obj):
+        return self._campos_reabertura_protocolo(obj).get("reaberto", False)
+
+    def get_protocolo_reaberturas(self, obj):
+        return self._campos_reabertura_protocolo(obj).get("reaberturas", [])
 
 
 class SetorialOrdemServicoSerializer(SetorialOrdemServicoResumoSerializer):

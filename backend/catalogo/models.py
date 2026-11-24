@@ -173,6 +173,14 @@ class ServicoCatalogo(models.Model):
         default=72,
         help_text="Prazo alvo de atendimento em horas (SLA padrão).",
     )
+    prazo_reabertura_dias = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Dias de janela pós-conclusão para contestação. "
+            "Nulo herda o global; 0 desabilita reabertura neste serviço."
+        ),
+    )
     permite_cluster = models.BooleanField(
         default=True,
         help_text=(

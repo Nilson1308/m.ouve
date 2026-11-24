@@ -92,6 +92,13 @@ def verificar_expiracao_diligencias_task() -> int:
 
 
 @shared_task
+def encerrar_janelas_reabertura_expiradas_task() -> int:
+    from atendimentos.services.reabertura_service import encerrar_janelas_reabertura_expiradas
+
+    return encerrar_janelas_reabertura_expiradas()
+
+
+@shared_task
 def enviar_digest_sla_atrasados_task() -> int:
     from atendimentos.services.sla_cobranca_service import (
         digest_agendado_se_aplica,

@@ -702,7 +702,7 @@ Polling recomendado a cada **2 segundos** até `ia_processando` ser `false` e ex
 
 Modelo: `AvaliacaoProtocolo` — **OneToOne** com `Protocolo` (`related_name=avaliacao`). Espelha `nota_satisfacao` / `comentario_satisfacao` no protocolo para dashboards.
 
-**Regras:** protocolo `status=resolvido`; pertence ao cidadão autenticado; uma única avaliação por protocolo (400 se repetir).
+**Regras:** protocolo `status=resolvido`; pertence ao cidadão autenticado; uma avaliação por ciclo de conclusão (400 se repetir no mesmo ciclo). Após **reabertura** (v4.15), se `ultima_reabertura_em` for posterior a `AvaliacaoProtocolo.criada_em`, o cidadão pode **reenviar** `POST .../avaliar` — o registro OneToOne é **atualizado** (a nota original permanece em `ReaberturaProtocolo.nota_csat_origem` na contestação).
 
 ### POST `/api/v1/app/protocolos/<uuid>/avaliar` *(PWA — preferencial)*
 
@@ -721,11 +721,15 @@ Modelo: `AvaliacaoProtocolo` — **OneToOne** com `Protocolo` (`related_name=ava
 {
   "nota": 5,
   "comentario": "Opcional",
-  "criada_em": "2026-11-19T12:00:00Z"
+  "criada_em": "2026-11-19T12:00:00Z",
+  "pode_reabrir": true,
+  "sugerir_reabertura_csat": false
 }
 ```
 
-**Erros comuns:** `400` — protocolo não resolvido ou já avaliado (`"Este protocolo já foi avaliado."`); `404` — protocolo inexistente ou de outro usuário.
+`pode_reabrir` / `sugerir_reabertura_csat` (v4.15): calculados após a nota — úteis para ofertar contestação imediata quando nota ≤ `nota_csat_gatilho_reabertura`.
+
+**Erros comuns:** `400` — protocolo não resolvido ou já avaliado no mesmo ciclo (`"Este protocolo já foi avaliado."`); `404` — protocolo inexistente ou de outro usuário.
 
 #### Detalhe do protocolo (cidadão) — `GET /api/v1/protocolos/<id>`
 
@@ -733,7 +737,14 @@ Campos adicionais no serializer de detalhe:
 
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
-| `pode_avaliar` | bool | `true` se `status=resolvido` e ainda não há `AvaliacaoProtocolo` |
+| `pode_avaliar` | bool | `true` se `status=resolvido` e (sem avaliação **ou** nova conclusão após `ultima_reabertura_em`) |
+| `pode_reabrir` | bool | (v4.15) janela ativa e dentro do limite |
+| `motivo_bloqueio_reabertura` | string \| null | (v4.15) `desabilitado`, `nao_concluido`, `janela_expirada`, `limite_atingido`, `encerrado_definitivamente` |
+| `reabertura_ate` | string \| null | (v4.15) fim da janela (ISO8601) enquanto `resolvido` |
+| `qtd_reaberturas` | int | (v4.15) contador |
+| `max_reaberturas_permitidas` | int | (v4.15) da config global |
+| `sugerir_reabertura_csat` | bool | (v4.15) CSAT ≤ gatilho e `pode_reabrir` |
+| `reaberturas` | array | (v4.15) histórico com `anexos` resolvidos |
 | `avaliacao` | objeto \| null | `{ "nota", "comentario", "criada_em" }` quando já avaliado |
 | `pode_cobrar` | bool | (v4.12) elegível para `POST .../cobrar` |
 | `motivo_bloqueio_cobranca` | string \| null | (v4.12) `dentro_do_prazo`, `em_cooldown`, `encerrado`, `desabilitado`, (v4.14) `aguardando_cidadao` ou `null` |
@@ -1114,7 +1125,7 @@ Desativa a conta e remove PII (mesmo fluxo técnico da anonimização). Body opc
 ## ⏱️ SLA, Cobrança do Cidadão e Relatórios (v4.12)
 
 Configuração **singleton** `ConfiguracaoSlaCobranca` (banco — sem prazos/e-mails fixos no código).  
-Workers Celery Beat: `verificar_escalonamento_sla_task` (horária), `enviar_digest_sla_atrasados_task` (respeita `digest_email_ativo`, `digest_periodicidade`, `digest_hora_envio`) e `verificar_expiracao_diligencias_task` (v4.14, horária).
+Workers Celery Beat: `verificar_escalonamento_sla_task` (horária), `enviar_digest_sla_atrasados_task` (respeita `digest_email_ativo`, `digest_periodicidade`, `digest_hora_envio`), `verificar_expiracao_diligencias_task` (v4.14, horária) e `encerrar_janelas_reabertura_expiradas_task` (v4.15, horária).
 
 **v4.14:** Protocolos em `aguardando_cidadao` ou com `sla_pausado_desde` preenchido **não** entram em atraso, escalonamento, digest nem cobrança PWA (`motivo_bloqueio_cobranca=aguardando_cidadao`).
 
@@ -1140,7 +1151,37 @@ Workers Celery Beat: `verificar_escalonamento_sla_task` (horária), `enviar_dige
 | `prazo_diligencia_dias` | int | `5` | (v4.14) Prazo para resposta (≥ 1) |
 | `max_diligencias_por_protocolo` | int | `2` | (v4.14) Limite anti-abuso (≥ 1) |
 | `acao_expiracao_diligencia` | string | `devolver_fila` | (v4.14) `devolver_fila` \| `encerrar_sem_resposta` |
+| `reabertura_ativa` | bool | `true` | (v4.15) Liga janela de contestação |
+| `prazo_reabertura_dias` | int | `7` | (v4.15) Dias após conclusão (≥ 1) |
+| `max_reaberturas_por_protocolo` | int | `1` | (v4.15) Anti-abuso (≥ 1) |
+| `nota_csat_gatilho_reabertura` | int | `2` | (v4.15) 1–3 — sugere contestação no PWA |
+| `prazo_sla_reabertura_dias` | int \| null | `null` | (v4.15) SLA do retrabalho; `null` = herda `sla_horas` do serviço |
 | `atualizado_em` | string | — | ISO8601 (read-only) |
+
+**Catálogo (v4.15):** `ServicoCatalogo.prazo_reabertura_dias` (opcional) — `null` herda global; `0` desabilita reabertura só naquele serviço.
+
+**Protocolo (v4.15):** `qtd_reaberturas`, `ultima_reabertura_em`, `reabertura_ate`, `encerrado_definitivamente_em` (status permanece `resolvido` após expirar a janela). Modelo `ReaberturaProtocolo` (auditoria).
+
+**Celery Beat (v4.15):** `encerrar_janelas_reabertura_expiradas_task` (horária) — preenche `encerrado_definitivamente_em` e histórico.
+
+### POST `/api/v1/protocolos/<id>/reabrir` (v4.15)
+
+**Auth:** Bearer JWT — dono do protocolo. **Sem trailing slash.**
+
+```json
+{
+  "motivo": "Mínimo 10 caracteres",
+  "anexos_ids": ["uuid-opcional"]
+}
+```
+
+**Response 201:** `{ "reabertura": { ... }, "protocolo": { ... detalhe PWA ... } }`
+
+**Reabertura:** recalcula `prazo_sla`, zera `ultimo_alerta_sla_nivel`; roteamento Sprint 2.5 — `direto_secretaria` + unidade ativa → `em_andamento` + nova OS de retrabalho; caso contrário → `em_analise` (Ouvidoria).
+
+**`POST /api/v1/protocolos/<id>/anexos`:** permitido em protocolo `resolvido` quando `pode_reabrir=true` (evidências antes da contestação).
+
+**Filtro Mesa/Kanban/setorial:** `apenas_reabertos=true` → `qtd_reaberturas >= 1`.
 
 ### GET `/api/v1/backoffice/relatorios/sla-atrasados`
 
@@ -2365,7 +2406,7 @@ Scatter-gather da Super OS — mesmo contrato do despacho de protocolo.
 **Versão:** 2.2  
 **Data:** Novembro 2026  
 **Última Atualização:** Nov 17, 2026  
-**Versão do contrato:** 4.14.2
+**Versão do contrato:** 4.15.0
 
 ---
 
@@ -3575,6 +3616,12 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 | `total_avaliacoes` | Protocolos resolvidos com avaliação no escopo |
 | `percentual_satisfeitos` | % notas 4 ou 5 sobre `total_avaliacoes` |
 | `total_resolvidos` | Denominador do SLA (status `resolvido` no escopo) |
+| `total_reabertos` | (v4.15) Resolvidos com `qtd_reaberturas ≥ 1` |
+| `taxa_retrabalho_percentual` | (v4.15) `total_reabertos / total_resolvidos` × 100 (1 casa; 0.0 se denominador 0) |
+
+**Query params adicionais (v4.15):** `data_inicio`, `data_fim` — filtram por `data_atualizacao` dos protocolos concluídos (KPI retrabalho).
+
+**`GET /backoffice/dashboard/eficiencia` (v4.15):** objeto `resumo_executivo` com `total_reabertos` e `taxa_retrabalho_percentual` (mesma regra de período).
 
 **Resposta (200):**
 
@@ -3589,8 +3636,19 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
     "taxa_sla_cumprido": 71.43,
     "media_satisfacao": 4.1,
     "total_avaliacoes": 38,
-    "percentual_satisfeitos": 82.5
+    "percentual_satisfeitos": 82.5,
+    "total_reabertos": 3,
+    "taxa_retrabalho_percentual": 7.1
   },
+  "matriz_servicos": [
+    {
+      "servico_id": "uuid",
+      "nome": "Iluminação pública",
+      "total_resolvidos": 10,
+      "total_reabertos": 2,
+      "taxa_retrabalho_percentual": 20.0
+    }
+  ],
   "matriz_unidades": [
     {
       "unidade_id": "uuid",
@@ -3613,6 +3671,7 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.15.0** (Nov 24, 2026): Sprint 4 — janela de reabertura parametrizável (`ConfiguracaoSlaCobranca`, `ServicoCatalogo.prazo_reabertura_dias`); `ReaberturaProtocolo`; `POST /protocolos/<id>/reabrir`; CSAT com `pode_reabrir`/`sugerir_reabertura_csat` e reavaliação pós-reabertura; KPI `taxa_retrabalho_percentual` (eficiência + qualidade + `matriz_servicos`); filtro `apenas_reabertos`; Celery `encerrar_janelas_reabertura_expiradas_task`
 - **v4.14.2** (Nov 24, 2026): Sprint 3.1 — `anexos` resolvidos em objetos de diligência (backoffice/PWA/setorial); `AnexoProtocolo` enriquecido no PWA; `GET /backoffice/setorial/ordens/<id>`; badges de diligência na listagem setorial; RBAC `painel_setorial.criar` para abrir/cancelar diligência na OS da unidade; `pode_abrir_diligencia` considera permissão do usuário
 - **v4.14.1** (Nov 24, 2026): `POST /protocolos/<id>/anexos` (multipart) para upload de fotos na resposta à diligência; UI Sprint 3 PWA + backoffice (Kanban, config, detalhe 360º)
 - **v4.14** (Nov 24, 2026): Sprint 3 diligência com solicitante — `DiligenciaProtocolo`; status `aguardando_cidadao`; pausa/retomada SLA (`prazo_sla`, `sla_pausado_desde`, `tempo_sla_pausado_segundos`); params em `ConfiguracaoSlaCobranca` (`diligencia_ativa`, `prazo_diligencia_dias`, `max_diligencias_por_protocolo`, `acao_expiracao_diligencia`); `POST /backoffice/protocolos/<id>/diligencias`, `POST /backoffice/diligencias/<id>/cancelar`, `POST /protocolos/<id>/responder-diligencia`; campos backoffice/PWA de diligência; Celery `verificar_expiracao_diligencias_task`; exclusão de SLA pausado em cobrança/escalonamento/digest
