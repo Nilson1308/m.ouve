@@ -83,7 +83,12 @@ export function mapProtocoloFromApi(protocolo) {
     avaliacao,
     equipe,
     anexos,
-    historicoApi: protocolo.historico
+    historicoApi: protocolo.historico,
+    aguardando_cidadao: Boolean(protocolo.aguardando_cidadao),
+    aguardandoCidadao: Boolean(protocolo.aguardando_cidadao ?? protocolo.aguardandoCidadao),
+    diligencia_ativa: protocolo.diligencia_ativa ?? null,
+    diligenciaAtiva: protocolo.diligencia_ativa ?? protocolo.diligenciaAtiva ?? null,
+    diligencias: Array.isArray(protocolo.diligencias) ? protocolo.diligencias : []
   }
 }
 

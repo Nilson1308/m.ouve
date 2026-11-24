@@ -14,6 +14,7 @@ from atendimentos.geocoding import reverse_geocode, search_address
 from atendimentos.models import AnexoProtocolo, Protocolo, ProtocoloComentario
 from atendimentos.sla_cobranca_views import ProtocoloCobrarMixin
 from atendimentos.serializers import (
+    AnexoSerializer,
     ComentarioSerializer,
     ProtocoloCreateSerializer,
     ProtocoloDetailSerializer,
@@ -115,6 +116,35 @@ class ProtocoloViewSet(ProtocoloCobrarMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="cobrar")
     def cobrar(self, request, pk=None):
         return self.cobrar_protocolo(request, self.get_object())
+
+    @action(detail=True, methods=["post"], url_path="responder-diligencia")
+    def responder_diligencia(self, request, pk=None):
+        from atendimentos.diligencia_views import ProtocoloResponderDiligenciaMixin
+
+        mixin = ProtocoloResponderDiligenciaMixin()
+        return mixin.responder_diligencia_protocolo(request, self.get_object())
+
+    @action(detail=True, methods=["post"], url_path="anexos")
+    def anexos(self, request, pk=None):
+        """Anexa fotos ao protocolo do cidadão (v4.14 — complementação / diligência)."""
+        protocolo = self.get_object()
+        fotos = request.FILES.getlist("fotos[]") or request.FILES.getlist("fotos")
+        if not fotos:
+            return Response(
+                {"detail": "Envie ao menos um arquivo em fotos[] ou fotos."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        criados = []
+        for foto in fotos:
+            criados.append(
+                AnexoProtocolo.objects.create(
+                    protocolo=protocolo,
+                    arquivo=foto,
+                    tipo_mime=foto.content_type or "image/jpeg",
+                )
+            )
+        serializer = AnexoSerializer(criados, many=True, context={"request": request})
+        return Response({"anexos": serializer.data}, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="comentarios")
     def comentarios(self, request, codigo=None):

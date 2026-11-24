@@ -422,6 +422,12 @@ class BackofficeProtocoloDetalheSerializer(BackofficeProtocoloKanbanSerializer):
     resposta_cidadao = serializers.CharField(read_only=True)
     observacoes_internas = serializers.CharField(read_only=True)
     localizacao = serializers.SerializerMethodField()
+    diligencia_ativa = serializers.SerializerMethodField()
+    diligencias = serializers.SerializerMethodField()
+    sla_pausado = serializers.SerializerMethodField()
+    tempo_sla_pausado_segundos = serializers.SerializerMethodField()
+    pode_abrir_diligencia = serializers.SerializerMethodField()
+    motivo_bloqueio_diligencia = serializers.SerializerMethodField()
 
     class Meta(BackofficeProtocoloKanbanSerializer.Meta):
         fields = BackofficeProtocoloKanbanSerializer.Meta.fields + (
@@ -431,7 +437,40 @@ class BackofficeProtocoloDetalheSerializer(BackofficeProtocoloKanbanSerializer):
             "resposta_cidadao",
             "observacoes_internas",
             "localizacao",
+            "diligencia_ativa",
+            "diligencias",
+            "sla_pausado",
+            "tempo_sla_pausado_segundos",
+            "pode_abrir_diligencia",
+            "motivo_bloqueio_diligencia",
         )
+
+    def _campos_diligencia(self, obj):
+        cached = getattr(obj, "_cache_campos_diligencia", None)
+        if cached is None:
+            from atendimentos.services.diligencia_service import campos_diligencia_backoffice
+
+            cached = campos_diligencia_backoffice(obj)
+            obj._cache_campos_diligencia = cached
+        return cached
+
+    def get_diligencia_ativa(self, obj):
+        return self._campos_diligencia(obj).get("diligencia_ativa")
+
+    def get_diligencias(self, obj):
+        return self._campos_diligencia(obj).get("diligencias")
+
+    def get_sla_pausado(self, obj):
+        return self._campos_diligencia(obj).get("sla_pausado")
+
+    def get_tempo_sla_pausado_segundos(self, obj):
+        return self._campos_diligencia(obj).get("tempo_sla_pausado_segundos")
+
+    def get_pode_abrir_diligencia(self, obj):
+        return self._campos_diligencia(obj).get("pode_abrir_diligencia")
+
+    def get_motivo_bloqueio_diligencia(self, obj):
+        return self._campos_diligencia(obj).get("motivo_bloqueio_diligencia")
 
     def get_dados_coletados(self, obj):
         brutos = mesclar_dados_coletados(obj)

@@ -28,7 +28,14 @@
             IA Sugere Cluster
           </span>
           <span
-            v-if="protocolo.sla.vencido"
+            v-if="protocolo.slaPausado || protocolo.status === 'aguardando_cidadao'"
+            class="inline-flex items-center gap-1 badge badge-sm bg-amber-100 text-amber-900 dark:bg-amber-900/50 dark:text-amber-100 border border-amber-300/60"
+          >
+            <PauseCircleIcon class="w-3.5 h-3.5" aria-hidden="true" />
+            SLA pausado
+          </span>
+          <span
+            v-else-if="protocolo.sla.vencido"
             class="badge badge-sm bg-danger-100 text-danger-700 dark:bg-danger-900 dark:text-danger-300"
           >
             Atrasado
@@ -248,6 +255,7 @@ import { storeToRefs } from 'pinia'
 import { useSuperOSStore } from '@/stores/super_os'
 import {
   BellAlertIcon,
+  PauseCircleIcon,
   MapPinIcon,
   BuildingOffice2Icon,
   UserIcon,
@@ -328,6 +336,9 @@ const urgenciaClass = computed(() => {
 
 // Classes de SLA
 const slaClass = computed(() => {
+  if (props.protocolo.slaPausado || props.protocolo.status === 'aguardando_cidadao') {
+    return 'border-l-4 border-amber-400'
+  }
   if (props.protocolo.sla.vencido) {
     return 'border-l-4 border-danger-500'
   }
@@ -359,6 +370,9 @@ const slaBarClass = computed(() => {
 
 // Formatar SLA
 function formatarSLA(sla) {
+  if (props.protocolo.slaPausado || props.protocolo.status === 'aguardando_cidadao') {
+    return 'SLA pausado'
+  }
   if (sla.vencido) {
     const horas = Math.abs(sla.horasRestantes)
     return `Atrasado ${horas}h`

@@ -24,7 +24,8 @@ import {
   MagnifyingGlassIcon,
   PaperAirplaneIcon,
   CheckBadgeIcon,
-  ArchiveBoxIcon
+  ArchiveBoxIcon,
+  PauseCircleIcon
 } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
@@ -90,6 +91,7 @@ function getZeladoriaClass(status) {
     'em_analise': 'badge-zeladoria-triagem-ia',
     'em_andamento': 'badge-zeladoria-em-deslocamento',
     'aguardando_revisao': 'badge-zeladoria-validacao',
+    'aguardando_cidadao': 'badge-zeladoria-aguardando-equipe',
     'resolvido': 'badge-zeladoria-concluido',
     'rejeitado': 'badge-zeladoria-nao-procedente',
   }
@@ -135,6 +137,7 @@ function getZeladoriaLabel(status) {
     'em_analise': 'Em Análise',
     'em_andamento': 'Equipe em Deslocamento',
     'aguardando_revisao': 'Aguardando validação',
+    'aguardando_cidadao': 'Aguardando cidadão',
     'resolvido': 'Resolvido',
     'rejeitado': 'Não Procedente',
   }
@@ -180,6 +183,7 @@ function getZeladoriaIcon(status) {
     'em_analise': ClockIcon,
     'em_andamento': TruckIcon,
     'aguardando_revisao': EyeIcon,
+    'aguardando_cidadao': PauseCircleIcon,
     'resolvido': CheckCircleIcon,
     'rejeitado': XCircleIcon,
   }

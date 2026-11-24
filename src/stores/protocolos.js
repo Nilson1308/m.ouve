@@ -23,6 +23,7 @@ export const useProtocolosStore = defineStore('protocolos', () => {
     const labels = {
       em_analise: 'Em Análise',
       em_andamento: 'Equipe em Deslocamento',
+      aguardando_cidadao: 'Aguardando sua resposta',
       resolvido: 'Resolvido',
       rejeitado: 'Não Procedente'
     }

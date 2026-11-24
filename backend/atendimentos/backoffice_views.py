@@ -303,6 +303,11 @@ def _protocolo_detalhe_queryset():
         .order_by("criado_em")
     )
     historico_qs = ProtocoloHistorico.objects.order_by("registrado_em")
+    from atendimentos.models import DiligenciaProtocolo
+
+    diligencias_qs = DiligenciaProtocolo.objects.select_related(
+        "unidade_solicitante", "autor_servidor"
+    ).order_by("-criado_em")
     return (
         Protocolo.objects.select_related(
             "servico",
@@ -313,6 +318,7 @@ def _protocolo_detalhe_queryset():
         .prefetch_related(
             Prefetch("ordens_servico", queryset=ordens_qs),
             Prefetch("historico", queryset=historico_qs),
+            Prefetch("diligencias", queryset=diligencias_qs),
         )
         .annotate(_tem_anexos=Count("anexos", distinct=True))
     )

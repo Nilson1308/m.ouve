@@ -182,6 +182,13 @@
         descricao="Ative as notificações para ser avisado sobre o andamento desta solicitação."
       />
 
+      <ProtocoloDiligenciaCard
+        v-if="protocolo && (protocolo.diligenciaAtiva || protocolo.diligencia_ativa)"
+        :protocolo-id="protocolo.codigo || props.id"
+        :diligencia-ativa="protocolo.diligenciaAtiva || protocolo.diligencia_ativa"
+        @respondido="onDiligenciaRespondida"
+      />
+
       <ProtocoloCobrancaCard
         v-if="protocolo"
         :protocolo-id="protocolo.codigo || props.id"
@@ -491,7 +498,9 @@ import ThemeToggle from '@/components/shared/ThemeToggle.vue'
 import PwaA11yMenu from '@/components/pwa/PwaA11yMenu.vue'
 import ProtocoloCsatCard from '@/components/pwa/protocolo/ProtocoloCsatCard.vue'
 import ProtocoloCobrancaCard from '@/components/pwa/protocolo/ProtocoloCobrancaCard.vue'
+import ProtocoloDiligenciaCard from '@/components/pwa/protocolo/ProtocoloDiligenciaCard.vue'
 import PwaWebPushNudge from '@/components/pwa/PwaWebPushNudge.vue'
+import { labelStatusDiligencia } from '@/utils/diligenciaHelpers'
 import {
   ChevronLeftIcon,
   ExclamationCircleIcon,
@@ -550,6 +559,13 @@ function onProtocoloAvaliado(avaliacao) {
     avaliacao,
     podeAvaliar: false,
     pode_avaliar: false
+  }
+}
+
+async function onDiligenciaRespondida() {
+  const result = await protocolosStore.buscarProtocolo(props.id)
+  if (result.success) {
+    protocolo.value = result.protocolo
   }
 }
 
@@ -632,6 +648,7 @@ const etapasAndamento = computed(() => {
   const ordem = ['recebido', 'analise', 'execucao', 'concluido']
   let indiceAtivo = 1
   if (status === 'em_analise') indiceAtivo = 1
+  else if (status === 'aguardando_cidadao') indiceAtivo = 2
   else if (status === 'em_andamento') indiceAtivo = 2
   else if (status === 'resolvido') indiceAtivo = 3
 
@@ -707,6 +724,23 @@ const historico = computed(() => {
 
 const timelineCompleta = computed(() => {
   const items = [...historico.value]
+
+  const diligencias = protocolo.value?.diligencias || []
+  diligencias.forEach((d) => {
+    if (d.status === 'aguardando_cidadao') return
+    items.push({
+      id: `diligencia-${d.id}`,
+      tipo: d.status === 'respondida' ? 'done' : 'active',
+      titulo: `Diligência — ${labelStatusDiligencia(d.status)}`,
+      subtitulo: d.resposta_cidadao
+        ? `Pergunta: ${d.pergunta?.slice(0, 120) || ''} — Resposta: ${d.resposta_cidadao.slice(0, 160)}`
+        : d.pergunta,
+      data: d.criado_em ? formatarDataCompleta(d.criado_em) : null,
+      dataIso: d.criado_em ? isoData(d.criado_em) : null,
+      icon: DocumentTextIcon,
+      timestamp: d.criado_em ? new Date(d.criado_em).getTime() : Date.now()
+    })
+  })
 
   if (protocolo.value?.ordens_servico && Array.isArray(protocolo.value.ordens_servico)) {
     protocolo.value.ordens_servico.forEach((ordem) => {

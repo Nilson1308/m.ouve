@@ -15,6 +15,7 @@ class Protocolo(models.Model):
         EM_ANALISE = "em_analise", "Em análise"
         EM_ANDAMENTO = "em_andamento", "Em andamento"
         AGUARDANDO_REVISAO = "aguardando_revisao", "Aguardando revisão"
+        AGUARDANDO_CIDADAO = "aguardando_cidadao", "Aguardando cidadão"
         RESOLVIDO = "resolvido", "Resolvido"
         REJEITADO = "rejeitado", "Rejeitado"
 
@@ -94,6 +95,14 @@ class Protocolo(models.Model):
     qtd_cobrancas_cidadao = models.PositiveIntegerField(default=0, db_index=True)
     ultima_cobranca_em = models.DateTimeField(null=True, blank=True)
     ultimo_alerta_sla_nivel = models.CharField(max_length=32, blank=True, default="")
+    prazo_sla = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Prazo absoluto do SLA (prorrogável após pausas de diligência).",
+    )
+    sla_pausado_desde = models.DateTimeField(null=True, blank=True)
+    tempo_sla_pausado_segundos = models.PositiveIntegerField(default=0)
+    status_anterior_diligencia = models.CharField(max_length=40, blank=True, default="")
 
     class Meta:
         ordering = ["-data_criacao"]
@@ -242,6 +251,7 @@ class OrdemServico(models.Model):
     class Status(models.TextChoices):
         PENDENTE = "pendente", "Pendente"
         EM_ANDAMENTO = "em_andamento", "Em andamento"
+        AGUARDANDO_CIDADAO = "aguardando_cidadao", "Aguardando cidadão"
         AGUARDANDO_FORMALIZACAO = "aguardando_formalizacao", "Aguardando formalização"
         AGUARDANDO_ASSINATURA = "aguardando_assinatura", "Aguardando assinatura"
         CONCLUIDA = "concluida", "Concluída"
@@ -311,6 +321,10 @@ class OrdemServico(models.Model):
     )
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
+    prazo_sla = models.DateTimeField(null=True, blank=True)
+    sla_pausado_desde = models.DateTimeField(null=True, blank=True)
+    tempo_sla_pausado_segundos = models.PositiveIntegerField(default=0)
+    status_anterior_diligencia = models.CharField(max_length=40, blank=True, default="")
 
     class Meta:
         verbose_name = "ordem de serviço"
@@ -684,6 +698,17 @@ class ConfiguracaoSlaCobranca(models.Model):
         default="diario",
     )
     digest_hora_envio = models.PositiveSmallIntegerField(default=8)
+    diligencia_ativa = models.BooleanField(default=True)
+    prazo_diligencia_dias = models.PositiveIntegerField(default=5)
+    max_diligencias_por_protocolo = models.PositiveIntegerField(default=2)
+    acao_expiracao_diligencia = models.CharField(
+        max_length=32,
+        choices=(
+            ("devolver_fila", "Devolver para a fila"),
+            ("encerrar_sem_resposta", "Encerrar por falta de resposta"),
+        ),
+        default="devolver_fila",
+    )
     atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -701,6 +726,61 @@ class ConfiguracaoSlaCobranca(models.Model):
 
     def __str__(self):
         return "Configuração SLA e cobrança"
+
+
+class DiligenciaProtocolo(models.Model):
+    """Pedido de complementação ao cidadão com pausa de SLA."""
+
+    class Status(models.TextChoices):
+        AGUARDANDO_CIDADAO = "aguardando_cidadao", "Aguardando cidadão"
+        RESPONDIDA = "respondida", "Respondida"
+        EXPIRADA = "expirada", "Expirada"
+        CANCELADA = "cancelada", "Cancelada"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    protocolo = models.ForeignKey(
+        Protocolo,
+        on_delete=models.CASCADE,
+        related_name="diligencias",
+    )
+    ordem_servico = models.ForeignKey(
+        "OrdemServico",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="diligencias",
+    )
+    unidade_solicitante = models.ForeignKey(
+        "catalogo.UnidadeAdministrativa",
+        on_delete=models.PROTECT,
+        related_name="diligencias_solicitadas",
+    )
+    autor_servidor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="diligencias_criadas",
+    )
+    pergunta = models.TextField()
+    exige_anexo = models.BooleanField(default=False)
+    prazo_resposta = models.DateTimeField(db_index=True)
+    status = models.CharField(
+        max_length=24,
+        choices=Status.choices,
+        default=Status.AGUARDANDO_CIDADAO,
+        db_index=True,
+    )
+    resposta_cidadao = models.TextField(blank=True, default="")
+    anexos_ids = models.JSONField(default=list, blank=True)
+    respondida_em = models.DateTimeField(null=True, blank=True)
+    encerrada_em = models.DateTimeField(null=True, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+        indexes = [
+            models.Index(fields=["protocolo", "-criado_em"]),
+            models.Index(fields=["status", "prazo_resposta"]),
+        ]
 
 
 class CobrancaProtocolo(models.Model):

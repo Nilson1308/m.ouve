@@ -119,8 +119,10 @@ class ProtocoloListSerializer(ProtocoloServicoMixin, serializers.ModelSerializer
         request = self.context.get("request")
         if request and getattr(request, "user", None) and request.user.is_authenticated:
             from atendimentos.sla_cobranca_views import campos_cobranca_protocolo_pwa
+            from atendimentos.services.diligencia_service import campos_diligencia_pwa
 
             data.update(campos_cobranca_protocolo_pwa(instance, request.user))
+            data.update(campos_diligencia_pwa(instance))
         return data
 
     def get_localizacao(self, obj):

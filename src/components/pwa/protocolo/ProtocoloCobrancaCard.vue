@@ -146,7 +146,11 @@ const erroModal = ref('')
 const feedbackSucesso = ref(false)
 const proximaLocal = ref(props.proximaCobrancaEm)
 
-const visivel = computed(() => props.podeCobrar || props.motivo === 'em_cooldown')
+const visivel = computed(
+  () =>
+    props.podeCobrar ||
+    props.motivo === 'em_cooldown'
+)
 
 const motivo = computed(() => props.motivo)
 const podeCobrar = computed(() => props.podeCobrar)

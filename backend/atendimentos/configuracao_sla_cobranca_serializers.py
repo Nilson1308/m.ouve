@@ -28,9 +28,23 @@ class ConfiguracaoSlaCobrancaSerializer(serializers.ModelSerializer):
             "digest_email_ativo",
             "digest_periodicidade",
             "digest_hora_envio",
+            "diligencia_ativa",
+            "prazo_diligencia_dias",
+            "max_diligencias_por_protocolo",
+            "acao_expiracao_diligencia",
             "atualizado_em",
         )
         read_only_fields = ("atualizado_em",)
+
+    def validate_prazo_diligencia_dias(self, value):
+        if value < 1:
+            raise serializers.ValidationError("Informe pelo menos 1 dia de prazo.")
+        return value
+
+    def validate_max_diligencias_por_protocolo(self, value):
+        if value < 1:
+            raise serializers.ValidationError("Informe pelo menos 1 diligência permitida.")
+        return value
 
     def validate_alerta_preventivo_percentual(self, value):
         if value < 50 or value > 99:

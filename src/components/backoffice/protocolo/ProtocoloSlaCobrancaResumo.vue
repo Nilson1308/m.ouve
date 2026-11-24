@@ -15,6 +15,12 @@
         <p class="text-sm text-gray-600 dark:text-gray-400">Sinais de atraso e cobranças registradas no PWA</p>
       </div>
     </div>
+    <p
+      v-if="tempoPausadoLabel"
+      class="text-sm text-amber-900 dark:text-amber-100 mb-4 rounded-lg bg-amber-100/60 dark:bg-amber-950/40 px-3 py-2 border border-amber-200 dark:border-amber-800"
+    >
+      Tempo total com SLA pausado (diligências): <strong>{{ tempoPausadoLabel }}</strong>
+    </p>
     <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
       <div>
         <dt class="text-xs font-medium uppercase text-gray-500">Cobranças do cidadão</dt>
@@ -49,6 +55,7 @@
 import { computed } from 'vue'
 import { BellAlertIcon } from '@heroicons/vue/24/outline'
 import { classeNivelAlertaSla, labelNivelAlertaSla } from '@/utils/slaAlertaLabels'
+import { formatarTempoPausadoSla } from '@/utils/diligenciaHelpers'
 
 const props = defineProps({
   protocolo: { type: Object, required: true }
@@ -58,8 +65,19 @@ const qtd = computed(() => Number(props.protocolo?.qtdCobrancasCidadao ?? 0))
 const dias = computed(() => Number(props.protocolo?.diasAtraso ?? 0))
 const nivel = computed(() => props.protocolo?.ultimoAlertaSlaNivel || '')
 
+const tempoPausadoLabel = computed(() => {
+  const s = Number(props.protocolo?.tempoSlaPausadoSegundos ?? props.protocolo?.tempo_sla_pausado_segundos ?? 0)
+  if (!s) return ''
+  return formatarTempoPausadoSla(s)
+})
+
 const exibir = computed(
-  () => qtd.value > 0 || dias.value > 0 || Boolean(nivel.value)
+  () =>
+    qtd.value > 0 ||
+    dias.value > 0 ||
+    Boolean(nivel.value) ||
+    Boolean(tempoPausadoLabel.value) ||
+    props.protocolo?.slaPausado
 )
 
 const ultima = computed(() => {

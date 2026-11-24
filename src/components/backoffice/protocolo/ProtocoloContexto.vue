@@ -1,5 +1,11 @@
 <template>
   <div class="space-y-6">
+    <ProtocoloDiligenciaBackoffice
+      :protocolo="protocolo"
+      @abrir-modal="$emit('abrir-diligencia')"
+      @atualizado="$emit('atualizar-diligencia')"
+    />
+
     <!-- Vitais: sempre visíveis -->
     <ProtocoloSlaCobrancaResumo :protocolo="protocolo" />
 
@@ -226,6 +232,7 @@
 </template>
 
 <script setup>
+import ProtocoloDiligenciaBackoffice from '@/components/backoffice/protocolo/ProtocoloDiligenciaBackoffice.vue'
 import ProtocoloSlaCobrancaResumo from '@/components/backoffice/protocolo/ProtocoloSlaCobrancaResumo.vue'
 import { computed } from 'vue'
 import {
@@ -243,6 +250,8 @@ import ChatAuditoria from './ChatAuditoria.vue'
 import LocationMap from '@/components/pwa/LocationMap.vue'
 import BackofficeAccordion from '@/components/backoffice/BackofficeAccordion.vue'
 import { labelTipoEquipamento } from '@/constants/equipamentosPublicos'
+
+defineEmits(['abrir-diligencia', 'atualizar-diligencia'])
 
 const props = defineProps({
   protocolo: {

@@ -32,6 +32,10 @@ from atendimentos.admin_notificacoes_views import (
     NotificacaoBroadcastView,
 )
 from atendimentos.configuracao_sistema_views import ConfiguracaoSistemaAdminView
+from atendimentos.diligencia_views import (
+    BackofficeAbrirDiligenciaView,
+    BackofficeCancelarDiligenciaView,
+)
 from atendimentos.sla_cobranca_views import (
     ConfiguracaoSlaCobrancaView,
     RelatorioSlaAtrasadosExportarView,
@@ -101,6 +105,14 @@ urlpatterns = [
     path(
         "backoffice/protocolos/<str:protocolo_id>",
         BackofficeProtocoloDetalheView.as_view(),
+    ),
+    path(
+        "backoffice/protocolos/<str:protocolo_id>/diligencias",
+        BackofficeAbrirDiligenciaView.as_view(),
+    ),
+    path(
+        "backoffice/diligencias/<uuid:diligencia_id>/cancelar",
+        BackofficeCancelarDiligenciaView.as_view(),
     ),
     path(
         "backoffice/protocolos/<str:protocolo_id>/validar",

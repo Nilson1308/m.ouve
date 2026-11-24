@@ -468,6 +468,7 @@ const protocolosParaMapa = computed(() => protocolosElegiveisMapa(protocolosExib
 const STATUS_LABEL = {
   em_analise: 'Em análise',
   em_andamento: 'Em andamento',
+  aguardando_cidadao: 'Aguardando cidadão',
   aguardando_revisao: 'Aguardando validação',
   resolvido: 'Resolvido',
   rejeitado: 'Rejeitado'

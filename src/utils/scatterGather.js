@@ -74,6 +74,10 @@ export function protocoloAguardandoValidacao(protocolo) {
   return total > 0 && abertos === 0
 }
 
+export function protocoloAguardandoCidadao(protocolo) {
+  return protocolo?.status === 'aguardando_cidadao'
+}
+
 /** Scatter ativo — pelo menos um nó aberto (ou em andamento sem OS legadas). */
 export function protocoloEmTramitacao(protocolo) {
   if (!protocolo || protocolo.status !== 'em_andamento') return false

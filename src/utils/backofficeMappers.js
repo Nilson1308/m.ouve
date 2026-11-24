@@ -63,7 +63,7 @@ export function mapProtocoloBackoffice(api) {
     urgencia: api.urgencia || 'media',
     sla: {
       prazo: api.sla?.prazo_em ?? null,
-      vencido: Boolean(api.sla?.vencido),
+      vencido: Boolean(api.sla?.vencido) && api.status !== 'aguardando_cidadao',
       horasRestantes: Number(api.sla?.horas_restantes ?? 0),
       slaHoras: api.sla?.sla_horas ?? api.servico?.sla_horas
     },
@@ -87,7 +87,18 @@ export function mapProtocoloBackoffice(api) {
     ultimoAlertaSlaNivel: api.ultimo_alerta_sla_nivel || '',
     fluxoTramitacao: api.servico?.fluxo_tramitacao || null,
     exigirValidacaoOuvidoria: Boolean(api.exigir_validacao_ouvidoria),
-    encerramentoDiretoSecretaria: Boolean(api.encerramento_direto_secretaria)
+    encerramentoDiretoSecretaria: Boolean(api.encerramento_direto_secretaria),
+    slaPausado: Boolean(api.sla_pausado) || api.status === 'aguardando_cidadao',
+    sla_pausado: Boolean(api.sla_pausado) || api.status === 'aguardando_cidadao',
+    tempoSlaPausadoSegundos: Number(api.tempo_sla_pausado_segundos ?? 0),
+    tempo_sla_pausado_segundos: Number(api.tempo_sla_pausado_segundos ?? 0),
+    diligenciaAtiva: api.diligencia_ativa ?? null,
+    diligencia_ativa: api.diligencia_ativa ?? null,
+    diligencias: Array.isArray(api.diligencias) ? api.diligencias : [],
+    podeAbrirDiligencia: Boolean(api.pode_abrir_diligencia),
+    pode_abrir_diligencia: Boolean(api.pode_abrir_diligencia),
+    motivoBloqueioDiligencia: api.motivo_bloqueio_diligencia ?? null,
+    motivo_bloqueio_diligencia: api.motivo_bloqueio_diligencia ?? null
   }
 }
 

@@ -40,6 +40,7 @@ STATUS_ABERTOS = frozenset(
         Protocolo.Status.EM_ANALISE,
         Protocolo.Status.EM_ANDAMENTO,
         Protocolo.Status.AGUARDANDO_REVISAO,
+        Protocolo.Status.AGUARDANDO_CIDADAO,
     }
 )
 
@@ -69,6 +70,9 @@ def _config() -> ConfiguracaoSlaCobranca:
 
 
 def prazo_sla_dt(protocolo: Protocolo) -> datetime:
+    if protocolo.prazo_sla:
+        prazo = protocolo.prazo_sla
+        return prazo if timezone.is_aware(prazo) else timezone.make_aware(prazo)
     sla = calcular_sla(protocolo)
     raw = sla.get("prazo_em")
     if not raw:
@@ -85,8 +89,16 @@ def prazo_sla_dt(protocolo: Protocolo) -> datetime:
     return parsed if timezone.is_aware(parsed) else timezone.make_aware(parsed)
 
 
+def sla_pausado(protocolo: Protocolo) -> bool:
+    return bool(protocolo.sla_pausado_desde)
+
+
 def sla_vencido(protocolo: Protocolo, agora: datetime | None = None) -> bool:
     agora = agora or timezone.now()
+    if sla_pausado(protocolo):
+        return False
+    if protocolo.status == Protocolo.Status.AGUARDANDO_CIDADAO:
+        return False
     return prazo_sla_dt(protocolo) < agora
 
 
@@ -135,6 +147,8 @@ def avaliar_elegibilidade_cobranca(protocolo: Protocolo, usuario) -> Elegibilida
     cfg = _config()
     if protocolo.usuario_id != usuario.pk:
         return ElegibilidadeCobranca(False, "nao_autorizado")
+    if protocolo.status == Protocolo.Status.AGUARDANDO_CIDADAO or sla_pausado(protocolo):
+        return ElegibilidadeCobranca(False, "aguardando_cidadao")
     if protocolo.status not in STATUS_ABERTOS:
         return ElegibilidadeCobranca(False, "encerrado")
     if not cfg.cobranca_cidadao_ativa:
@@ -508,6 +522,8 @@ def verificar_escalonamento_sla(*, limite: int = 500) -> int:
     qs = Protocolo.objects.filter(status__in=STATUS_ABERTOS).select_related("servico")[:limite]
     atualizados = 0
     for protocolo in qs:
+        if sla_pausado(protocolo) or protocolo.status == Protocolo.Status.AGUARDANDO_CIDADAO:
+            continue
         atual = (protocolo.ultimo_alerta_sla_nivel or "").strip()
         rank_atual = RANK_NIVEL.get(atual, 0)
         pct = percentual_sla_consumido(protocolo, agora)

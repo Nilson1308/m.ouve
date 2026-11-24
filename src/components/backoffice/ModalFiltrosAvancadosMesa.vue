@@ -400,6 +400,7 @@ function toggleItem(arr, value) {
 
 function labelStatus(value, fallback) {
   if (value === 'aguardando_revisao') return 'Aguardando validação'
+  if (value === 'aguardando_cidadao') return 'Aguardando cidadão'
   return fallback
 }
 

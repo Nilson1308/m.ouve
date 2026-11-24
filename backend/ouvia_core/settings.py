@@ -199,6 +199,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "atendimentos.tasks.enviar_digest_sla_atrasados_task",
         "schedule": crontab(minute=0),
     },
+    "expiracao-diligencias-horario": {
+        "task": "atendimentos.tasks.verificar_expiracao_diligencias_task",
+        "schedule": crontab(minute=15),
+    },
 }
 
 BACKOFFICE_FRONTEND_BASE_URL = config("BACKOFFICE_FRONTEND_BASE_URL", default="")

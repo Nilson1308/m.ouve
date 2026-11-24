@@ -117,11 +117,17 @@
             <!-- Header do Card -->
             <div class="flex items-start justify-between mb-3">
               <div class="flex-1">
-                <div class="flex items-center gap-2 mb-2">
+                <div class="flex items-center gap-2 mb-2 flex-wrap">
                   <span class="text-xs font-mono font-semibold text-gray-500 dark:text-gray-400 high-contrast:text-gray-400">
                     {{ protocolo.id }}
                   </span>
                   <StatusBadge :status="protocolo.status" :tipo="protocolo.tipo" />
+                  <span
+                    v-if="protocolo.aguardandoCidadao || protocolo.aguardando_cidadao || protocolo.status === 'aguardando_cidadao'"
+                    class="inline-flex items-center min-h-[28px] px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500 text-amber-950 dark:bg-amber-400 dark:text-amber-950 high-contrast:bg-yellow-300 high-contrast:text-black ring-2 ring-amber-600/30"
+                  >
+                    Aguardando sua resposta
+                  </span>
                 </div>
                 <h3 class="font-bold text-gray-900 dark:text-white high-contrast:text-white text-lg group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                   {{ protocolo.categoria }}

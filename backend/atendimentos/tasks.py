@@ -85,6 +85,13 @@ def verificar_escalonamento_sla_task() -> int:
 
 
 @shared_task
+def verificar_expiracao_diligencias_task() -> int:
+    from atendimentos.services.diligencia_service import verificar_expiracao_diligencias
+
+    return verificar_expiracao_diligencias()
+
+
+@shared_task
 def enviar_digest_sla_atrasados_task() -> int:
     from atendimentos.services.sla_cobranca_service import (
         digest_agendado_se_aplica,

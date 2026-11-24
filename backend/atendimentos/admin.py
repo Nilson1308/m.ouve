@@ -6,6 +6,7 @@ from atendimentos.models import (
     AnexoProtocolo,
     AvaliacaoProtocolo,
     CobrancaProtocolo,
+    DiligenciaProtocolo,
     ConfiguracaoSlaCobranca,
     ConfiguracaoSistema,
     RelatorioSlaEnvio,
@@ -93,6 +94,21 @@ class ConfiguracaoSlaCobrancaAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(DiligenciaProtocolo)
+class DiligenciaProtocoloAdmin(admin.ModelAdmin):
+    list_display = (
+        "protocolo",
+        "status",
+        "prazo_resposta",
+        "exige_anexo",
+        "unidade_solicitante",
+        "criado_em",
+    )
+    list_filter = ("status", "exige_anexo")
+    search_fields = ("pergunta", "protocolo__codigo", "resposta_cidadao")
+    raw_id_fields = ("protocolo", "ordem_servico", "autor_servidor", "unidade_solicitante")
 
 
 @admin.register(CobrancaProtocolo)

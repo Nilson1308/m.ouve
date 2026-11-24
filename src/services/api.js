@@ -247,6 +247,34 @@ export const protocolosService = {
   },
 
   /**
+   * Resposta à diligência (v4.14) — POST sem trailing slash.
+   */
+  async responderDiligencia(protocoloId, { resposta, anexos_ids = [] }) {
+    const response = await api.post(
+      `/protocolos/${encodeURIComponent(protocoloId)}/responder-diligencia`,
+      { resposta, anexos_ids }
+    )
+    return response.data
+  },
+
+  /**
+   * Anexa fotos ao protocolo (mesmo padrão multipart do create: fotos[]).
+   * Retorna lista com { id, url, tipo }.
+   */
+  async anexarFotos(protocoloId, files) {
+    const formData = new FormData()
+    for (const file of files) {
+      formData.append('fotos[]', file)
+    }
+    const response = await api.post(
+      `/protocolos/${encodeURIComponent(protocoloId)}/anexos`,
+      formData,
+      { timeout: 120000 }
+    )
+    return response.data
+  },
+
+  /**
    * Registra avaliação CSAT (nota 1–5) no protocolo resolvido.
    */
   async avaliar(protocoloId, { nota, comentario = '' }) {
@@ -630,6 +658,18 @@ export const chatService = {
 }
 
 // ==================== SLA & COBRANÇA (v4.12) ====================
+
+export const diligenciaBackofficeService = {
+  async abrir(protocoloId, body) {
+    const { data } = await api.post(`/backoffice/protocolos/${protocoloId}/diligencias`, body)
+    return data
+  },
+
+  async cancelar(diligenciaId, body = {}) {
+    const { data } = await api.post(`/backoffice/diligencias/${diligenciaId}/cancelar`, body)
+    return data
+  }
+}
 
 export const slaCobrancaService = {
   async obterConfiguracao() {

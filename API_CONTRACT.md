@@ -736,7 +736,10 @@ Campos adicionais no serializer de detalhe:
 | `pode_avaliar` | bool | `true` se `status=resolvido` e ainda não há `AvaliacaoProtocolo` |
 | `avaliacao` | objeto \| null | `{ "nota", "comentario", "criada_em" }` quando já avaliado |
 | `pode_cobrar` | bool | (v4.12) elegível para `POST .../cobrar` |
-| `motivo_bloqueio_cobranca` | string \| null | (v4.12) `dentro_do_prazo`, `em_cooldown`, `encerrado`, `desabilitado` ou `null` |
+| `motivo_bloqueio_cobranca` | string \| null | (v4.12) `dentro_do_prazo`, `em_cooldown`, `encerrado`, `desabilitado`, (v4.14) `aguardando_cidadao` ou `null` |
+| `aguardando_cidadao` | bool | (v4.14) `true` enquanto protocolo aguarda complementação |
+| `diligencia_ativa` | objeto \| null | (v4.14) diligência aberta para resposta (pergunta, prazo, unidade, `exige_anexo`) |
+| `diligencias` | array | (v4.14) histórico resumido de diligências |
 | `proxima_cobranca_em` | string \| null | (v4.12) ISO8601 quando em cooldown (anti-spam) |
 | `qtd_cobrancas_cidadao` | int | (v4.12) total de cobranças registradas |
 | `prazo_sla` | string | (v4.12) deadline calculado a partir do `sla_horas` do serviço |
@@ -786,6 +789,32 @@ Os mesmos campos de cobrança/SLA aparecem na **listagem** `GET /api/v1/protocol
 | `429` | Em cooldown — corpo inclui `proxima_cobranca_em` (ISO8601) |
 
 **Efeitos:** grava `CobrancaProtocolo`, incrementa contadores, histórico administrativo, TTL Redis e notificação in-app para gestores da unidade (e unidades com OS em aberto, scatter-gather).
+
+### Diligência com solicitante (v4.14)
+
+**Configuração global** — campos adicionais em `GET/PATCH /api/v1/backoffice/configuracoes/sla-cobranca`:
+
+| Campo | Descrição |
+|-------|-----------|
+| `diligencia_ativa` | Habilita pedidos de complementação |
+| `prazo_diligencia_dias` | Prazo para o cidadão responder (≥ 1) |
+| `max_diligencias_por_protocolo` | Limite anti-abuso (≥ 1) |
+| `acao_expiracao_diligencia` | `devolver_fila` ou `encerrar_sem_resposta` |
+
+**Backoffice**
+
+- `POST /api/v1/backoffice/protocolos/<id>/diligencias` — body: `{ "pergunta", "exige_anexo"?, "ordem_servico_id"? }` → `201` e pausa SLA (`aguardando_cidadao`).
+- `POST /api/v1/backoffice/diligencias/<uuid>/cancelar` — body opcional `{ "motivo" }`.
+- `GET /api/v1/backoffice/protocolos/<id>` inclui: `diligencia_ativa`, `diligencias[]`, `sla_pausado`, `tempo_sla_pausado_segundos`, `pode_abrir_diligencia`, `motivo_bloqueio_diligencia`.
+
+**PWA**
+
+- `POST /api/v1/protocolos/<id>/responder-diligencia` — body: `{ "resposta", "anexos_ids"? }` (sem trailing slash; mesmo padrão de `/cobrar`).
+- `POST /api/v1/protocolos/<id>/anexos` — anexar fotos ao protocolo antes de responder (v4.14.1); multipart `fotos[]` ou `fotos` (mesmo padrão do `POST /protocolos` na criação). **Response 201:** `{ "anexos": [{ "id", "url", "tipo" }, ...] }` — use os `id` em `anexos_ids` na resposta da diligência.
+
+**SLA:** Enquanto `sla_pausado_desde` preenchido, protocolo **não** entra em atraso, cobrança (`pode_cobrar=false`, motivo `aguardando_cidadao`), escalonamento nem digest. Ao responder/cancelar/expirar, `prazo_sla` é prorrogado pelo tempo pausado.
+
+**Celery:** `verificar_expiracao_diligencias_task` (Beat, a cada hora no minuto 15).
 
 ### POST `/api/v1/chat/sessao/<sessao_id>/avaliar-abertura`
 
@@ -1072,7 +1101,9 @@ Desativa a conta e remove PII (mesmo fluxo técnico da anonimização). Body opc
 ## ⏱️ SLA, Cobrança do Cidadão e Relatórios (v4.12)
 
 Configuração **singleton** `ConfiguracaoSlaCobranca` (banco — sem prazos/e-mails fixos no código).  
-Workers Celery Beat: `verificar_escalonamento_sla_task` (horária) e `enviar_digest_sla_atrasados_task` (respeita `digest_email_ativo`, `digest_periodicidade`, `digest_hora_envio`).
+Workers Celery Beat: `verificar_escalonamento_sla_task` (horária), `enviar_digest_sla_atrasados_task` (respeita `digest_email_ativo`, `digest_periodicidade`, `digest_hora_envio`) e `verificar_expiracao_diligencias_task` (v4.14, horária).
+
+**v4.14:** Protocolos em `aguardando_cidadao` ou com `sla_pausado_desde` preenchido **não** entram em atraso, escalonamento, digest nem cobrança PWA (`motivo_bloqueio_cobranca=aguardando_cidadao`).
 
 **Níveis de alerta (`ultimo_alerta_sla_nivel`):** `preventivo_80` (≥ percentual configurado do prazo), `vencido`, `escalonado_controladoria` (atraso ≥ N dias **ou** vencido com ≥1 cobrança do cidadão).
 
@@ -1092,6 +1123,10 @@ Workers Celery Beat: `verificar_escalonamento_sla_task` (horária) e `enviar_dig
 | `digest_email_ativo` | bool | `true` | Liga envio automático Celery |
 | `digest_periodicidade` | string | `diario` | `diario` \| `semanal` |
 | `digest_hora_envio` | int | `8` | 0–23 (fuso do servidor) |
+| `diligencia_ativa` | bool | `true` | (v4.14) Pedidos de complementação ao cidadão |
+| `prazo_diligencia_dias` | int | `5` | (v4.14) Prazo para resposta (≥ 1) |
+| `max_diligencias_por_protocolo` | int | `2` | (v4.14) Limite anti-abuso (≥ 1) |
+| `acao_expiracao_diligencia` | string | `devolver_fila` | (v4.14) `devolver_fila` \| `encerrar_sem_resposta` |
 | `atualizado_em` | string | — | ISO8601 (read-only) |
 
 ### GET `/api/v1/backoffice/relatorios/sla-atrasados`
@@ -1361,6 +1396,12 @@ Detalhamento **360º** para a tela interna: dados coletados pela IA, histórico 
 | `ultima_cobranca_em` | string \| null (v4.12) |
 | `dias_atraso` | int (v4.12) |
 | `ultimo_alerta_sla_nivel` | string (v4.12) |
+| `diligencia_ativa` | objeto \| null (v4.14) — diligência aguardando resposta |
+| `diligencias` | array (v4.14) — histórico (mais recente primeiro) |
+| `sla_pausado` | bool (v4.14) |
+| `tempo_sla_pausado_segundos` | int (v4.14) |
+| `pode_abrir_diligencia` | bool (v4.14) |
+| `motivo_bloqueio_diligencia` | string \| null (v4.14) |
 | `ordens_servico[]` | Inclui `observacoes_execucao`, `concluido_em`, `anexos[]`, `fotos_execucao[]`, `prazo_em` |
 
 **Erros:** `403`, `404`.
@@ -2299,7 +2340,7 @@ Scatter-gather da Super OS — mesmo contrato do despacho de protocolo.
 **Versão:** 2.2  
 **Data:** Novembro 2026  
 **Última Atualização:** Nov 17, 2026  
-**Versão do contrato:** 4.12
+**Versão do contrato:** 4.14.1
 
 ---
 
@@ -3547,6 +3588,8 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.14.1** (Nov 24, 2026): `POST /protocolos/<id>/anexos` (multipart) para upload de fotos na resposta à diligência; UI Sprint 3 PWA + backoffice (Kanban, config, detalhe 360º)
+- **v4.14** (Nov 24, 2026): Sprint 3 diligência com solicitante — `DiligenciaProtocolo`; status `aguardando_cidadao`; pausa/retomada SLA (`prazo_sla`, `sla_pausado_desde`, `tempo_sla_pausado_segundos`); params em `ConfiguracaoSlaCobranca` (`diligencia_ativa`, `prazo_diligencia_dias`, `max_diligencias_por_protocolo`, `acao_expiracao_diligencia`); `POST /backoffice/protocolos/<id>/diligencias`, `POST /backoffice/diligencias/<id>/cancelar`, `POST /protocolos/<id>/responder-diligencia`; campos backoffice/PWA de diligência; Celery `verificar_expiracao_diligencias_task`; exclusão de SLA pausado em cobrança/escalonamento/digest
 - **v4.13** (Nov 24, 2026): Sprint 2.5 governança de fluxos — remoção de `hibrido`; `executor_padrao`, `exigir_validacao_ouvidoria`; auto-despacho entrada (`direto_secretaria`); encerramento direto ou homologação na saída; triagem `catalogo_executor_padrao`; metadados `encerramento_direto_secretaria` no backoffice
 - **v4.12** (Nov 24, 2026): Sprint 2 SLA — `ConfiguracaoSlaCobranca`, `CobrancaProtocolo`, `RelatorioSlaEnvio`; `POST /protocolos/<id>/cobrar` (400/429 + cooldown Redis); campos PWA `pode_cobrar`/`motivo_bloqueio_cobranca`; régua Celery `preventivo_80` → `vencido` → `escalonado_controladoria`; digest e-mail consolidado; `GET/PATCH /backoffice/configuracoes/sla-cobranca`; painel `GET /backoffice/relatorios/sla-atrasados` (+ export CSV, disparo manual, histórico envios); filtro `apenas_cobrados` na Mesa
 - **v4.11.1** (Nov 23, 2026): Georreferência de equipamentos — `latitude`/`longitude`/`georreferenciado` no CRUD governança, filtro `georreferenciado`, lookup com coords e ordenação por `lat`+`lng`, herança de `Protocolo.localizacao` a partir do equipamento

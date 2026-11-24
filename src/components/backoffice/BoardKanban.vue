@@ -1,6 +1,6 @@
 <template>
   <div class="kanban-board">
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 xl:gap-6">
       <div
         v-for="col in colunasConfig"
         :key="col.id"
@@ -55,12 +55,13 @@
 
 <script setup>
 import { computed } from 'vue'
-import { InboxIcon, SparklesIcon, TruckIcon, CheckCircleIcon } from '@heroicons/vue/24/outline'
+import { InboxIcon, SparklesIcon, TruckIcon, CheckCircleIcon, PauseCircleIcon } from '@heroicons/vue/24/outline'
 import CardProtocolo from './CardProtocolo.vue'
 import CardSuperOS from './CardSuperOS.vue'
 import ContextualHelpIcon from '@/components/shared/ContextualHelpIcon.vue'
 import {
   protocoloAguardandoValidacao,
+  protocoloAguardandoCidadao,
   protocoloEmTramitacao
 } from '@/utils/scatterGather'
 
@@ -98,6 +99,19 @@ const colunasConfig = computed(() => [
     emptyIcon: InboxIcon,
     emptyTitulo: 'Fila de triagem vazia',
     emptyDescricao: 'Novas solicitações dos cidadãos aparecerão aqui para análise.'
+  },
+  {
+    id: 'aguardando_cidadao',
+    titulo: 'Aguardando cidadão',
+    dotClass: 'bg-amber-400',
+    badgeClass: 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100',
+    colunaClass: 'border border-amber-200 dark:border-amber-800/60',
+    nota: 'SLA pausado — aguardando complementação do solicitante',
+    ajuda: 'O setor solicitou informações ou anexos ao cidadão. O relógio do prazo fica pausado até a resposta.',
+    itens: props.protocolos.filter((p) => protocoloAguardandoCidadao(p)),
+    emptyIcon: PauseCircleIcon,
+    emptyTitulo: 'Nenhuma diligência aberta',
+    emptyDescricao: 'Protocolos aguardando resposta do cidadão aparecem aqui.'
   },
   {
     id: 'andamento',

@@ -112,7 +112,11 @@
 
       <div class="flex gap-6 p-6">
         <div class="flex-1 space-y-6">
-          <ProtocoloContexto :protocolo="protocolo" />
+          <ProtocoloContexto
+            :protocolo="protocolo"
+            @abrir-diligencia="mostrarModalDiligencia = true"
+            @atualizar-diligencia="recarregarDiligencia"
+          />
         </div>
 
         <div class="w-full max-w-xl lg:w-[540px] shrink-0 space-y-6 lg:sticky lg:top-28 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
@@ -131,6 +135,13 @@
         </div>
       </div>
     </template>
+
+    <ModalAbrirDiligencia
+      :aberto="mostrarModalDiligencia"
+      :protocolo="protocolo"
+      @fechar="mostrarModalDiligencia = false"
+      @criada="recarregarDiligencia"
+    />
 
     <DespacharProtocolo
       v-if="protocolo && !protocoloIntegradoSuperOs"
@@ -174,6 +185,7 @@ import {
 import { indicadorFluxoDiretoProtocolo } from '@/constants/governancaFluxo'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import ProtocoloContexto from '@/components/backoffice/protocolo/ProtocoloContexto.vue'
+import ModalAbrirDiligencia from '@/components/backoffice/protocolo/ModalAbrirDiligencia.vue'
 import ProtocoloOperacao from '@/components/backoffice/protocolo/ProtocoloOperacao.vue'
 import DespacharProtocolo from '@/components/backoffice/DespacharProtocolo.vue'
 import BannerAlertaIA from '@/components/backoffice/ia/BannerAlertaIA.vue'
@@ -201,6 +213,7 @@ const {
 } = storeToRefs(backofficeStore)
 
 const mostrarDespacho = ref(false)
+const mostrarModalDiligencia = ref(false)
 const prefillOrdens = ref([])
 const erroCarregamento = ref(null)
 const toastAberto = ref(false)
@@ -223,6 +236,9 @@ const sugestaoIaAtual = computed(() => {
 
 const slaBadgeClass = computed(() => {
   const sla = protocolo.value?.sla
+  if (protocolo.value?.slaPausado || protocolo.value?.status === 'aguardando_cidadao') {
+    return 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100'
+  }
   if (!sla) return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
   if (sla.vencido) {
     return 'bg-danger-100 text-danger-700 dark:bg-danger-900 dark:text-danger-300'
@@ -257,6 +273,17 @@ function mostrarToast(mensagem, sucesso = false) {
 
 function voltarMesa() {
   router.push({ name: 'backoffice-mesa-trabalho' })
+}
+
+async function recarregarDiligencia() {
+  const id = route.params.id
+  if (!id) return
+  try {
+    await backofficeStore.carregarDetalhesProtocolo(id)
+    mostrarToast('Diligência atualizada.', true)
+  } catch (e) {
+    mostrarToast(getApiErrorMessage(e, 'Falha ao atualizar.'), false)
+  }
 }
 
 async function carregar() {

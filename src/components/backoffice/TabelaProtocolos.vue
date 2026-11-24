@@ -172,13 +172,13 @@
             <!-- SLA -->
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="flex flex-col gap-1.5">
-                <span :class="slaTextClass(protocolo.sla)" class="text-xs font-medium">
-                  {{ formatarSLA(protocolo.sla) }}
+                <span :class="slaTextClass(protocolo)" class="text-xs font-medium">
+                  {{ formatarSLA(protocolo) }}
                 </span>
                 <div class="w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div
-                    :class="slaBarClass(protocolo.sla)"
-                    :style="{ width: calcularProgressoSLA(protocolo.sla) + '%' }"
+                    :class="slaBarClass(protocolo)"
+                    :style="{ width: calcularProgressoSLA(protocolo) + '%' }"
                     class="h-full rounded-full transition-all duration-300"
                   ></div>
                 </div>
@@ -434,7 +434,11 @@ function formatarData(data) {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 }
 
-function formatarSLA(sla) {
+function formatarSLA(protocolo) {
+  if (protocolo.slaPausado || protocolo.status === 'aguardando_cidadao') {
+    return 'SLA pausado'
+  }
+  const sla = protocolo.sla
   if (sla.vencido) {
     const horas = Math.abs(sla.horasRestantes)
     return `Atrasado ${horas}h`
@@ -446,20 +450,28 @@ function formatarSLA(sla) {
   return `${dias}d restantes`
 }
 
-function calcularProgressoSLA(sla) {
+function calcularProgressoSLA(protocolo) {
+  if (protocolo.slaPausado || protocolo.status === 'aguardando_cidadao') return 0
+  const sla = protocolo.sla
   if (sla.vencido) return 100
   const totalHoras = 168
   const progresso = ((totalHoras - sla.horasRestantes) / totalHoras) * 100
   return Math.min(Math.max(progresso, 0), 100)
 }
 
-function slaTextClass(sla) {
+function slaTextClass(protocolo) {
+  if (protocolo.slaPausado || protocolo.status === 'aguardando_cidadao') {
+    return 'text-amber-700 dark:text-amber-300 font-semibold'
+  }
+  const sla = protocolo.sla
   if (sla.vencido) return 'text-danger-600 dark:text-danger-400'
   if (sla.horasRestantes <= 24) return 'text-warning-600 dark:text-warning-400'
   return 'text-success-600 dark:text-success-400'
 }
 
-function slaBarClass(sla) {
+function slaBarClass(protocolo) {
+  if (protocolo.slaPausado || protocolo.status === 'aguardando_cidadao') return 'bg-amber-400'
+  const sla = protocolo.sla
   if (sla.vencido) return 'bg-danger-500'
   if (sla.horasRestantes <= 24) return 'bg-warning-500'
   return 'bg-success-500'

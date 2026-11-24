@@ -366,6 +366,90 @@
         </div>
       </section>
 
+      <!-- Card 4 — Diligência (v4.14) -->
+      <section
+        class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 p-6 shadow-sm space-y-5"
+      >
+        <div class="flex items-start gap-3">
+          <div
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+          >
+            <PauseCircleIcon class="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">
+              Diligência com o Cidadão (Pedido de Complementação)
+            </h3>
+          </div>
+        </div>
+
+        <CardToggle
+          :model-value="form.diligencia_ativa"
+          :disabled="!podeEditar"
+          titulo="Permitir que servidores solicitem informações complementares ao cidadão"
+          descricao="Pausa automaticamente o prazo (SLA) enquanto o protocolo aguarda resposta do solicitante."
+          @update:model-value="form.diligencia_ativa = $event"
+        />
+
+        <div
+          class="space-y-4 transition-opacity duration-200"
+          :class="form.diligencia_ativa ? '' : 'opacity-50 pointer-events-none select-none'"
+        >
+          <div>
+            <label for="prazo-diligencia" class="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
+              Prazo para o cidadão responder (dias)
+            </label>
+            <input
+              id="prazo-diligencia"
+              v-model.number="form.prazo_diligencia_dias"
+              type="number"
+              min="1"
+              class="input w-full max-w-[7rem]"
+              :disabled="!form.diligencia_ativa || !podeEditar"
+            />
+            <p class="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
+              Se o cidadão não responder em
+              <strong>{{ prazoDiligenciaValido }}</strong>
+              dia(s), o prazo volta a correr e o sistema aplica a ação de expiração abaixo.
+            </p>
+          </div>
+          <div>
+            <label for="max-diligencias" class="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
+              Limite de diligências por protocolo
+            </label>
+            <input
+              id="max-diligencias"
+              v-model.number="form.max_diligencias_por_protocolo"
+              type="number"
+              min="1"
+              class="input w-full max-w-[7rem]"
+              :disabled="!form.diligencia_ativa || !podeEditar"
+            />
+            <p class="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
+              Proteção contra pausas excessivas: limita quantas vezes o SLA pode ser pausado em um mesmo protocolo.
+            </p>
+          </div>
+          <div>
+            <label for="acao-expiracao" class="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
+              Se o prazo de diligência expirar
+            </label>
+            <select
+              id="acao-expiracao"
+              v-model="form.acao_expiracao_diligencia"
+              class="input w-full"
+              :disabled="!form.diligencia_ativa || !podeEditar"
+            >
+              <option value="devolver_fila">
+                Devolver para a fila do setor responsável (mantém protocolo aberto)
+              </option>
+              <option value="encerrar_sem_resposta">
+                Encerrar protocolo automaticamente por falta de complementação
+              </option>
+            </select>
+          </div>
+        </div>
+      </section>
+
       <p v-if="erroSalvar" class="text-sm text-red-600 dark:text-red-400">{{ erroSalvar }}</p>
 
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2">
@@ -392,7 +476,8 @@ import {
   ShieldCheckIcon,
   EnvelopeIcon,
   BuildingOffice2Icon,
-  ChartBarSquareIcon
+  ChartBarSquareIcon,
+  PauseCircleIcon
 } from '@heroicons/vue/24/outline'
 import { slaCobrancaService } from '@/services/api'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -481,6 +566,10 @@ const cooldownHorasValido = computed(() =>
 
 const diasEscalonamentoValido = computed(() =>
   clampInt(form.value?.escalonamento_controladoria_dias, 3, 1, 9999)
+)
+
+const prazoDiligenciaValido = computed(() =>
+  clampInt(form.value?.prazo_diligencia_dias, 5, 1, 9999)
 )
 
 const alertaPercentualValido = computed(() =>
