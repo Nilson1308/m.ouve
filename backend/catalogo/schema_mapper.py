@@ -105,9 +105,19 @@ def formulario_schema_para_schema_formulario(
         if campo.get("required"):
             required.append(name)
 
+    fotos_obrigatorias = [
+        name
+        for name in required
+        if ((properties.get(name) or {}).get("x-ouvia-tipo-campo") or "").strip().lower()
+        == "image"
+    ]
+    exige_foto_meta = bool(fotos_obrigatorias)
+    if not tem_campo_imagem:
+        exige_foto_meta = bool(base_meta.get("exige_foto"))
+
     meta = {
         "exige_localizacao": exige_localizacao or bool(base_meta.get("exige_localizacao")),
-        "exige_foto": tem_campo_imagem or bool(base_meta.get("exige_foto")),
+        "exige_foto": exige_foto_meta,
         "ia_conversacional": True,
         "ordem_campos": ordem_campos,
         "regras_elegibilidade": _deduplicar_regras(regras_elegibilidade),

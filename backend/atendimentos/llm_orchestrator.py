@@ -733,6 +733,18 @@ def _exige_foto(servico: ServicoCatalogo) -> bool:
     return _schema_tem_campo_tipo(servico, "image")
 
 
+def _anexo_sessao_obrigatorio(sessao: SessaoChat, servico: ServicoCatalogo) -> bool:
+    """
+    Anexo na sessão é exigido só fora do fluxo por campo ``image`` no schema
+    (quando o formulário já tem passo de foto, use required + _campos_faltantes).
+    """
+    if _qtd_anexos(sessao) >= 1:
+        return False
+    if _schema_tem_campo_tipo(servico, "image"):
+        return False
+    return _exige_foto(servico)
+
+
 def _schema_sem_metadados(schema: dict) -> dict:
     s = copy.deepcopy(schema or {})
     s.pop("$metadata", None)
@@ -1002,11 +1014,7 @@ def avaliar_pronto_revisao(sessao: SessaoChat) -> bool:
         and not _schema_tem_campo_tipo(servico, "geolocation")
     ):
         return False
-    if (
-        _exige_foto(servico)
-        and _qtd_anexos(sessao) < 1
-        and not _schema_tem_campo_tipo(servico, "image")
-    ):
+    if _anexo_sessao_obrigatorio(sessao, servico):
         return False
     return True
 
@@ -1060,7 +1068,7 @@ class LLMOrchestrator:
                     partes.append(f"Campos pendentes: {', '.join(faltantes)}.")
                 if servico.exige_localizacao and not _localizacao_ok(sessao):
                     partes.append("Falta confirmar a localização no mapa.")
-                if _exige_foto(servico) and _qtd_anexos(sessao) < 1:
+                if _anexo_sessao_obrigatorio(sessao, servico):
                     partes.append("Envie ao menos uma foto do problema.")
                 msg = " ".join(partes) if partes else "Ainda faltam informações para concluir."
                 set_meta(sessao, fase=FaseChat.PREENCHIMENTO)
@@ -1069,7 +1077,9 @@ class LLMOrchestrator:
                     resposta_cidadao=msg,
                     acao_ui="solicitar_localizacao"
                     if servico.exige_localizacao and not _localizacao_ok(sessao)
-                    else ("solicitar_foto" if _exige_foto(servico) and _qtd_anexos(sessao) < 1 else None),
+                    else (
+                        "solicitar_foto" if _anexo_sessao_obrigatorio(sessao, servico) else None
+                    ),
                 )
 
         if fase == FaseChat.REVISAO:
@@ -1300,12 +1310,9 @@ class LLMOrchestrator:
                 limpar_config_escolha=True,
             )
 
-        exige_foto = _exige_foto(servico)
         if (
-            exige_foto
-            and qtd_anexos < 1
+            _anexo_sessao_obrigatorio(sessao, servico)
             and anexos_novos < 1
-            and not _schema_tem_campo_tipo(servico, "image")
         ):
             return TurnResult(
                 resposta_cidadao=_msg_foto_servico(servico),

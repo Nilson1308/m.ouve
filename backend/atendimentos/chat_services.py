@@ -18,7 +18,7 @@ from atendimentos.llm_orchestrator import (
     _avaliar_regras_elegibilidade,
     _campos_faltantes,
     _dados_negocio,
-    _exige_foto,
+    _anexo_sessao_obrigatorio,
     _localizacao_ok,
     _msg_foto_servico,
     _msg_localizacao_servico,
@@ -236,7 +236,7 @@ def _sincronizar_turno_revisao(sessao: SessaoChat, turno: TurnResult) -> None:
     turno.ir_para_revisao = False
 
     if _resposta_parece_revisao(turno.resposta_cidadao):
-        if servico and _exige_foto(servico) and _qtd_anexos(sessao) < 1:
+        if servico and _anexo_sessao_obrigatorio(sessao, servico):
             turno.resposta_cidadao = _msg_foto_servico(servico)
             turno.acao_ui = "solicitar_foto"
         elif servico and servico.exige_localizacao and not _localizacao_ok(sessao):
@@ -253,7 +253,7 @@ def _sincronizar_turno_revisao(sessao: SessaoChat, turno: TurnResult) -> None:
                 turno.resposta_cidadao = "Ainda faltam informações para concluir."
             turno.acao_ui = None
     elif servico:
-        if _exige_foto(servico) and _qtd_anexos(sessao) < 1:
+        if _anexo_sessao_obrigatorio(sessao, servico):
             turno.acao_ui = "solicitar_foto"
         elif servico.exige_localizacao and not _localizacao_ok(sessao):
             turno.acao_ui = "solicitar_localizacao"
@@ -275,7 +275,7 @@ def _requisitos_revisao_ok(sessao: SessaoChat) -> bool:
         return False
     if servico.exige_localizacao and not _localizacao_ok(sessao):
         return False
-    if _exige_foto(servico) and _qtd_anexos(sessao) < 1:
+    if _anexo_sessao_obrigatorio(sessao, servico):
         return False
     return True
 

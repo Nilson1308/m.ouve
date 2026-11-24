@@ -8,12 +8,11 @@ from atendimentos.llm_orchestrator import MSG_REVISAO, TurnResult
 
 class SincronizarTurnoRevisaoTests(TestCase):
     @patch("atendimentos.chat_services._requisitos_revisao_ok", return_value=False)
-    @patch("atendimentos.chat_services._exige_foto", return_value=True)
-    @patch("atendimentos.chat_services._qtd_anexos", return_value=0)
+    @patch("atendimentos.chat_services._anexo_sessao_obrigatorio", return_value=True)
     @patch("atendimentos.chat_services._localizacao_ok", return_value=True)
     @patch("atendimentos.chat_services.set_meta")
     def test_nao_mantem_texto_resumo_sem_foto(
-        self, _set_meta, _loc_ok, _qtd, _exige_foto, _requisitos
+        self, _set_meta, _loc_ok, _anexo_obrig, _requisitos
     ):
         servico = MagicMock()
         servico.exige_localizacao = False

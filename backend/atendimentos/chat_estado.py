@@ -212,6 +212,20 @@ def usuario_declina_informacao_campo(texto: str) -> bool:
         "não precisa",
         "nao precisa",
         "segue sem",
+        "sem foto",
+        "sem fotos",
+        "sem imagem",
+        "sem imagens",
+        "não tenho foto",
+        "nao tenho foto",
+        "não tenho fotos",
+        "nao tenho fotos",
+        "não tenho imagem",
+        "nao tenho imagem",
+        "não consigo foto",
+        "nao consigo foto",
+        "não posso enviar foto",
+        "nao posso enviar foto",
     )
     if any(f in t for f in frases):
         return True
