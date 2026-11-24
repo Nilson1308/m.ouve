@@ -107,7 +107,7 @@
               type="number"
               min="50"
               max="99"
-              class="input w-full"
+              class="input w-full max-w-[7rem] !py-2.5 !text-sm tabular-nums"
               :disabled="!podeEditar"
             />
             <p class="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
@@ -127,7 +127,7 @@
               v-model.number="form.escalonamento_controladoria_dias"
               type="number"
               min="1"
-              class="input w-full"
+              class="input w-full max-w-[7rem] !py-2.5 !text-sm tabular-nums"
               :disabled="!podeEditar"
             />
             <p class="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
@@ -147,40 +147,70 @@
           class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/90 dark:bg-slate-800/40 p-4 sm:p-5"
           aria-label="Prévia da régua de SLA"
         >
-          <p class="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-4">
+          <p class="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-5">
             Prévia da régua (exemplo de um protocolo)
           </p>
-          <ol
-            class="relative flex flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between sm:gap-2"
-          >
+
+          <!-- Mobile: lista vertical -->
+          <ol class="space-y-0 sm:hidden">
             <li
               v-for="(marco, idx) in marcosRegua"
-              :key="marco.id"
-              class="flex sm:flex-1 sm:flex-col sm:items-center sm:text-center gap-3 sm:gap-2 min-w-0"
+              :key="'m-' + marco.id"
+              class="relative flex gap-3 pb-5 last:pb-0"
             >
-              <div class="flex sm:flex-col items-center gap-3 sm:gap-2 w-full">
+              <div class="flex flex-col items-center shrink-0 w-9">
                 <span
-                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ring-2 ring-white dark:ring-slate-900"
+                  class="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold shadow-sm ring-2 ring-white dark:ring-slate-800"
                   :class="marco.cor"
                 >
                   {{ idx + 1 }}
                 </span>
                 <span
                   v-if="idx < marcosRegua.length - 1"
-                  class="hidden sm:block flex-1 h-0.5 bg-slate-300 dark:bg-slate-600 -mt-12 mx-2 self-center min-w-[1rem]"
+                  class="flex-1 w-0.5 min-h-[1.25rem] mt-1 bg-slate-300 dark:bg-slate-600"
                   aria-hidden="true"
                 />
-                <div class="flex-1 min-w-0 sm:px-1">
-                  <p class="text-sm font-semibold text-slate-900 dark:text-white leading-snug">
-                    {{ marco.titulo }}
-                  </p>
-                  <p class="text-xs text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed">
-                    {{ marco.descricao }}
-                  </p>
-                </div>
+              </div>
+              <div class="pt-1.5 min-w-0 flex-1">
+                <p class="text-sm font-semibold text-slate-900 dark:text-white leading-snug">
+                  {{ marco.titulo }}
+                </p>
+                <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                  {{ marco.descricao }}
+                </p>
               </div>
             </li>
           </ol>
+
+          <!-- Desktop: trilha horizontal -->
+          <div class="hidden sm:block relative pt-1">
+            <div
+              class="absolute left-[calc(12.5%-4px)] right-[calc(12.5%-4px)] top-[1.125rem] h-0.5 bg-slate-300 dark:bg-slate-600"
+              aria-hidden="true"
+            />
+            <ol class="grid grid-cols-4 gap-3 relative">
+              <li
+                v-for="(marco, idx) in marcosRegua"
+                :key="'d-' + marco.id"
+                class="flex flex-col items-center text-center px-1"
+              >
+                <span
+                  class="relative z-[1] flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold shadow-sm ring-4 ring-slate-50 dark:ring-slate-800/90"
+                  :class="marco.cor"
+                >
+                  {{ idx + 1 }}
+                </span>
+                <div class="mt-3 w-full min-h-[3.25rem]">
+                  <p class="text-xs font-semibold text-slate-900 dark:text-white leading-snug px-0.5">
+                    {{ marco.titulo }}
+                  </p>
+                  <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
+                    {{ marco.descricao }}
+                  </p>
+                </div>
+              </li>
+            </ol>
+          </div>
         </div>
       </section>
 
