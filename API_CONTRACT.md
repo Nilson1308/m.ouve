@@ -878,7 +878,9 @@ Pesquisa exibida no chat logo após o registro do protocolo (`tipo_acao: pesquis
 ## 🔔 Notificações do Cidadão (PWA) — Onda 4
 
 Modelos: `NotificacaoCidadao` (in-app) e `PushSubscription` (Web Push VAPID).  
-Gatilhos assíncronos: mudança de status do protocolo (`em_andamento`, `aguardando_revisao`, `resolvido`) e nova resposta da IA no chat → `NotificacaoCidadao` + task Celery `enviar_notificacao_push_task`.
+Gatilhos assíncronos (v4.15.1+): apenas **marcos do ciclo de vida** do protocolo — abertura/registro, despacho (`em_andamento`), diligência (`aguardando_cidadao`), revisão (`aguardando_revisao`), conclusão (`resolvido`), reabertura/encerramento definitivo → `NotificacaoCidadao` + task Celery `enviar_notificacao_push_task`. **Turnos do chat RAG não disparam notificação.**
+
+**Higiene operacional:** `python manage.py limpar_notificacoes_chat_rag [--dry-run]` remove notificações espúrias antigas de chat (sem apagar registros legítimos vinculados a protocolo).
 
 > **Rotas canônicas vs legado (cidadão):** use **`/api/v1/app/notificacoes`** no PWA atual (lista, marcar lida, push-subscribe, VAPID). A rota **`/api/v1/notificacoes`** (`core_auth`) permanece apenas por compatibilidade com integrações antigas; novos desenvolvimentos devem adotar `/app/notificacoes`.
 
@@ -1986,9 +1988,34 @@ Disparo em massa via `criar_notificacao_interna` (transação atômica). Destina
 
 ---
 
-### POST `/api/v1/publico/evidencias/<uuid:token_magic_link>` (público)
+### GET / POST `/api/v1/publico/evidencias/<uuid:token_magic_link>` (público, v4.15.1)
 
-**Sem JWT.** Upload multipart de evidências fotográficas.
+**Sem JWT.** O **GET** entrega contexto operacional mínimo para a equipe de campo (LGPD: **sem** nome, CPF, telefone, e-mail do cidadão nem histórico bruto do chat). O **POST** permanece upload multipart de evidências.
+
+#### GET — contexto operacional (200)
+
+| Campo | Descrição |
+|-------|-----------|
+| `ordem_servico_id` | UUID da OS |
+| `numero_protocolo` | Código legível (`PROT-…`) |
+| `status_os` | Status API da OS |
+| `unidade_nome` | Secretaria executora |
+| `servico_nome` | Nome do serviço no catálogo |
+| `prazo_sla` | ISO8601 do prazo SLA ativo |
+| `magic_link_expira_em` | ISO8601 validade do link |
+| `equipamento` | `{ nome, tipo, bairro, endereco, latitude, longitude }` ou `null` |
+| `endereco_texto`, `bairro`, `latitude`, `longitude` | Local da ocorrência |
+| `descricao_solicitacao` | Relato resumido da demanda |
+| `instrucoes_despacho` | Orientação do gestor ao despachar |
+| `motivo_reabertura` | Texto da contestação (se OS originada de reabertura Sprint 4) |
+| `reabertura_anexos` | Anexos da contestação (`{ id, url, nome, mime_type }`) |
+| `anexos_iniciais` | Fotos/arquivos iniciais do protocolo |
+| `diligencias` | `{ id, status, pergunta, resposta_cidadao, respondida_em, anexos[] }` |
+| `evidencias_campo_enviadas` | Fotos já enviadas por este link |
+
+**Erros GET/POST:** `404` token inválido; `410` link expirado, OS concluída/cancelada ou já formalizada (`aguardando_assinatura` / `data_formalizacao`).
+
+#### POST — upload multipart de evidências fotográficas
 
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
@@ -2406,7 +2433,7 @@ Scatter-gather da Super OS — mesmo contrato do despacho de protocolo.
 **Versão:** 2.2  
 **Data:** Novembro 2026  
 **Última Atualização:** Nov 17, 2026  
-**Versão do contrato:** 4.15.0
+**Versão do contrato:** 4.15.1
 
 ---
 
@@ -2641,7 +2668,7 @@ Super Admin (`regras.super_admin`) e `is_superuser` Django **sempre** passam.
 | Parâmetro | Tipo | Descrição |
 |-----------|------|-----------|
 | `ativo` | boolean | Filtra por status |
-| `busca` | string | Busca em `nome` ou `sigla` |
+| `busca` ou `search` | string | Busca case-insensitive em `nome`, `sigla` e `descricao` (v4.15.1) |
 
 **Campo anotado na listagem:** `qtd_usuarios` — contagem de usuários com `is_active=true` vinculados à unidade. Alias espelhado: `usuarios_count` (compatível com o frontend Vue).
 
@@ -2711,6 +2738,7 @@ Lista apenas registros com `perfil` preenchido (servidores; exclui cidadãos).
 | `perfil` | string | Filtra por `perfil_acesso.codigo` |
 | `perfil_acesso_id` | UUID | Filtra por perfil |
 | `unidade_id` | UUID | Filtra servidores da unidade |
+| `busca` ou `search` | string | Busca case-insensitive em `nome`/`first_name`/`last_name`, `email`, nome do perfil RBAC e nome/sigla da unidade (v4.15.1) |
 
 **Exemplo `GET` 200:**
 
@@ -3671,6 +3699,7 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.15.1** (Nov 25, 2026): Sprint 4.5 — `GET /publico/evidencias/<token>` (contexto operacional LGPD); remoção de push/in-app por turno de chat RAG; `busca`/`search` em `GET /backoffice/unidades` e `GET /backoffice/usuarios`; comando `limpar_notificacoes_chat_rag`
 - **v4.15.0** (Nov 24, 2026): Sprint 4 — janela de reabertura parametrizável (`ConfiguracaoSlaCobranca`, `ServicoCatalogo.prazo_reabertura_dias`); `ReaberturaProtocolo`; `POST /protocolos/<id>/reabrir`; CSAT com `pode_reabrir`/`sugerir_reabertura_csat` e reavaliação pós-reabertura; KPI `taxa_retrabalho_percentual` (eficiência + qualidade + `matriz_servicos`); filtro `apenas_reabertos`; Celery `encerrar_janelas_reabertura_expiradas_task`
 - **v4.14.2** (Nov 24, 2026): Sprint 3.1 — `anexos` resolvidos em objetos de diligência (backoffice/PWA/setorial); `AnexoProtocolo` enriquecido no PWA; `GET /backoffice/setorial/ordens/<id>`; badges de diligência na listagem setorial; RBAC `painel_setorial.criar` para abrir/cancelar diligência na OS da unidade; `pode_abrir_diligencia` considera permissão do usuário
 - **v4.14.1** (Nov 24, 2026): `POST /protocolos/<id>/anexos` (multipart) para upload de fotos na resposta à diligência; UI Sprint 3 PWA + backoffice (Kanban, config, detalhe 360º)
@@ -3684,7 +3713,7 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 - **v4.9** (Nov 23, 2026): Onda 3 — CRUD `/backoffice/catalogo/servicos/<id>/roteamento`; motor `triagem_sugerida` determinístico em `Protocolo`; auditoria de despacho vs sugestão; exposição no detalhe backoffice
 - **v4.8** (Nov 19, 2026): Catálogo — `fluxo_tramitacao`, `MatrizRoteamentoTematico`, tipo `lookup` + `GET /catalogo/lookup/unidades`; semântica de `unidade_responsavel` por fluxo
 - **v4.7.1** (Nov 19, 2026): `GET /app/notificacoes/vapid-public-key`; comando `manage.py generate_vapid`; derivação da chave pública a partir de PEM quando só `VAPID_PRIVATE_KEY` (caminho) está definido
-- **v4.7** (Nov 19, 2026): Onda 4 — `NotificacaoCidadao`, `PushSubscription`; `GET/PATCH /app/notificacoes`, `POST /app/notificacoes/push-subscribe`; Celery `enviar_notificacao_push_task` (pywebpush + VAPID); gatilhos status protocolo e resposta IA
+- **v4.7** (Nov 19, 2026): Onda 4 — `NotificacaoCidadao`, `PushSubscription`; `GET/PATCH /app/notificacoes`, `POST /app/notificacoes/push-subscribe`; Celery `enviar_notificacao_push_task` (pywebpush + VAPID); gatilhos por status do protocolo (resposta IA no chat removida em v4.15.1)
 - **v4.6** (Nov 19, 2026): CSAT Onda 3B — `pode_avaliar`/`avaliacao` no detalhe PWA; dashboard qualidade com `AvaliacaoProtocolo` + `percentual_satisfeitos`; escopo `escopo_dados`
 - **v4.5** (Nov 19, 2026): Onda 3 — Escopo de dados em `get_protocolo_backoffice` (404 IDOR setorial); `ServicoCatalogo.permite_cluster` (governança + filtro no motor de cluster IA); CSAT `AvaliacaoProtocolo` OneToOne; `POST /app/protocolos/<id>/avaliar`
 - **v4.4** (Nov 18, 2026): Versionamento de schema — rascunho/publicado em `ServicoCatalogo`, `ServicoCatalogoVersao`, `salvar_como_rascunho`, rotas publicar/descartar/versoes/restaurar; sandbox `usar_rascunho` + `origem_schema`

@@ -90,7 +90,7 @@
       </div>
 
       <!-- Instrução -->
-      <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-750 rounded-lg border border-gray-200 dark:border-gray-700">
+      <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-800/80 rounded-lg border border-gray-200 dark:border-gray-700">
         <p class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
           {{ mostrarDespacho ? 'Instrução original da OS' : 'Instrução original' }}
         </p>

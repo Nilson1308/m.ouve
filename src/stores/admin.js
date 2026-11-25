@@ -37,12 +37,15 @@ export const useAdminStore = defineStore('admin', () => {
   const totalEquipamentos = computed(() => equipamentos.value.length)
 
   async function carregarUnidades(opcoes = {}) {
-    const { silencioso = false } = opcoes
+    const { silencioso = false, busca = '' } = opcoes
     if (!silencioso) loading.value = true
     erro.value = null
 
     try {
-      const { data } = await api.get('/backoffice/unidades')
+      const params = {}
+      const termo = String(busca || '').trim()
+      if (termo) params.busca = termo
+      const { data } = await api.get('/backoffice/unidades', { params })
       unidades.value = unwrapList(data).map(mapUnidadeAdmin)
       return unidades.value
     } catch (err) {

@@ -132,7 +132,7 @@
       :default-open="false"
       ajuda="Visão condensada de status, SLA e nós — ideal para checagem rápida."
     >
-      <div class="space-y-2 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-750 border border-gray-200 dark:border-gray-700 p-4">
+      <div class="space-y-2 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900/80 border border-gray-200 dark:border-gray-700 p-4">
         <div class="flex items-center justify-between gap-3 text-sm">
           <span class="text-gray-600 dark:text-gray-400 shrink-0">Status Geral:</span>
           <StatusBadge :status="protocolo.status" tipo="zeladoria" :show-icon="true" />

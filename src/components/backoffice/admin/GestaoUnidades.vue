@@ -20,6 +20,31 @@
       </button>
     </div>
 
+    <div class="mb-6 max-w-xl">
+      <div class="relative">
+        <MagnifyingGlassIcon
+          class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500"
+          aria-hidden="true"
+        />
+        <input
+          v-model="termoBusca"
+          type="search"
+          class="input pl-10 pr-24"
+          placeholder="Buscar por nome ou sigla da unidade…"
+          autocomplete="off"
+          @input="agendarBusca"
+        />
+        <button
+          v-if="termoBusca"
+          type="button"
+          class="absolute right-2 top-1/2 -translate-y-1/2 min-h-[36px] px-3 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600"
+          @click="limparBusca"
+        >
+          Limpar
+        </button>
+      </div>
+    </div>
+
     <!-- Loading State -->
     <div v-if="loading" class="card p-12 flex flex-col items-center justify-center">
       <div class="animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent" />
@@ -54,7 +79,7 @@
           </thead>
           <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
             <tr
-              v-for="unidade in unidades"
+              v-for="unidade in unidadesExibidas"
               :key="unidade.id"
               class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
             >
@@ -140,15 +165,28 @@
       </div>
 
       <!-- Empty State -->
-      <div v-if="unidades.length === 0" class="p-12 text-center">
+      <div v-if="unidadesExibidas.length === 0" class="p-12 text-center">
         <BuildingOfficeIcon class="w-12 h-12 text-gray-400 mx-auto mb-4" />
         <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-2">
-          Nenhuma unidade cadastrada
+          {{ termoBusca.trim() ? `Nenhum resultado para “${termoBusca.trim()}”` : 'Nenhuma unidade cadastrada' }}
         </h3>
         <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Comece criando a primeira unidade administrativa
+          {{
+            termoBusca.trim()
+              ? 'Tente outro termo ou limpe o filtro.'
+              : 'Comece criando a primeira unidade administrativa'
+          }}
         </p>
         <button
+          v-if="termoBusca.trim()"
+          type="button"
+          class="inline-flex items-center gap-2 px-4 py-2 btn-secondary mb-3"
+          @click="limparBusca"
+        >
+          Limpar filtro
+        </button>
+        <button
+          v-if="!termoBusca.trim()"
           @click="abrirModalCriacao"
           class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium text-sm transition-colors"
         >
@@ -169,14 +207,15 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import { storeToRefs } from 'pinia'
 import {
   BuildingOfficeIcon,
   UserGroupIcon,
   PlusIcon,
   PencilSquareIcon,
-  SparklesIcon
+  SparklesIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/vue/24/outline'
 import { badgeClassTomIa, labelTomIa } from '@/utils/tomIaUnidade'
 import ModalUnidade from './ModalUnidade.vue'
@@ -189,6 +228,35 @@ const { unidades, loading } = storeToRefs(adminStore)
 
 const modalAberto = ref(false)
 const unidadeSelecionada = ref(null)
+const termoBusca = ref('')
+let debounceBusca = null
+
+const unidadesExibidas = computed(() => {
+  const termo = termoBusca.value.trim().toLowerCase()
+  if (!termo) return unidades.value
+  return unidades.value.filter((u) => {
+    const nome = (u.nome || '').toLowerCase()
+    const sigla = (u.sigla || '').toLowerCase()
+    const desc = (u.descricao || '').toLowerCase()
+    return nome.includes(termo) || sigla.includes(termo) || desc.includes(termo)
+  })
+})
+
+function agendarBusca() {
+  if (debounceBusca) clearTimeout(debounceBusca)
+  debounceBusca = setTimeout(() => {
+    adminStore.carregarUnidades({ busca: termoBusca.value }).catch(() => {})
+  }, 300)
+}
+
+function limparBusca() {
+  termoBusca.value = ''
+  adminStore.carregarUnidades().catch(() => {})
+}
+
+onBeforeUnmount(() => {
+  if (debounceBusca) clearTimeout(debounceBusca)
+})
 
 function abrirModalCriacao() {
   unidadeSelecionada.value = null

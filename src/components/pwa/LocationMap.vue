@@ -2,7 +2,7 @@
   <div class="location-map-root rounded-card overflow-hidden border border-gray-200 dark:border-gray-600 high-contrast:border-yellow-300">
     <div
       ref="containerRef"
-      class="w-full"
+      class="w-full h-64"
       :style="{ height }"
       role="application"
       :aria-label="draggable ? 'Mapa: arraste o pino para ajustar a localização' : 'Mapa da localização'"
@@ -36,7 +36,7 @@ const props = defineProps({
   defaultLatitude: { type: Number, default: -23.5222 },
   defaultLongitude: { type: Number, default: -46.1883 },
   zoom: { type: Number, default: 17 },
-  height: { type: String, default: '12rem' }
+  height: { type: String, default: '16rem' }
 })
 
 const emit = defineEmits(['update:latitude', 'update:longitude', 'move'])
@@ -44,6 +44,7 @@ const emit = defineEmits(['update:latitude', 'update:longitude', 'move'])
 const containerRef = ref(null)
 let map = null
 let marker = null
+let resizeObserver = null
 
 function coordenadasAtivas() {
   if (props.latitude != null && props.longitude != null) {
@@ -75,6 +76,25 @@ function ligarMarcador(lat, lng) {
   } else {
     marker.setLatLng([lat, lng])
   }
+}
+
+function recentralizar() {
+  if (!map) return
+  const { lat, lng, temMarcador } = coordenadasAtivas()
+  if (temMarcador) {
+    map.setView([lat, lng], map.getZoom() || props.zoom)
+  }
+}
+
+function agendarInvalidateSize() {
+  if (!map) return
+  map.invalidateSize({ pan: false })
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      map?.invalidateSize({ pan: false })
+      setTimeout(() => map?.invalidateSize({ pan: false }), 150)
+    })
+  })
 }
 
 function initMap() {
@@ -113,6 +133,21 @@ function initMap() {
       emitirPosicao(cLat, cLng)
     })
   }
+
+  agendarInvalidateSize()
+  observarResize()
+}
+
+function observarResize() {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
+  if (!containerRef.value || typeof ResizeObserver === 'undefined') return
+  resizeObserver = new ResizeObserver(() => {
+    map?.invalidateSize({ pan: false })
+  })
+  resizeObserver.observe(containerRef.value)
 }
 
 function syncMarker(lat, lng) {
@@ -128,17 +163,19 @@ onMounted(() => {
 })
 
 defineExpose({
-  invalidateSize: () => {
-    nextTick(() => {
-      map?.invalidateSize()
-    })
-  }
+  invalidateSize: () => agendarInvalidateSize(),
+  recentralizar
 })
 
 onBeforeUnmount(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
   if (map) {
     map.remove()
     map = null
+    marker = null
   }
 })
 
@@ -163,5 +200,8 @@ watch(
 <style scoped>
 .location-map-root :deep(.leaflet-control-attribution) {
   font-size: 10px;
+}
+.location-map-root :deep(.leaflet-container img) {
+  max-width: none !important;
 }
 </style>

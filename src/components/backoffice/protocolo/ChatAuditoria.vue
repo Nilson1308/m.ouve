@@ -3,7 +3,7 @@
     <!-- Header -->
     <button
       @click="expandido = !expandido"
-      class="w-full flex items-center justify-between mb-4 hover:bg-gray-50 dark:hover:bg-gray-750 -m-2 p-2 rounded-lg transition-colors"
+      class="w-full flex items-center justify-between mb-4 hover:bg-gray-50 active:bg-gray-100 dark:hover:bg-gray-800/90 dark:active:bg-gray-700/80 -m-2 p-2 rounded-lg transition-colors"
     >
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
@@ -45,7 +45,7 @@
             <div :class="[
               'p-3 rounded-lg',
               mensagem.tipo === 'bot'
-                ? 'bg-gray-50 dark:bg-gray-750 border border-gray-200 dark:border-gray-700'
+                ? 'bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700'
                 : 'bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800'
             ]">
               <!-- Cabeçalho -->

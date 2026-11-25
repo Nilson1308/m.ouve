@@ -2,10 +2,10 @@
   <section class="card overflow-hidden">
   <button
       type="button"
-      class="w-full flex items-center justify-between gap-3 text-left -m-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-750/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset"
+      class="w-full flex items-center justify-between gap-3 text-left -m-2 p-2 rounded-lg hover:bg-gray-50 active:bg-gray-100 dark:hover:bg-gray-800/90 dark:active:bg-gray-700/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:focus-visible:ring-primary-400 focus-visible:ring-inset"
       :aria-expanded="aberto"
       :aria-controls="panelId"
-      @click="aberto = !aberto"
+      @click="alternar"
     >
       <div class="flex items-center gap-3 min-w-0">
         <div
@@ -65,7 +65,14 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['toggle'])
+
 const aberto = ref(props.defaultOpen)
+
+function alternar() {
+  aberto.value = !aberto.value
+  emit('toggle', aberto.value)
+}
 </script>
 
 <style scoped>

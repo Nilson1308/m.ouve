@@ -11,54 +11,74 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from atendimentos.magic_link_services import token_magic_link_valido
+from atendimentos.magic_link_context_service import (
+    montar_contexto_magic_link,
+    motivo_bloqueio_magic_link,
+)
 from atendimentos.models import AnexoOrdemServico, OrdemServico
+
+
+def _carregar_ordem_por_token(token_magic_link) -> tuple[OrdemServico | None, Response | None]:
+    try:
+        token = uuid.UUID(str(token_magic_link).strip())
+    except ValueError:
+        return None, Response(
+            {"detail": "Token inválido."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    try:
+        ordem = (
+            OrdemServico.objects.select_related(
+                "protocolo",
+                "protocolo__servico",
+                "protocolo__equipamento",
+                "unidade",
+            )
+            .prefetch_related("anexos", "protocolo__anexos")
+            .get(magic_link_token=token)
+        )
+    except OrdemServico.DoesNotExist:
+        return None, Response(
+            {"detail": "Link não encontrado."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    return ordem, None
 
 
 class PublicoEvidenciasMagicLinkView(APIView):
     """
-    POST multipart — anexos da equipe de rua.
-    Não expõe dados do cidadão na resposta.
+    GET — contexto operacional (LGPD, sem PII do cidadão).
+  POST multipart — anexos da equipe de rua.
     """
 
     permission_classes = [AllowAny]
     authentication_classes = []
     parser_classes = [MultiPartParser, FormParser]
 
+    def get(self, request, token_magic_link):
+        ordem, err = _carregar_ordem_por_token(token_magic_link)
+        if err:
+            return err
+        bloqueio = motivo_bloqueio_magic_link(ordem)
+        if bloqueio:
+            code, detail = bloqueio
+            return Response({"detail": detail}, status=code)
+        payload = montar_contexto_magic_link(ordem, request=request)
+        return Response(payload, status=status.HTTP_200_OK)
+
     @transaction.atomic
     def post(self, request, token_magic_link):
-        try:
-            token = uuid.UUID(str(token_magic_link).strip())
-        except ValueError:
-            return Response(
-                {"detail": "Token inválido."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        ordem, err = _carregar_ordem_por_token(token_magic_link)
+        if err:
+            return err
 
-        try:
-            ordem = OrdemServico.objects.select_for_update().get(magic_link_token=token)
-        except OrdemServico.DoesNotExist:
-            return Response(
-                {"detail": "Link não encontrado."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        bloqueio = motivo_bloqueio_magic_link(ordem)
+        if bloqueio:
+            code, detail = bloqueio
+            return Response({"detail": detail}, status=code)
 
-        if ordem.status == OrdemServico.Status.CANCELADA:
-            return Response(
-                {"detail": "Esta ordem não aceita evidências."},
-                status=status.HTTP_410_GONE,
-            )
-        if ordem.status == OrdemServico.Status.CONCLUIDA:
-            return Response(
-                {"detail": "Ordem já concluída — envio de evidências encerrado."},
-                status=status.HTTP_410_GONE,
-            )
-
-        if not token_magic_link_valido(ordem):
-            return Response(
-                {"detail": "Link expirado. Solicite um novo link à secretaria."},
-                status=status.HTTP_410_GONE,
-            )
+        ordem = OrdemServico.objects.select_for_update().get(pk=ordem.pk)
 
         arquivos = (
             request.FILES.getlist("anexos")

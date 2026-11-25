@@ -512,8 +512,4 @@ def executar_processamento_ia(
             payload_ui=payload_ui,
         )
 
-    from atendimentos.notificacoes_cidadao import notificar_resposta_ia_chat
-
-    notificar_resposta_ia_chat(sessao, msg_ia)
-
     return msg_ia

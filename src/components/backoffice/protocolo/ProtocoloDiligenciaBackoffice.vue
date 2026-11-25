@@ -69,8 +69,8 @@
           class="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-sm"
         >
           <div class="flex flex-wrap items-center gap-2 mb-2">
-            <span class="text-xs font-bold uppercase text-gray-500">{{ labelStatusDiligencia(d.status) }}</span>
-            <time class="text-xs text-gray-500" :datetime="d.criado_em">{{ formatarPrazoHumano(d.criado_em) }}</time>
+            <span class="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">{{ labelStatusDiligencia(d.status) }}</span>
+            <time class="text-xs text-gray-500 dark:text-gray-400" :datetime="d.criado_em">{{ formatarPrazoHumano(d.criado_em) }}</time>
           </div>
           <p class="text-gray-800 dark:text-gray-200 whitespace-pre-line"><strong>Pergunta:</strong> {{ d.pergunta }}</p>
           <p v-if="d.resposta_cidadao" class="mt-2 text-gray-700 dark:text-gray-300 whitespace-pre-line">

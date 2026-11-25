@@ -23,21 +23,21 @@
     </p>
     <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
       <div>
-        <dt class="text-xs font-medium uppercase text-gray-500">Cobranças do cidadão</dt>
+        <dt class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Cobranças do cidadão</dt>
         <dd class="mt-1 font-bold text-amber-900 dark:text-amber-100">{{ qtd }}</dd>
         <p v-if="ultima" class="text-xs text-gray-600 dark:text-gray-400 mt-1">
           Última: {{ ultima }}
         </p>
       </div>
       <div>
-        <dt class="text-xs font-medium uppercase text-gray-500">Dias em atraso</dt>
+        <dt class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Dias em atraso</dt>
         <dd class="mt-1 font-semibold text-gray-900 dark:text-white">
           <span v-if="dias > 0" class="text-red-700 dark:text-red-300">{{ dias }} dia(s)</span>
           <span v-else>—</span>
         </dd>
       </div>
       <div>
-        <dt class="text-xs font-medium uppercase text-gray-500">Nível de alerta</dt>
+        <dt class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Nível de alerta</dt>
         <dd class="mt-1">
           <span
             :class="classeNivelAlertaSla(nivel)"

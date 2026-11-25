@@ -34,7 +34,7 @@
             <div class="flex items-center gap-4">
               <button
                 type="button"
-                class="rounded-lg p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+                class="rounded-lg p-2 transition-colors text-gray-600 dark:text-gray-300 hover:bg-gray-100 active:bg-gray-200 dark:hover:bg-gray-700 dark:active:bg-gray-600 focus-visible:ring-2 focus-visible:ring-primary-500 dark:focus-visible:ring-primary-400"
                 title="Voltar"
                 @click="voltarMesa"
               >

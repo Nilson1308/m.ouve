@@ -117,7 +117,7 @@
             <tr
               v-for="(valor, campo) in protocolo.dados_coletados"
               :key="campo"
-              class="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+              class="hover:bg-gray-50 dark:hover:bg-gray-700/40 active:bg-gray-100 dark:active:bg-gray-700/60 transition-colors"
             >
               <td class="px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 w-1/3">
                 {{ campo }}
@@ -133,12 +133,13 @@
       titulo="Localização e mapa"
       :subtitulo="enderecoLinha"
       :icon="MapPinIcon"
-      icon-wrapper-class="bg-success-100 dark:bg-success-900"
+      icon-wrapper-class="bg-success-100 dark:bg-success-900/50"
       icon-class="text-success-600 dark:text-success-400"
       :default-open="false"
       ajuda="Endereço, referência e coordenadas para equipes de campo."
+      @toggle="onMapaAccordionToggle"
     >
-      <div class="mb-4 p-4 bg-gray-50 dark:bg-gray-750 rounded-lg border border-gray-200 dark:border-gray-700">
+      <div class="mb-4 p-4 bg-gray-50 dark:bg-gray-800/80 rounded-lg border border-gray-200 dark:border-gray-700">
         <div class="space-y-2">
           <div class="flex items-start gap-3">
             <BuildingOffice2Icon class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
@@ -165,6 +166,7 @@
       </div>
       <LocationMap
         v-if="temCoordenadas"
+        ref="mapaRef"
         :latitude="coordenadas.latitude"
         :longitude="coordenadas.longitude"
         :draggable="false"
@@ -173,7 +175,7 @@
       />
       <div
         v-else
-        class="relative h-48 flex items-center justify-center bg-gray-100 dark:bg-gray-750 rounded-lg border border-gray-300 dark:border-gray-600"
+        class="relative h-48 flex items-center justify-center bg-gray-100 dark:bg-gray-800/60 rounded-lg border border-gray-300 dark:border-gray-600"
       >
         <h4 class="sr-only">Mapa indisponível</h4>
         <div class="text-center px-4">
@@ -200,7 +202,7 @@
         <li v-for="(anexo, idx) in anexosLista" :key="idx">
           <button
             type="button"
-            class="block w-full rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary-500"
+            class="block w-full rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 hover:opacity-90 dark:hover:border-primary-500/60 active:opacity-95 focus-visible:ring-2 focus-visible:ring-primary-500 dark:focus-visible:ring-primary-400"
             @click="abrirAnexo(anexo.url)"
           >
             <img :src="anexo.url" alt="Anexo da solicitação" class="w-full h-28 object-cover" loading="lazy" />
@@ -237,7 +239,7 @@
 import ProtocoloDiligenciaBackoffice from '@/components/backoffice/protocolo/ProtocoloDiligenciaBackoffice.vue'
 import ProtocoloReaberturasCard from '@/components/backoffice/protocolo/ProtocoloReaberturasCard.vue'
 import ProtocoloSlaCobrancaResumo from '@/components/backoffice/protocolo/ProtocoloSlaCobrancaResumo.vue'
-import { computed } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import {
   CpuChipIcon,
   MapPinIcon,
@@ -262,6 +264,23 @@ const props = defineProps({
     required: true
   }
 })
+
+const mapaRef = ref(null)
+
+function onMapaAccordionToggle(aberto) {
+  if (!aberto || !temCoordenadas.value) return
+  nextTick(() => {
+    mapaRef.value?.invalidateSize?.()
+    requestAnimationFrame(() => {
+      mapaRef.value?.invalidateSize?.()
+      mapaRef.value?.recentralizar?.()
+      setTimeout(() => {
+        mapaRef.value?.invalidateSize?.()
+        mapaRef.value?.recentralizar?.()
+      }, 150)
+    })
+  })
+}
 
 const temDadosColetados = computed(() => {
   const dados = props.protocolo?.dados_coletados

@@ -8,7 +8,7 @@
     leave-to-class="opacity-0"
   >
     <div
-      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-hidden"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-hidden"
       @click.self="$emit('fechar')"
     >
       <Transition
@@ -599,7 +599,7 @@ function abaClasse(id) {
     'inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg border-b-2 -mb-px transition-colors',
     ativo
       ? 'border-primary-500 text-primary-700 dark:text-primary-300 bg-white dark:bg-gray-800'
-      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-gray-800/60 dark:active:bg-gray-700/50'
   ]
 }
 

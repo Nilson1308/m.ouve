@@ -20,6 +20,31 @@
       </button>
     </div>
 
+    <div class="mb-6 max-w-xl">
+      <div class="relative">
+        <MagnifyingGlassIcon
+          class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500"
+          aria-hidden="true"
+        />
+        <input
+          v-model="termoBusca"
+          type="search"
+          class="input pl-10 pr-24"
+          placeholder="Buscar por nome, e-mail, perfil ou unidade…"
+          autocomplete="off"
+          @input="agendarBusca"
+        />
+        <button
+          v-if="termoBusca"
+          type="button"
+          class="absolute right-2 top-1/2 -translate-y-1/2 min-h-[36px] px-3 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600"
+          @click="limparBusca"
+        >
+          Limpar
+        </button>
+      </div>
+    </div>
+
     <!-- Filtros Rápidos -->
     <div class="flex flex-wrap items-center gap-3 mb-6">
       <button
@@ -30,7 +55,7 @@
           'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
           filtroAtivo === perfil.id
             ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 ring-2 ring-purple-500'
-            : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600'
         ]"
       >
         <span class="w-2 h-2 rounded-full bg-purple-500"></span>
@@ -195,13 +220,31 @@
       <div v-if="usuariosFiltrados.length === 0" class="p-12 text-center">
         <UserGroupIcon class="w-12 h-12 text-gray-400 mx-auto mb-4" />
         <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-2">
-          {{ filtroAtivo ? 'Nenhum usuário encontrado' : 'Nenhum usuário cadastrado' }}
+          {{
+            termoBusca.trim()
+              ? `Nenhum resultado para “${termoBusca.trim()}”`
+              : filtroAtivo
+                ? 'Nenhum usuário encontrado'
+                : 'Nenhum usuário cadastrado'
+          }}
         </h3>
         <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          {{ filtroAtivo ? 'Tente limpar os filtros ou criar um novo usuário' : 'Comece criando o primeiro usuário do sistema' }}
+          {{
+            termoBusca.trim() || filtroAtivo
+              ? 'Tente outro termo ou limpe os filtros.'
+              : 'Comece criando o primeiro usuário do sistema'
+          }}
         </p>
         <button
-          v-if="!filtroAtivo"
+          v-if="termoBusca.trim()"
+          type="button"
+          class="inline-flex items-center gap-2 px-4 py-2 btn-secondary mb-3"
+          @click="limparBusca"
+        >
+          Limpar filtro
+        </button>
+        <button
+          v-if="!filtroAtivo && !termoBusca.trim()"
           @click="abrirModalCriacao"
           class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium text-sm transition-colors"
         >
@@ -223,7 +266,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import { storeToRefs } from 'pinia'
 import {
   UserGroupIcon,
@@ -232,7 +275,8 @@ import {
   PlusIcon,
   PencilSquareIcon,
   KeyIcon,
-  XMarkIcon
+  XMarkIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/vue/24/outline'
 import ModalUsuario from './ModalUsuario.vue'
 import { useAdminStore } from '@/stores/admin'
@@ -262,15 +306,53 @@ const modalAberto = ref(false)
 const modalUsuarioRef = ref(null)
 const usuarioSelecionado = ref(null)
 const filtroAtivo = ref(null)
+const termoBusca = ref('')
+let debounceBusca = null
 
 // Computeds
 const usuariosFiltrados = computed(() => {
-  if (!filtroAtivo.value) return usuarios.value
-  return usuarios.value.filter(
-    (u) =>
-      u.perfil_acesso_id === filtroAtivo.value ||
-      u.perfil === filtroAtivo.value
-  )
+  let lista = usuarios.value
+  if (filtroAtivo.value) {
+    lista = lista.filter(
+      (u) =>
+        u.perfil_acesso_id === filtroAtivo.value ||
+        u.perfil === filtroAtivo.value
+    )
+  }
+  const termo = termoBusca.value.trim().toLowerCase()
+  if (!termo) return lista
+  return lista.filter((u) => {
+    const nome = (u.nome || '').toLowerCase()
+    const email = (u.email || '').toLowerCase()
+    const perfil = (u.perfil_acesso_nome || getNomePerfil(u.perfil) || '').toLowerCase()
+    const unidade = (u.unidade_nome || '').toLowerCase()
+    return (
+      nome.includes(termo) ||
+      email.includes(termo) ||
+      perfil.includes(termo) ||
+      unidade.includes(termo)
+    )
+  })
+})
+
+function agendarBusca() {
+  if (debounceBusca) clearTimeout(debounceBusca)
+  debounceBusca = setTimeout(() => {
+    const params = {}
+    const termo = termoBusca.value.trim()
+    if (termo) params.busca = termo
+    adminStore.carregarUsuarios(params).catch(() => {})
+  }, 300)
+}
+
+function limparBusca() {
+  termoBusca.value = ''
+  const params = {}
+  adminStore.carregarUsuarios(params).catch(() => {})
+}
+
+onBeforeUnmount(() => {
+  if (debounceBusca) clearTimeout(debounceBusca)
 })
 
 // Funções

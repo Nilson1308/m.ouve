@@ -22,20 +22,34 @@ from core_auth.models import PerfilAcesso, Usuario
 from core_auth.permissions import IsSuperAdmin, PermissaoConfiguracoes, PermissaoGestaoUsuarios
 
 
+def _termo_busca_filterset(filterset, value) -> str:
+    termo = (value or "").strip()
+    if termo:
+        return termo
+    request = getattr(filterset, "request", None)
+    if not request:
+        return ""
+    params = getattr(request, "query_params", None) or getattr(request, "GET", {})
+    return (params.get("busca") or params.get("search") or "").strip()
+
+
 class UnidadeAdministrativaFilterSet(filters.FilterSet):
     ativo = filters.BooleanFilter(field_name="ativo")
     busca = filters.CharFilter(method="filter_busca")
+    search = filters.CharFilter(method="filter_busca")
 
     class Meta:
         model = UnidadeAdministrativa
         fields = ("ativo",)
 
     def filter_busca(self, queryset, name, value):
-        termo = (value or "").strip()
+        termo = _termo_busca_filterset(self, value)
         if not termo:
             return queryset
         return queryset.filter(
-            Q(nome__icontains=termo) | Q(sigla__icontains=termo)
+            Q(nome__icontains=termo)
+            | Q(sigla__icontains=termo)
+            | Q(descricao__icontains=termo)
         )
 
 
@@ -119,6 +133,8 @@ class UsuarioGovernancaFilterSet(filters.FilterSet):
     perfil = filters.CharFilter(method="filter_perfil")
     perfil_acesso_id = filters.UUIDFilter(field_name="perfil_acesso_id")
     unidade_id = filters.UUIDFilter(field_name="unidade_id")
+    busca = filters.CharFilter(method="filter_busca")
+    search = filters.CharFilter(method="filter_busca")
 
     class Meta:
         model = Usuario
@@ -129,6 +145,19 @@ class UsuarioGovernancaFilterSet(filters.FilterSet):
         if not codigo:
             return queryset
         return queryset.filter(perfil_acesso__codigo=codigo)
+
+    def filter_busca(self, queryset, name, value):
+        termo = _termo_busca_filterset(self, value)
+        if not termo:
+            return queryset
+        return queryset.filter(
+            Q(nome__icontains=termo)
+            | Q(email__icontains=termo)
+            | Q(perfil_acesso__nome__icontains=termo)
+            | Q(perfil_acesso__codigo__icontains=termo)
+            | Q(unidade__nome__icontains=termo)
+            | Q(unidade__sigla__icontains=termo)
+        )
 
 
 class UsuarioGovernancaViewSet(viewsets.ModelViewSet):
