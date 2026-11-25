@@ -8,6 +8,10 @@ from typing import Any
 from catalogo.models import ServicoCatalogo
 
 
+def is_sessao_sandbox(sessao) -> bool:
+    return type(sessao).__name__ == "SessaoSandbox"
+
+
 @dataclass
 class SessaoSandbox:
     """
@@ -27,6 +31,12 @@ class SessaoSandbox:
     @property
     def servico_identificado_id(self):
         return self.servico.pk
+
+    def save(self, update_fields=None, **kwargs):
+        """No-op — persistência só em ``SessaoChat``."""
+
+    def refresh_from_db(self, fields=None):
+        """No-op — sem registro no banco."""
 
 
 def montar_sessao_sandbox(
