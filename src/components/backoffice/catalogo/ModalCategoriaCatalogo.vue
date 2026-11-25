@@ -8,7 +8,7 @@
     leave-to-class="opacity-0"
   >
     <div
-      class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 overflow-y-auto"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-hidden"
       @click.self="$emit('fechar')"
     >
       <Transition
@@ -19,16 +19,18 @@
         leave-from-class="opacity-100 scale-100"
         leave-to-class="opacity-0 scale-95"
       >
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl my-8 overflow-hidden">
-          <div
-            class="px-6 py-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-primary-50 to-cyan-50 dark:from-primary-900/20 dark:to-cyan-900/20"
+        <div
+          class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90dvh] flex flex-col overflow-hidden"
+        >
+          <header
+            class="shrink-0 px-6 py-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-primary-50 to-cyan-50 dark:from-primary-900/20 dark:to-cyan-900/20"
           >
             <div class="flex items-start justify-between gap-3">
-              <div class="flex items-center gap-3">
-                <div class="p-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="p-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg shrink-0">
                   <FolderIcon class="w-6 h-6 text-primary-600 dark:text-primary-400" />
                 </div>
-                <div>
+                <div class="min-w-0">
                   <h2 class="text-xl font-bold text-gray-900 dark:text-white">
                     {{ categoria ? 'Editar categoria' : 'Nova categoria' }}
                   </h2>
@@ -39,15 +41,17 @@
               </div>
               <button
                 type="button"
-                class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                class="p-2 shrink-0 hover:bg-gray-100 active:bg-gray-200 dark:hover:bg-gray-700 dark:active:bg-gray-600 rounded-lg transition-colors"
+                aria-label="Fechar"
                 @click="$emit('fechar')"
               >
                 <XMarkIcon class="w-5 h-5 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
-          </div>
+          </header>
 
-          <form class="p-6 space-y-5" @submit.prevent="salvar">
+          <form class="flex flex-col flex-1 min-h-0 overflow-hidden" @submit.prevent="salvar">
+            <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-5">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="md:col-span-2">
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -124,25 +128,26 @@
                 </p>
               </div>
             </div>
+            </div>
 
-            <div
-              class="flex flex-col sm:flex-row sm:items-center justify-end gap-3 pt-2 border-t border-gray-200 dark:border-gray-700"
+            <footer
+              class="shrink-0 flex flex-col sm:flex-row sm:items-center justify-end gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50"
             >
               <button
                 type="button"
-                class="px-4 py-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-medium transition-colors"
+                class="min-h-[44px] px-4 py-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 active:bg-gray-400 dark:hover:bg-gray-500 dark:active:bg-gray-400 text-gray-700 dark:text-gray-200 rounded-lg font-medium transition-colors"
                 @click="$emit('fechar')"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                class="btn-primary !py-2 !px-6"
+                class="btn-primary min-h-[44px] !py-2 !px-6"
                 :disabled="salvando || !formularioValido"
               >
                 {{ salvando ? 'Salvando…' : categoria ? 'Salvar alterações' : 'Criar categoria' }}
               </button>
-            </div>
+            </footer>
           </form>
         </div>
       </Transition>
