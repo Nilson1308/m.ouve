@@ -490,6 +490,39 @@ def _campo_e_opcional(servico: ServicoCatalogo, campo: str) -> bool:
     return bool(campo) and campo not in required
 
 
+def _campo_aceita_resposta_binaria(
+    servico: ServicoCatalogo, campo: str, prop: dict | None = None
+) -> bool:
+    """Sim/não curtos preenchem o slot (evita loop quando o LLM não extrai «sim»)."""
+    prop = prop or _propriedade_campo(servico, campo)
+    if prop.get("type") == "boolean":
+        return True
+    tipo_ui = (prop.get("x-ouvia-tipo-campo") or "").strip().lower()
+    if tipo_ui in ("boolean", "yes_no", "sim_nao"):
+        return True
+    if (prop.get("format") or "").strip().lower() == "textarea":
+        return False
+    if _enum_do_campo(prop) or prop.get("type") == "array":
+        return False
+    if prop.get("type") == "string" and _campo_e_opcional(servico, campo):
+        return True
+    return False
+
+
+def _extrair_resposta_binaria_campo(
+    servico: ServicoCatalogo, campo: str, texto_usuario: str
+) -> Any | None:
+    if not _campo_aceita_resposta_binaria(servico, campo):
+        return None
+    decisao = confirmacao_servico_usuario(texto_usuario)
+    if decisao is None:
+        return None
+    prop = _propriedade_campo(servico, campo)
+    if prop.get("type") == "boolean":
+        return decisao
+    return "sim" if decisao else "não"
+
+
 def _pular_opcional_se_declinio(
     sessao: SessaoChat,
     servico: ServicoCatalogo,
@@ -792,6 +825,8 @@ def _campo_ainda_falta(
         return False
     if property_tem_lookup_datasource(prop):
         return not campo_lookup_valido(prop, valor)
+    if prop.get("type") == "boolean":
+        return valor is None
     if valor is None or (isinstance(valor, str) and not valor.strip()):
         return True
     if isinstance(valor, str) and valor.lower() == "outro":
@@ -817,12 +852,22 @@ def _campos_faltantes(
     faltantes = []
     campos_ordem = _ordem_campos_schema(servico)
     pulados = _campos_pulados(sessao)
+    required_set = set(schema.get("required") or [])
     for campo in campos_ordem:
         if campo in pulados:
             continue
         prop = (schema.get("properties") or {}).get(campo) or {}
         if _campo_ainda_falta(servico, campo, prop, dados, sessao):
             faltantes.append(campo)
+
+    def _prioridade(campo: str) -> tuple[int, int]:
+        try:
+            pos = campos_ordem.index(campo)
+        except ValueError:
+            pos = 999
+        return (0 if campo in required_set else 1, pos)
+
+    faltantes.sort(key=_prioridade)
     return faltantes
 
 
@@ -1355,14 +1400,22 @@ class LLMOrchestrator:
             faltantes = _campos_faltantes(servico, dados_atuais, sessao)
             if faltantes:
                 campo_foco = faltantes[0]
-                if _pular_opcional_se_declinio(sessao, servico, campo_foco, texto_usuario):
-                    sessao.refresh_from_db()
-                    return self.passo_deterministico_preenchimento(
-                        sessao,
-                        anexos_novos=anexos_novos,
-                    )
+                binario = _extrair_resposta_binaria_campo(
+                    servico, campo_foco, texto_usuario
+                )
+                if binario is not None:
+                    extraidos = {campo_foco: binario}
+                elif _pular_opcional_se_declinio(
+                    sessao, servico, campo_foco, texto_usuario
+                ):
+                    if not _campo_aceita_resposta_binaria(servico, campo_foco):
+                        sessao.refresh_from_db()
+                        return self.passo_deterministico_preenchimento(
+                            sessao,
+                            anexos_novos=anexos_novos,
+                        )
                 prop0 = _propriedade_campo(servico, campo_foco)
-                if _tipo_ui_campo(prop0) not in ("geolocation", "image"):
+                if not extraidos and _tipo_ui_campo(prop0) not in ("geolocation", "image"):
                     try:
                         extraidos = self._extrair_dados_mensagem(
                             sessao, servico, texto_usuario, dados_atuais
@@ -1413,15 +1466,21 @@ class LLMOrchestrator:
             faltantes = _campos_faltantes(servico, dados_atuais, sessao_sandbox)
             if faltantes:
                 campo_foco = faltantes[0]
-                if _pular_opcional_se_declinio(
+                binario = _extrair_resposta_binaria_campo(
+                    servico, campo_foco, texto_usuario
+                )
+                if binario is not None:
+                    extraidos = {campo_foco: binario}
+                elif _pular_opcional_se_declinio(
                     sessao_sandbox, servico, campo_foco, texto_usuario
                 ):
-                    return self.passo_deterministico_preenchimento(
-                        sessao_sandbox,
-                        anexos_novos=anexos_novos,
-                    )
+                    if not _campo_aceita_resposta_binaria(servico, campo_foco):
+                        return self.passo_deterministico_preenchimento(
+                            sessao_sandbox,
+                            anexos_novos=anexos_novos,
+                        )
                 prop0 = _propriedade_campo(servico, campo_foco)
-                if _tipo_ui_campo(prop0) not in ("geolocation", "image"):
+                if not extraidos and _tipo_ui_campo(prop0) not in ("geolocation", "image"):
                     try:
                         extraidos = self._extrair_dados_mensagem(
                             sessao_sandbox, servico, texto_usuario, dados_atuais

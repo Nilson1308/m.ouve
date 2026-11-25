@@ -10,6 +10,8 @@ from catalogo.datasources import WIDGET_PADRAO
 
 def _tipo_json_campo(tipo: str) -> str:
     t = (tipo or "text").strip().lower()
+    if t in ("boolean", "checkbox", "yes_no", "sim_nao"):
+        return "boolean"
     if t == "number":
         return "number"
     return "string"
@@ -54,6 +56,10 @@ def formulario_schema_para_schema_formulario(
         }
         if tipo == "textarea":
             prop["format"] = "textarea"
+        if tipo in ("boolean", "checkbox", "yes_no", "sim_nao"):
+            prop["type"] = "boolean"
+            prop["default"] = False
+            prop["x-ouvia-tipo-campo"] = "boolean"
         if tipo == "image":
             prop["format"] = "uri"
             prop["x-ouvia-tipo-campo"] = "image"
@@ -160,6 +166,8 @@ def schema_formulario_para_formulario_schema(schema: dict | None) -> list[dict[s
             tipo = "image"
         elif fmt == "textarea":
             tipo = "textarea"
+        elif prop.get("type") == "boolean":
+            tipo = "boolean"
         elif prop.get("type") == "number":
             tipo = "number"
         elif prop.get("enum"):
