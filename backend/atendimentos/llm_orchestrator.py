@@ -495,9 +495,11 @@ def _campo_aceita_resposta_binaria(
 ) -> bool:
     """Sim/não curtos preenchem o slot (evita loop quando o LLM não extrai «sim»)."""
     prop = prop or _propriedade_campo(servico, campo)
+    tipo_ui = (prop.get("x-ouvia-tipo-campo") or "").strip().lower()
+    if tipo_ui in ("geolocation", "image", "lookup"):
+        return False
     if prop.get("type") == "boolean":
         return True
-    tipo_ui = (prop.get("x-ouvia-tipo-campo") or "").strip().lower()
     if tipo_ui in ("boolean", "yes_no", "sim_nao"):
         return True
     if (prop.get("format") or "").strip().lower() == "textarea":
@@ -505,7 +507,23 @@ def _campo_aceita_resposta_binaria(
     if _enum_do_campo(prop) or prop.get("type") == "array":
         return False
     if prop.get("type") == "string" and _campo_e_opcional(servico, campo):
-        return True
+        rotulo = (
+            (prop.get("title") or "")
+            + " "
+            + (prop.get("x-ouvia-ui-pergunta") or "")
+        ).lower()
+        if any(
+            m in rotulo
+            for m in (
+                "risco imediato",
+                "oferece risco",
+                "há risco",
+                "ha risco",
+                "sim ou não",
+                "sim ou nao",
+            )
+        ):
+            return True
     return False
 
 
@@ -1408,12 +1426,11 @@ class LLMOrchestrator:
                 elif _pular_opcional_se_declinio(
                     sessao, servico, campo_foco, texto_usuario
                 ):
-                    if not _campo_aceita_resposta_binaria(servico, campo_foco):
-                        sessao.refresh_from_db()
-                        return self.passo_deterministico_preenchimento(
-                            sessao,
-                            anexos_novos=anexos_novos,
-                        )
+                    sessao.refresh_from_db()
+                    return self.passo_deterministico_preenchimento(
+                        sessao,
+                        anexos_novos=anexos_novos,
+                    )
                 prop0 = _propriedade_campo(servico, campo_foco)
                 if not extraidos and _tipo_ui_campo(prop0) not in ("geolocation", "image"):
                     try:
@@ -1474,11 +1491,10 @@ class LLMOrchestrator:
                 elif _pular_opcional_se_declinio(
                     sessao_sandbox, servico, campo_foco, texto_usuario
                 ):
-                    if not _campo_aceita_resposta_binaria(servico, campo_foco):
-                        return self.passo_deterministico_preenchimento(
-                            sessao_sandbox,
-                            anexos_novos=anexos_novos,
-                        )
+                    return self.passo_deterministico_preenchimento(
+                        sessao_sandbox,
+                        anexos_novos=anexos_novos,
+                    )
                 prop0 = _propriedade_campo(servico, campo_foco)
                 if not extraidos and _tipo_ui_campo(prop0) not in ("geolocation", "image"):
                     try:

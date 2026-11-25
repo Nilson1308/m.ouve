@@ -191,3 +191,20 @@ class FotoOpcionalExigeFotoMetadataTests(TestCase):
         self.assertTrue(
             turno.ir_para_revisao or turno.acao_ui == "revisao_final" or MSG_REVISAO in (turno.resposta_cidadao or "")
         )
+
+    def test_nao_tenho_em_foto_opcional_nao_repete_pergunta(self):
+        sessao = self._sessao_com_local()
+        dados = dict(sessao.dados_coletados or {})
+        dados["numero_poste"] = "123"
+        sessao.dados_coletados = dados
+        sessao.save()
+        orch = LLMOrchestrator()
+        turno = orch._estagio_slot_filling(
+            sessao,
+            texto_usuario="não tenho",
+            anexos_novos=0,
+        )
+        sessao.refresh_from_db()
+        pulados = (sessao.dados_coletados or {}).get("_campos_pulados") or []
+        self.assertIn("f", pulados)
+        self.assertNotEqual((turno.resposta_cidadao or "").strip(), "Foto do poste")
