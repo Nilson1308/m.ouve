@@ -273,10 +273,12 @@ import {
 import { useCopilotoStore } from '@/stores/copiloto'
 import CopilotoMensagemFormatada from '@/components/backoffice/agente/CopilotoMensagemFormatada.vue'
 import { labelFerramentaCopiloto } from '@/services/copilotoGestaoMappers'
+import { useDialog } from '@/composables/useDialog'
 
 const store = useCopilotoStore()
 const route = useRoute()
 const router = useRouter()
+const { confirm } = useDialog()
 
 const rascunho = ref('')
 const inputRef = ref(null)
@@ -397,7 +399,13 @@ async function toggleHistorico() {
 }
 
 async function confirmarExclusao(sessao) {
-  if (!window.confirm(`Excluir a conversa «${sessao.titulo}»?`)) return
+  const titulo = (sessao?.titulo || 'esta conversa').trim()
+  const ok = await confirm(
+    `A conversa «${titulo}» será removida do seu histórico. Esta ação não pode ser desfeita.`,
+    'Excluir conversa',
+    { confirmText: 'Excluir', cancelText: 'Cancelar' }
+  )
+  if (!ok) return
   try {
     await store.excluirSessao(sessao.id)
   } catch {
