@@ -67,11 +67,24 @@ class SetorialOrdemFilterSet(filters.FilterSet):
         fields = ()
 
     def filter_busca(self, queryset, name, value):
-        if not value:
-            return queryset
-        termo = value.strip()
+        from atendimentos.services.mesa_busca import _RE_CODIGO, _tokens_busca
+
+        termo = (value or "").strip()
         if not termo:
             return queryset
+        partes = _tokens_busca(termo)
+        if len(partes) > 1:
+            q = Q()
+            for parte in partes:
+                if _RE_CODIGO.match(parte):
+                    q |= Q(protocolo__codigo__iexact=parte) | Q(protocolo__codigo__icontains=parte)
+                else:
+                    q |= (
+                        Q(descricao__icontains=parte)
+                        | Q(protocolo__codigo__icontains=parte)
+                        | Q(protocolo__descricao__icontains=parte)
+                    )
+            return queryset.filter(q).distinct()
         return queryset.filter(
             Q(descricao__icontains=termo)
             | Q(protocolo__codigo__icontains=termo)

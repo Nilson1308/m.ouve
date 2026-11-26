@@ -434,6 +434,8 @@ import WidgetSugestoesIA from '@/components/backoffice/ia/WidgetSugestoesIA.vue'
 import MapaClustersView from '@/components/backoffice/ia/MapaClustersView.vue'
 import ResumoIaMesa from '@/components/backoffice/ia/ResumoIaMesa.vue'
 import RadarOperacionalCard from '@/components/backoffice/agente/RadarOperacionalCard.vue'
+import { aplicarQueryRadarNaMesa } from '@/composables/useRadarQuerySync'
+import { usePerspectivaRadarMesa } from '@/composables/useRadarBriefingPerspectiva'
 import { useBackofficeStore } from '@/stores/backoffice'
 import { useAuthStore } from '@/stores/auth'
 import { LABEL_URGENCIA } from '@/utils/urgenciaHelpers'
@@ -449,10 +451,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const backofficeStore = useBackofficeStore()
 
-/** Escopo municipal na Mesa → lente Ouvidoria (v4.17) */
-const perspectivaRadarMesa = computed(() =>
-  authStore.user?.unidade_id ? '' : 'ouvidoria'
-)
+const perspectivaRadarMesa = usePerspectivaRadarMesa()
 const notificacoesInternasStore = useNotificacoesInternasStore()
 const assinaturasStore = useAssinaturasStore()
 const superOSStore = useSuperOSStore()
@@ -824,51 +823,8 @@ watch(modoVisualizacao, async () => {
   }
 })
 
-function aplicarQueryInicialRadar() {
-  const q = route.query || {}
-  const chaves = Object.keys(q)
-  if (!chaves.length) return
-  const payload = {
-    unidadesIds: [],
-    servicoIds: [],
-    bairros: [],
-    statusLista: [],
-    urgenciaLista: [],
-    equipamentoId: '',
-    equipamentoRotulo: '',
-    apenasCobrados: false,
-    apenasReabertos: false,
-    apenasSugestaoUrgenciaIa: false
-  }
-  if (q.urgencia) {
-    payload.urgenciaLista = String(q.urgencia)
-      .split(',')
-      .map((v) => v.trim())
-      .filter(Boolean)
-  }
-  if (q.status) {
-    payload.statusLista = String(q.status)
-      .split(',')
-      .map((v) => v.trim())
-      .filter(Boolean)
-  }
-  if (q.bairro) {
-    payload.bairros = String(q.bairro)
-      .split(',')
-      .map((v) => v.trim())
-      .filter(Boolean)
-  }
-  if (q.equipamento_id) payload.equipamentoId = String(q.equipamento_id).trim()
-  if (q.apenas_sugestao_urgencia_ia === 'true') payload.apenasSugestaoUrgenciaIa = true
-  if (q.apenas_reabertos === 'true') payload.apenasReabertos = true
-  backofficeStore.aplicarFiltrosAvancados(payload)
-  backofficeStore.setFiltro('busca', q.busca ? String(q.busca).trim() : '')
-  backofficeStore.setFiltro('slaVencido', false)
-  backofficeStore.setFiltro('critico', false)
-}
-
 async function aplicarQueryRadarENavegar() {
-  aplicarQueryInicialRadar()
+  aplicarQueryRadarNaMesa(route, backofficeStore)
   await recarregar()
   requestAnimationFrame(() => {
     document.getElementById('mesa-protocolos-area')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -887,7 +843,7 @@ watch(
 )
 
 onMounted(async () => {
-  aplicarQueryInicialRadar()
+  aplicarQueryRadarNaMesa(route, backofficeStore)
   await Promise.all([
     backofficeStore.carregarUnidades().catch(() => {}),
     backofficeStore.carregarOpcoesFiltrosMesa().catch(() => null),

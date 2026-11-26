@@ -84,6 +84,7 @@
       <RadarOperacionalCard
         storage-key="radar-setorial"
         :unidade-nome-override="unidade.nome"
+        class="mb-4"
       />
     </div>
 
@@ -168,7 +169,7 @@
       </div>
     </div>
 
-    <div class="px-6 py-6">
+    <div id="setorial-worklist" class="px-6 py-6">
       <WorklistOS
         :ordens="ordensFiltradas"
         :visualizacao="visualizacao"
@@ -239,6 +240,7 @@ import {
 } from '@heroicons/vue/24/outline'
 
 import RadarOperacionalCard from '@/components/backoffice/agente/RadarOperacionalCard.vue'
+import { aplicarQueryRadarNoSetorial } from '@/composables/useRadarQuerySync'
 import WorklistOS from '@/components/backoffice/setorial/WorklistOS.vue'
 import ModalFormalizacaoOS from '@/components/backoffice/setorial/ModalFormalizacaoOS.vue'
 import ModalFiltrosAvancadosSetorial from '@/components/backoffice/setorial/ModalFiltrosAvancadosSetorial.vue'
@@ -546,22 +548,26 @@ async function enviarDespachoAoGestor(dados) {
   }
 }
 
-function aplicarQueryRadarSetorial() {
-  const q = route.query || {}
-  if (q.busca) setorialStore.filtros.busca = String(q.busca).trim()
+async function sincronizarQueryRadarSetorial() {
+  if (aplicarQueryRadarNoSetorial(route, setorialStore)) {
+    await atualizarDados()
+    requestAnimationFrame(() => {
+      document.getElementById('setorial-worklist')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
 }
 
 watch(
   () => route.query,
   () => {
-    aplicarQueryRadarSetorial()
-    atualizarDados()
+    if (route.name !== 'backoffice-setorial') return
+    sincronizarQueryRadarSetorial()
   },
   { deep: true }
 )
 
 onMounted(() => {
-  aplicarQueryRadarSetorial()
+  aplicarQueryRadarNoSetorial(route, setorialStore)
   setorialStore.carregarOpcoesFiltrosSetorial().catch(() => null)
   atualizarDados()
 })
