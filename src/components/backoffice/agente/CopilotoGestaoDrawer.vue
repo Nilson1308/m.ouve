@@ -196,7 +196,7 @@
                   class="mt-2 text-xs text-red-700 dark:text-red-300"
                   role="alert"
                 >
-                  {{ msg.erroDetalhe || 'Erro ao gerar resposta.' }}
+                  Erro ao gerar resposta. Tente novamente em instantes.
                 </p>
               </div>
             </div>

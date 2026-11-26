@@ -28,18 +28,16 @@ from catalogo.models import UnidadeAdministrativa
 
 logger = logging.getLogger(__name__)
 
+# Schemas enxutos — Groq/OpenAI rejeitam objetos aninhados sem additionalProperties (erro 400).
 TOOL_SELECTION_SCHEMA = {
     "type": "object",
     "properties": {
         "tools": {
             "type": "array",
-            "minItems": 1,
-            "maxItems": 3,
             "items": {
                 "type": "object",
                 "properties": {
                     "nome": {"type": "string"},
-                    "parametros": {"type": "object"},
                 },
                 "required": ["nome"],
             },
@@ -55,6 +53,26 @@ SINTESE_SCHEMA = {
     },
     "required": ["resposta"],
 }
+
+
+def _compactar_resultados_para_llm(resultados_tools: list[dict]) -> list[dict]:
+    """Reduz payload enviado ao LLM (evita falha de validação e estouro de contexto)."""
+    out: list[dict] = []
+    for bloco in resultados_tools:
+        dados = dict(bloco.get("dados") or {})
+        dados.pop("referencias_candidatas", None)
+        for chave in (
+            "protocolos",
+            "ranking_atraso_secretarias",
+            "equipamentos_anomalia",
+            "bairros_anomalia",
+            "por_secretaria",
+            "por_servico",
+        ):
+            if isinstance(dados.get(chave), list):
+                dados[chave] = dados[chave][:8]
+        out.append({"tool": bloco.get("tool"), "dados": dados})
+    return out
 
 
 def truncar_titulo_sessao(pergunta: str, max_len: int = 140) -> str:
@@ -211,7 +229,8 @@ def _selecionar_tools_llm(
         for t in tools:
             nome = (t.get("nome") or "").strip()
             if nome in NOMES_TOOLS:
-                valid.append({"nome": nome, "parametros": t.get("parametros") or {}})
+                params = t.get("parametros") if isinstance(t.get("parametros"), dict) else {}
+                valid.append({"nome": nome, "parametros": params or {}})
         if valid:
             modelo = _modelo()
             tin = int(usage_sink[0]) if len(usage_sink) >= 1 else 0
@@ -262,10 +281,13 @@ def _sintese_llm(
         f"{_GLOSSARIO_DOMINIO} "
         f"{_persona_instrucao(escopo_tipo)}"
     )
-    payload = {"pergunta": pergunta, "resultados_tools": resultados_tools}
+    payload = {
+        "pergunta": pergunta,
+        "resultados_tools": _compactar_resultados_para_llm(resultados_tools),
+    }
     mensagens = [
         {"role": "system", "content": sistema},
-        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+        {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
     ]
     parsed = _chamar_json_estruturado(
         nome_schema="copiloto_sintese",
@@ -281,7 +303,7 @@ def _sintese_llm(
     return texto, tin, tout, modelo
 
 
-def _resposta_deterministica(resultados_tools: list[dict]) -> str:
+def _resposta_deterministica(resultados_tools: list[dict], *, motivo: str = "budget") -> str:
     partes = []
     for bloco in resultados_tools:
         nome = bloco.get("tool")
@@ -312,10 +334,16 @@ def _resposta_deterministica(resultados_tools: list[dict]) -> str:
             )
         else:
             partes.append(f"Consulta «{nome}» concluída com dados agregados no escopo permitido.")
-    partes.append(
-        "O orçamento mensal de IA foi atingido; esta resposta foi gerada de forma determinística. "
-        "Use os atalhos abaixo para navegar e executar ações no sistema."
-    )
+    if motivo == "budget":
+        partes.append(
+            "O orçamento mensal de IA foi atingido; esta resposta foi gerada de forma determinística. "
+            "Use os atalhos abaixo para navegar e executar ações no sistema."
+        )
+    else:
+        partes.append(
+            "A síntese por IA não ficou disponível neste turno; os números acima vêm "
+            "diretamente das consultas verificáveis no sistema. Use os atalhos abaixo para agir."
+        )
     return "\n\n".join(partes)
 
 
@@ -373,18 +401,23 @@ def processar_mensagem_copiloto(mensagem_assistente_id: str) -> None:
         referencias = _deduplicar_referencias(refs_cand)
 
         if budget_esgotado():
-            conteudo = _resposta_deterministica(resultados)
+            conteudo = _resposta_deterministica(resultados, motivo="budget")
             modo = MensagemCopilotoGestor.ModoGeracao.FALLBACK
         else:
             uso2: list = []
-            conteudo, t3, t4, modelo_s = _sintese_llm(pergunta, escopo_tipo, resultados, uso2)
-            tokens_in += int(uso2[0]) if len(uso2) >= 1 else t3
-            tokens_out += int(uso2[1]) if len(uso2) >= 2 else t4
-            if modelo_s:
-                modelo = modelo_s
-            modo = MensagemCopilotoGestor.ModoGeracao.LLM
-            if not conteudo:
-                conteudo = _resposta_deterministica(resultados)
+            try:
+                conteudo, t3, t4, modelo_s = _sintese_llm(pergunta, escopo_tipo, resultados, uso2)
+                tokens_in += int(uso2[0]) if len(uso2) >= 1 else t3
+                tokens_out += int(uso2[1]) if len(uso2) >= 2 else t4
+                if modelo_s:
+                    modelo = modelo_s
+                modo = MensagemCopilotoGestor.ModoGeracao.LLM
+                if not conteudo:
+                    conteudo = _resposta_deterministica(resultados, motivo="llm")
+                    modo = MensagemCopilotoGestor.ModoGeracao.FALLBACK
+            except Exception as exc_sintese:
+                logger.warning("Síntese Copiloto LLM falhou, fallback determinístico: %s", exc_sintese)
+                conteudo = _resposta_deterministica(resultados, motivo="llm")
                 modo = MensagemCopilotoGestor.ModoGeracao.FALLBACK
 
         msg.conteudo = conteudo
@@ -417,7 +450,7 @@ def processar_mensagem_copiloto(mensagem_assistente_id: str) -> None:
             "Tente reformular a pergunta ou aguarde alguns instantes."
         )
         msg.status_processamento = MensagemCopilotoGestor.StatusProcessamento.ERRO
-        msg.erro_detalhe = str(exc)[:200]
+        msg.erro_detalhe = "processamento_falhou"
         msg.save(
             update_fields=["conteudo", "status_processamento", "erro_detalhe"],
         )

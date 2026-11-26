@@ -264,3 +264,41 @@ class AgenteCopilotoGestorTests(TestCase):
         self.assertNotIn(self.gestor_a.cpf, bruto)
         self.assertNotIn("gestor-cop-a@test", bruto)
         self.assertNotIn("@test.local", bruto)
+
+    def test_fallback_quando_sintese_llm_falha(self):
+        sessao = SessaoCopilotoGestor.objects.create(
+            usuario=self.super,
+            titulo="SLA",
+            perspectiva="controladoria",
+        )
+        MensagemCopilotoGestor.objects.create(
+            sessao=sessao,
+            papel=MensagemCopilotoGestor.Papel.USUARIO,
+            conteudo="Como estão os SLA vencidos?",
+        )
+        msg_ass = MensagemCopilotoGestor.objects.create(
+            sessao=sessao,
+            papel=MensagemCopilotoGestor.Papel.ASSISTENTE,
+            conteudo="",
+            status_processamento=MensagemCopilotoGestor.StatusProcessamento.PROCESSANDO,
+        )
+        calls = {"n": 0}
+
+        def _side(*_a, **_kw):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return {"tools": [{"nome": "resumir_fila_operacional"}]}
+            from atendimentos.llm_orchestrator import ChatOrchestrationError
+
+            raise ChatOrchestrationError(
+                "Falha ao consultar o modelo: Error code: 400 - Failed to validate JSON."
+            )
+
+        with patch("atendimentos.llm_orchestrator._chamar_json_estruturado", side_effect=_side):
+            processar_mensagem_copiloto(str(msg_ass.id))
+
+        msg_ass.refresh_from_db()
+        self.assertEqual(msg_ass.status_processamento, "concluida")
+        self.assertEqual(msg_ass.modo_geracao, "deterministico_fallback")
+        self.assertIn("Fila operacional", msg_ass.conteudo)
+        self.assertNotIn("Failed to validate JSON", msg_ass.conteudo)
