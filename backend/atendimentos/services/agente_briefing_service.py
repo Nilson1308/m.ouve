@@ -14,7 +14,12 @@ from django.core.cache import cache
 from django.db.models import Sum
 from django.utils import timezone
 
-from atendimentos.models import BriefingOperacionalIA, ConfiguracaoAgenteGestao, Protocolo
+from atendimentos.models import (
+    BriefingOperacionalIA,
+    ConfiguracaoAgenteGestao,
+    MensagemCopilotoGestor,
+    Protocolo,
+)
 from atendimentos.services.agente_acoes import montar_acao_sugerida
 from atendimentos.services.agente_fallback_narrativa import (
     insight_fallback_de_sinal,
@@ -153,11 +158,20 @@ def invalidar_cache_ao_protocolo_critico(protocolo) -> None:
 def obter_consumo_tokens_mes(agora: datetime | None = None) -> int:
     agora = agora or timezone.now()
     ini = agora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    agg = BriefingOperacionalIA.objects.filter(criado_em__gte=ini).aggregate(
+    agg_b = BriefingOperacionalIA.objects.filter(criado_em__gte=ini).aggregate(
         ent=Sum("tokens_entrada"),
         sai=Sum("tokens_saida"),
     )
-    return int(agg["ent"] or 0) + int(agg["sai"] or 0)
+    agg_c = MensagemCopilotoGestor.objects.filter(
+        criado_em__gte=ini,
+        papel=MensagemCopilotoGestor.Papel.ASSISTENTE,
+    ).aggregate(ent=Sum("tokens_entrada"), sai=Sum("tokens_saida"))
+    return (
+        int(agg_b["ent"] or 0)
+        + int(agg_b["sai"] or 0)
+        + int(agg_c["ent"] or 0)
+        + int(agg_c["sai"] or 0)
+    )
 
 
 def _persona_instrucao(escopo_tipo: str) -> str:

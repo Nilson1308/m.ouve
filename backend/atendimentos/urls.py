@@ -41,6 +41,12 @@ from atendimentos.agente_gestao_views import (
     BriefingAgenteGestaoView,
     ConfiguracaoAgenteGestaoView,
 )
+from atendimentos.agente_copiloto_views import (
+    CopilotoConfigUsuarioView,
+    CopilotoPerguntarView,
+    CopilotoSessaoDetalheView,
+    CopilotoSessoesListView,
+)
 from atendimentos.diligencia_views import (
     BackofficeAbrirDiligenciaView,
     BackofficeCancelarDiligenciaView,
@@ -205,6 +211,26 @@ urlpatterns = [
     ),
     path("backoffice/agente/briefing", BriefingAgenteGestaoView.as_view()),
     path("backoffice/agente/briefing/", BriefingAgenteGestaoView.as_view()),
+    path(
+        "backoffice/agente/copiloto/config-usuario",
+        CopilotoConfigUsuarioView.as_view(),
+    ),
+    path(
+        "backoffice/agente/copiloto/config-usuario/",
+        CopilotoConfigUsuarioView.as_view(),
+    ),
+    path("backoffice/agente/copiloto/perguntar", CopilotoPerguntarView.as_view()),
+    path("backoffice/agente/copiloto/perguntar/", CopilotoPerguntarView.as_view()),
+    path("backoffice/agente/copiloto/sessoes", CopilotoSessoesListView.as_view()),
+    path("backoffice/agente/copiloto/sessoes/", CopilotoSessoesListView.as_view()),
+    path(
+        "backoffice/agente/copiloto/sessoes/<uuid:sessao_id>",
+        CopilotoSessaoDetalheView.as_view(),
+    ),
+    path(
+        "backoffice/agente/copiloto/sessoes/<uuid:sessao_id>/",
+        CopilotoSessaoDetalheView.as_view(),
+    ),
     path(
         "backoffice/agente/briefing/<uuid:briefing_id>/avaliar",
         AvaliarInsightBriefingView.as_view(),

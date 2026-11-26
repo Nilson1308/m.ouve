@@ -10,6 +10,8 @@ from atendimentos.models import (
     ReaberturaProtocolo,
     AvaliacaoInsightIA,
     BriefingOperacionalIA,
+    MensagemCopilotoGestor,
+    SessaoCopilotoGestor,
     ConfiguracaoAgenteGestao,
     ConfiguracaoMatrizUrgencia,
     ConfiguracaoSlaCobranca,
@@ -168,6 +170,31 @@ class BriefingOperacionalIAAdmin(admin.ModelAdmin):
 class AvaliacaoInsightIAAdmin(admin.ModelAdmin):
     list_display = ("briefing", "insight_id", "usuario", "util", "criado_em")
     raw_id_fields = ("briefing", "usuario")
+
+
+@admin.register(SessaoCopilotoGestor)
+class SessaoCopilotoGestorAdmin(admin.ModelAdmin):
+    list_display = ("titulo", "usuario", "perspectiva", "unidade", "criado_em", "atualizado_em")
+    list_filter = ("perspectiva",)
+    search_fields = ("titulo", "usuario__nome", "usuario__cpf")
+    raw_id_fields = ("usuario", "unidade")
+    readonly_fields = ("criado_em", "atualizado_em")
+
+
+@admin.register(MensagemCopilotoGestor)
+class MensagemCopilotoGestorAdmin(admin.ModelAdmin):
+    list_display = (
+        "sessao",
+        "papel",
+        "status_processamento",
+        "modo_geracao",
+        "tokens_entrada",
+        "tokens_saida",
+        "criado_em",
+    )
+    list_filter = ("papel", "status_processamento", "modo_geracao")
+    raw_id_fields = ("sessao",)
+    readonly_fields = ("criado_em",)
 
 
 @admin.register(ConfiguracaoMatrizUrgencia)

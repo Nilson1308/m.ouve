@@ -2449,7 +2449,7 @@ Scatter-gather da Super OS — mesmo contrato do despacho de protocolo.
 **Versão:** 2.2  
 **Data:** Novembro 2026  
 **Última Atualização:** Nov 17, 2026  
-**Versão do contrato:** 4.17.0
+**Versão do contrato:** 4.18.0
 
 ---
 
@@ -2549,9 +2549,9 @@ Motor de governança com **quatro níveis canônicos**: `baixa`, `normal`, `alta
 | `briefing_proativo_ativo` | bool | `true` | Celery Beat diário |
 | `briefing_hora_geracao` | int | `7` | 0–23 (hora local) |
 | `incluir_resumo_no_digest_email` | bool | `true` | Bloco Radar IA no Digest |
-| `copiloto_chat_ativo` | bool | `true` | Reservado Fase B |
-| `limite_perguntas_dia_por_usuario` | int | `30` | ≥ 1 (Fase B) |
-| `orcamento_tokens_mensal` | int | `2000000` | ≥ 10000 — budget cap |
+| `copiloto_chat_ativo` | bool | `true` | Habilita Copiloto em chat (Fase B) |
+| `limite_perguntas_dia_por_usuario` | int | `30` | ≥ 1 — cota diária por gestor |
+| `orcamento_tokens_mensal` | int | `2000000` | ≥ 10000 — budget cap (Radar + Copiloto) |
 | `anomalia_percentual_minimo` | int | `50` | 10–500 % vs média 4 semanas |
 | `anomalia_volume_minimo` | int | `3` | ≥ 2 eventos no período |
 | `dias_parado_triagem_alerta` | int | `2` | ≥ 1 — gargalo `em_analise` |
@@ -2625,7 +2625,7 @@ Objeto adicional `agente_ia`:
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
 | `ativo` | bool | `ConfiguracaoAgenteGestao.agente_ativo` |
-| `tokens_mes_atual` | int | Soma entrada+saída no mês |
+| `tokens_mes_atual` | int | Soma entrada+saída no mês (`BriefingOperacionalIA` + `MensagemCopilotoGestor` assistente) |
 | `orcamento_tokens_mensal` | int | Limite configurado |
 | `percentual_consumo` | float | 0–100+ |
 | `alerta_budget_80` | bool | consumo ≥ 80 % |
@@ -2635,6 +2635,81 @@ Objeto adicional `agente_ia`:
 ### Celery Beat
 
 `gerar_briefings_operacionais_diarios_task` — minuto 0, hora = `briefing_hora_geracao` (respeita `agente_ativo` + `briefing_proativo_ativo`); gera controladoria, ouvidoria e unidades com movimento.
+
+---
+
+## 💬 Copiloto Interativo de Gestão (v4.18)
+
+**Sprint 4.7B:** chat analítico assíncrono no backoffice com **catálogo fechado de 6 tools somente leitura** (sem mutação, sem PII ao LLM). Ações operacionais são sempre via chips `referencias` (rotas Vue). Orçamento de tokens **compartilhado** com o Radar.
+
+**Modelos:** `SessaoCopilotoGestor`, `MensagemCopilotoGestor` (`ferramentas_usadas`, `referencias`, `tokens_*`, `status_processamento`).
+
+**Tools (Python, escopo `escopo_dados`):** `obter_resumo_eficiencia`, `listar_gargalos_sla_e_cobrancas`, `listar_anomalias_equipamentos_bairros` (somente `origem_localizacao` de ocorrência válida), `obter_qualidade_e_retrabalho`, `resumir_fila_operacional`, `obter_resumo_inelegibilidade`.
+
+**Guardrails:** `agente_ativo` + `copiloto_chat_ativo` → `403`; cota `limite_perguntas_dia_por_usuario` → `429`; budget mensal esgotado → fallback determinístico (sem LLM) ou mensagem informativa na síntese.
+
+### GET `/api/v1/backoffice/agente/copiloto/config-usuario`
+
+**Permissão:** `IsBackofficeStaff` + autenticado.
+
+**Query opcional:** `?rota=/backoffice/...` — adapta `sugestoes_iniciais`.
+
+**Response 200:**
+
+```json
+{
+  "copiloto_disponivel": true,
+  "motivo_indisponivel": null,
+  "perspectiva": "unidade",
+  "unidade_nome": "Secretaria X",
+  "perguntas_hoje": 2,
+  "limite_diario": 30,
+  "budget_esgotado": false,
+  "sugestoes_iniciais": ["…", "…", "…"]
+}
+```
+
+### POST `/api/v1/backoffice/agente/copiloto/perguntar`
+
+**Body:**
+
+```json
+{
+  "pergunta": "string (3–600 chars)",
+  "sessao_id": "uuid opcional",
+  "contexto_rota": "/backoffice/mesa-trabalho"
+}
+```
+
+**Response `202 Accepted`:**
+
+```json
+{
+  "sessao_id": "uuid",
+  "mensagem_assistente_id": "uuid",
+  "status": "processando",
+  "perguntas_hoje": 3,
+  "limite_diario": 30
+}
+```
+
+Processamento: Celery `processar_pergunta_copiloto_task` (2 passos LLM: seleção de tools + síntese verificável).
+
+**Erros:** `403` agente/copiloto desativado; `429` cota diária; `400` validação da pergunta; `404` `sessao_id` de outro usuário.
+
+### GET `/api/v1/backoffice/agente/copiloto/sessoes`
+
+Últimas **20** sessões do `request.user`.
+
+### GET `/api/v1/backoffice/agente/copiloto/sessoes/<uuid:id>`
+
+Detalhe + mensagens cronológicas + `ia_processando` (polling). `404` se sessão de outro usuário.
+
+### DELETE `/api/v1/backoffice/agente/copiloto/sessoes/<uuid:id>`
+
+Arquiva/apaga sessão própria — `204`.
+
+**Chip `referencias`:** `{ "label", "tipo", "rota", "query" }` (máx. 4 deduplicados, construídos via `agente_acoes.py`).
 
 ---
 
@@ -3902,6 +3977,7 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.18.0** (Nov 26, 2026): Sprint 4.7B — Copiloto Gestor: `SessaoCopilotoGestor`, `MensagemCopilotoGestor`; 6 tools read-only `agente_copiloto_tools.py`; orquestrador `agente_copiloto_service.py` + Celery `processar_pergunta_copiloto_task`; endpoints `GET config-usuario`, `POST perguntar` (202), CRUD sessões; budget compartilhado Radar+Copiloto em `obter_consumo_tokens_mes`; testes `test_agente_copiloto_gestor.py`
 - **v4.17.0** (Nov 26, 2026): Sprint 4.7A — Agente IA proativo (Radar): `ConfiguracaoAgenteGestao`, `BriefingOperacionalIA`, `AvaliacaoInsightIA`; motor determinístico `coletar_fatos_operacionais`; `gerar_briefing_escopo` (LLM + budget cap + fallback); `GET/PATCH /backoffice/configuracoes/agente-gestao`; `GET /backoffice/agente/briefing` (`?forcar=true` + rate-limit 429); `POST …/briefing/<id>/avaliar`; Digest SLA com bloco Radar IA; NOC `agente_ia`; Celery `gerar_briefings_operacionais_diarios_task`; invalidação Redis em protocolo crítico
 - **v4.16.0** (Nov 25, 2026): Sprint 4.6 — Matriz de urgência (`ConfiguracaoMatrizUrgencia`, `Protocolo.urgencia*`); `GET/PATCH /backoffice/configuracoes/matriz-urgencia`; `POST /backoffice/protocolos/<id>/urgencia`; RBAC `pode_alterar_urgencia`; ordenação `-urgencia_peso` + `prazo_sla`; filtros `urgencia` / `apenas_sugestao_urgencia_ia`; `ServicoCatalogo.urgencia_padrao`; SLA/digest `total_criticos_abertos` + `urgencia` em atrasados
 - **v4.15.1** (Nov 25, 2026): Sprint 4.5 — `GET /publico/evidencias/<token>` (contexto operacional LGPD); remoção de push/in-app por turno de chat RAG; `busca`/`search` em `GET /backoffice/unidades` e `GET /backoffice/usuarios`; comando `limpar_notificacoes_chat_rag`

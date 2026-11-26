@@ -98,6 +98,31 @@ def encerrar_janelas_reabertura_expiradas_task() -> int:
     return encerrar_janelas_reabertura_expiradas()
 
 
+@shared_task(bind=True, max_retries=2, default_retry_delay=5)
+def processar_pergunta_copiloto_task(self, mensagem_assistente_id: str) -> None:
+    from atendimentos.services.agente_copiloto_service import processar_mensagem_copiloto
+
+    try:
+        processar_mensagem_copiloto(mensagem_assistente_id)
+    except Exception as exc:
+        logger.exception("Falha Celery copiloto %s: %s", mensagem_assistente_id, exc)
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=exc)
+        from atendimentos.models import MensagemCopilotoGestor
+
+        try:
+            msg = MensagemCopilotoGestor.objects.get(pk=mensagem_assistente_id)
+            msg.conteudo = (
+                "Não conseguimos concluir a resposta do Copiloto. "
+                "Tente enviar a pergunta novamente."
+            )
+            msg.status_processamento = MensagemCopilotoGestor.StatusProcessamento.ERRO
+            msg.erro_detalhe = str(exc)[:200]
+            msg.save(update_fields=["conteudo", "status_processamento", "erro_detalhe"])
+        except MensagemCopilotoGestor.DoesNotExist:
+            pass
+
+
 @shared_task
 def gerar_briefings_operacionais_diarios_task() -> int:
     from atendimentos.services.agente_briefing_service import (

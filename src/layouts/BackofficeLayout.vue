@@ -109,6 +109,23 @@
             {{ pageTitle }}
           </h1>
           <div class="flex items-center gap-2 shrink-0">
+            <button
+              v-if="copilotoStore.botaoVisivel"
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 dark:focus-visible:ring-violet-400"
+              :class="
+                copilotoStore.copilotoHabilitado
+                  ? 'border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/40 text-violet-900 dark:text-violet-100 hover:bg-violet-100 dark:hover:bg-violet-900/50 active:bg-violet-200/80 dark:active:bg-violet-800/40'
+                  : 'border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 cursor-not-allowed opacity-90'
+              "
+              :title="tituloBotaoCopiloto"
+              :aria-expanded="copilotoStore.aberto"
+              aria-controls="copiloto-gestao-drawer"
+              @click="onCopilotoClick"
+            >
+              <SparklesIcon class="w-5 h-5 shrink-0" aria-hidden="true" />
+              <span class="hidden sm:inline">Copiloto IA</span>
+            </button>
             <NotificacoesInternasBell />
             <ThemeToggle surface="light" />
             <button type="button" class="btn-icon group" title="Sair" @click="handleLogout">
@@ -151,11 +168,13 @@
         <router-view />
       </main>
     </div>
+
+    <CopilotoGestaoDrawer />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -163,7 +182,9 @@ import { useRbac } from '@/composables/useRbac'
 import { BRAND } from '@/constants/brand'
 import ThemeToggle from '@/components/shared/ThemeToggle.vue'
 import NotificacoesInternasBell from '@/components/backoffice/NotificacoesInternasBell.vue'
+import CopilotoGestaoDrawer from '@/components/backoffice/agente/CopilotoGestaoDrawer.vue'
 import { useNotificacoesInternasStore } from '@/stores/notificacoesInternas'
+import { useCopilotoStore } from '@/stores/copiloto'
 import {
   ChartBarSquareIcon,
   MapIcon,
@@ -179,7 +200,8 @@ import {
   BookOpenIcon,
   ClockIcon,
   ChevronDoubleLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  SparklesIcon
 } from '@heroicons/vue/24/outline'
 
 const SIDEBAR_LS_KEY = 'ouvia_backoffice_sidebar_collapsed'
@@ -191,8 +213,33 @@ const themeStore = useThemeStore()
 const { can, isSuperAdmin } = useRbac()
 const menuMobileAberto = ref(false)
 const notificacoesStore = useNotificacoesInternasStore()
+const copilotoStore = useCopilotoStore()
 const sidebarRecolhida = ref(localStorage.getItem(SIDEBAR_LS_KEY) === '1')
 let pollNotificacoes = null
+
+const tituloBotaoCopiloto = computed(() => {
+  const cfg = copilotoStore.configUsuario
+  if (!cfg) return 'Copiloto de Gestão'
+  if (cfg.copilotoDisponivel) return 'Abrir Copiloto de Gestão (Alt+K)'
+  return cfg.motivoIndisponivel || 'Copiloto indisponível no momento'
+})
+
+function onCopilotoClick() {
+  if (!copilotoStore.copilotoHabilitado) return
+  copilotoStore.alternarDrawer()
+  if (copilotoStore.aberto) {
+    copilotoStore.carregarConfig(route.fullPath)
+  }
+}
+
+function onGlobalKeydown(e) {
+  if (e.altKey && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault()
+    if (copilotoStore.copilotoHabilitado) {
+      copilotoStore.alternarDrawer()
+    }
+  }
+}
 
 const avatarUrl = computed(() => authStore.user?.avatar || '')
 
@@ -318,14 +365,25 @@ function alternarSidebar() {
 
 onMounted(() => {
   notificacoesStore.carregar({ silencioso: true }).catch(() => null)
+  copilotoStore.carregarConfig(route.fullPath).catch(() => null)
   pollNotificacoes = window.setInterval(() => {
     notificacoesStore.carregar({ silencioso: true }).catch(() => null)
   }, 90_000)
+  window.addEventListener('keydown', onGlobalKeydown)
 })
 
 onUnmounted(() => {
   if (pollNotificacoes) clearInterval(pollNotificacoes)
+  window.removeEventListener('keydown', onGlobalKeydown)
+  copilotoStore.aoDesmontar()
 })
+
+watch(
+  () => route.fullPath,
+  (path) => {
+    copilotoStore.carregarConfig(path).catch(() => null)
+  }
+)
 
 async function handleLogout() {
   await authStore.logout()

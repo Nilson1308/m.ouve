@@ -1119,6 +1119,89 @@ class AvaliacaoInsightIA(models.Model):
         ]
 
 
+class SessaoCopilotoGestor(models.Model):
+    """Sessão de chat analítico do gestor (Copiloto — somente leitura)."""
+
+    class Perspectiva(models.TextChoices):
+        CONTROLADORIA = "controladoria", "Controladoria"
+        OUVIDORIA = "ouvidoria", "Ouvidoria"
+        UNIDADE = "unidade", "Unidade"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sessoes_copiloto",
+    )
+    titulo = models.CharField(max_length=140)
+    perspectiva = models.CharField(max_length=24, choices=Perspectiva.choices)
+    unidade = models.ForeignKey(
+        "catalogo.UnidadeAdministrativa",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sessoes_copiloto_gestor",
+    )
+    contexto_rota_inicial = models.CharField(max_length=120, blank=True, default="")
+    criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+    atualizado_em = models.DateTimeField(auto_now=True, db_index=True)
+
+    class Meta:
+        ordering = ["-atualizado_em"]
+        verbose_name = "Sessão Copiloto Gestor"
+        verbose_name_plural = "Sessões Copiloto Gestor"
+
+
+class MensagemCopilotoGestor(models.Model):
+    """Mensagem na sessão do Copiloto (usuário ou assistente)."""
+
+    class Papel(models.TextChoices):
+        USUARIO = "usuario", "Usuário"
+        ASSISTENTE = "assistente", "Assistente"
+
+    class StatusProcessamento(models.TextChoices):
+        CONCLUIDA = "concluida", "Concluída"
+        PROCESSANDO = "processando", "Processando"
+        ERRO = "erro", "Erro"
+
+    class ModoGeracao(models.TextChoices):
+        LLM = "llm", "LLM"
+        FALLBACK = "deterministico_fallback", "Determinístico (fallback)"
+        VAZIO = "", ""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sessao = models.ForeignKey(
+        SessaoCopilotoGestor,
+        on_delete=models.CASCADE,
+        related_name="mensagens",
+    )
+    papel = models.CharField(max_length=16, choices=Papel.choices)
+    conteudo = models.TextField()
+    status_processamento = models.CharField(
+        max_length=16,
+        choices=StatusProcessamento.choices,
+        default=StatusProcessamento.CONCLUIDA,
+    )
+    ferramentas_usadas = models.JSONField(default=list, blank=True)
+    referencias = models.JSONField(default=list, blank=True)
+    modo_geracao = models.CharField(
+        max_length=32,
+        choices=ModoGeracao.choices,
+        blank=True,
+        default="",
+    )
+    modelo_llm = models.CharField(max_length=80, blank=True, default="")
+    tokens_entrada = models.PositiveIntegerField(default=0)
+    tokens_saida = models.PositiveIntegerField(default=0)
+    erro_detalhe = models.CharField(max_length=200, blank=True, default="")
+    criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["criado_em"]
+        verbose_name = "Mensagem Copiloto Gestor"
+        verbose_name_plural = "Mensagens Copiloto Gestor"
+
+
 class ConfiguracaoSistema(models.Model):
     """Parâmetros globais (singleton — registro único id=1)."""
 

@@ -9,6 +9,12 @@ import {
   normalizarBriefing,
   normalizarConfigAgente
 } from '@/services/agenteGestaoMappers'
+import {
+  normalizarConfigCopiloto,
+  normalizarPerguntarResposta,
+  normalizarSessaoDetalhe,
+  normalizarSessaoResumo
+} from '@/services/copilotoGestaoMappers'
 
 // Configuração base do Axios
 const api = axios.create({
@@ -765,6 +771,40 @@ export const agenteGestaoService = {
   async avaliarInsight(briefingId, body) {
     const { data } = await api.post(`/backoffice/agente/briefing/${briefingId}/avaliar`, body)
     return data
+  }
+}
+
+// ==================== COPILOTO GESTÃO (v4.18) ====================
+
+export const copilotoGestaoService = {
+  async obterConfigUsuario(params = {}) {
+    const { data } = await api.get('/backoffice/agente/copiloto/config-usuario', { params })
+    return normalizarConfigCopiloto(data)
+  },
+
+  async perguntar(body) {
+    const response = await api.post('/backoffice/agente/copiloto/perguntar', body, {
+      validateStatus: (s) => (s >= 200 && s < 300) || s === 202
+    })
+    return {
+      httpStatus: response.status,
+      ...normalizarPerguntarResposta(response.data)
+    }
+  },
+
+  async listarSessoes() {
+    const { data } = await api.get('/backoffice/agente/copiloto/sessoes')
+    const lista = Array.isArray(data?.sessoes) ? data.sessoes : []
+    return lista.map(normalizarSessaoResumo)
+  },
+
+  async obterSessao(sessaoId) {
+    const { data } = await api.get(`/backoffice/agente/copiloto/sessoes/${sessaoId}`)
+    return normalizarSessaoDetalhe(data)
+  },
+
+  async excluirSessao(sessaoId) {
+    await api.delete(`/backoffice/agente/copiloto/sessoes/${sessaoId}`)
   }
 }
 
