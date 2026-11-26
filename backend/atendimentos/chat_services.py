@@ -180,6 +180,15 @@ def finalizar_sessao_com_protocolo(sessao: SessaoChat) -> Protocolo:
     lat, lng = loc.get("latitude"), loc.get("longitude")
     if lat is not None and lng is not None:
         protocolo.localizacao = Point(float(lng), float(lat), srid=4326)
+    from atendimentos.services.protocolo_geolocalizacao import aplicar_origem_na_abertura
+
+    aplicar_origem_na_abertura(
+        protocolo,
+        latitude=lat,
+        longitude=lng,
+        endereco_ocorrencia=(loc.get("endereco") or ""),
+        sessao_dados=sessao.dados_coletados,
+    )
     protocolo.save()
 
     from atendimentos.services.equipamento_protocolo import sincronizar_equipamento_no_protocolo

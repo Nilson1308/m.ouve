@@ -31,6 +31,9 @@ export const useBackofficeStore = defineStore('backoffice', () => {
     total_pages: 0
   })
 
+  /** Totais do recorte filtrado (campo `resumo` do GET /backoffice/kanban). */
+  const resumoMesa = ref(null)
+
   const opcoesFiltrosMesa = ref({
     bairros: [],
     servicos: [],
@@ -42,7 +45,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
   const filtros = ref({
     busca: '',
     slaVencido: false,
-    urgentes: false,
+    critico: false,
     unidadesIds: [],
     servicoIds: [],
     bairros: [],
@@ -58,10 +61,8 @@ export const useBackofficeStore = defineStore('backoffice', () => {
 
   function urgenciasParaApi() {
     const lista = [...(filtros.value.urgenciaLista || [])]
-    if (filtros.value.urgentes) {
-      for (const u of ['alta', 'critica']) {
-        if (!lista.includes(u)) lista.push(u)
-      }
+    if (filtros.value.critico) {
+      if (!lista.includes('critica')) lista.push('critica')
     }
     return lista
   }
@@ -143,6 +144,17 @@ export const useBackofficeStore = defineStore('backoffice', () => {
   })
 
   const contadores = computed(() => {
+    const r = resumoMesa.value
+    if (r && typeof r === 'object') {
+      return {
+        total: Number(r.total_itens ?? pagination.value.total_items ?? 0),
+        emAndamento: Number(r.em_andamento ?? 0),
+        aguardandoValidacao: Number(r.aguardando_validacao ?? 0),
+        slaVencido: Number(r.sla_vencido ?? 0),
+        criticos: Number(r.criticos ?? 0),
+        concluidosHoje: Number(r.concluidos_hoje ?? 0)
+      }
+    }
     const base = protocolos.value
     const hoje = new Date().toDateString()
     return {
@@ -150,7 +162,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
       emAndamento: base.filter((p) => p.status === 'em_andamento').length,
       aguardandoValidacao: base.filter((p) => protocoloAguardandoValidacao(p)).length,
       slaVencido: base.filter((p) => p.sla?.vencido).length,
-      urgentes: base.filter((p) => ['alta', 'critica'].includes(p.urgencia)).length,
+      criticos: base.filter((p) => p.urgencia === 'critica').length,
       concluidosHoje: base.filter((p) => {
         if (p.status !== 'resolvido') return false
         if (!p.criadoEm) return false
@@ -177,6 +189,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
       protocolos.value = fonteKanban
         ? lista.map(mapKanbanItem)
         : lista.map(mapProtocoloBackoffice)
+      resumoMesa.value = data.resumo && typeof data.resumo === 'object' ? data.resumo : null
       if (data.pagination) {
         pagination.value = { ...pagination.value, ...data.pagination }
       } else if (data.count != null) {
@@ -192,6 +205,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
         'Não foi possível carregar o Kanban unificado da mesa.'
       )
       protocolos.value = []
+      resumoMesa.value = null
       throw e
     } finally {
       loading.value = false
@@ -271,7 +285,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
     filtros.value = {
       busca: '',
       slaVencido: false,
-      urgentes: false,
+      critico: false,
       unidadesIds: [],
       servicoIds: [],
       bairros: [],

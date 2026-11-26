@@ -98,15 +98,23 @@ def _escolher_bairro_antes_cidade(partes: list[str], cidade_idx: int) -> str:
     return partes[max(0, cidade_idx - 1)]
 
 
-def bairro_protocolo(dados_dinamicos, endereco_texto: str, endereco_usuario: str = "") -> str:
-    """Prioridade: JSON do protocolo → endereço do protocolo → cadastro do cidadão."""
+def bairro_protocolo(
+    dados_dinamicos,
+    endereco_texto: str,
+    endereco_usuario: str = "",
+    *,
+    permitir_residencia: bool = False,
+) -> str:
+    """Prioridade: JSON do protocolo → endereço da ocorrência → (opcional) cadastro do cidadão."""
     b = bairro_de_dados_dinamicos(dados_dinamicos)
     if b:
         return b
     b = bairro_de_endereco_texto(endereco_texto)
     if b:
         return b
-    return (endereco_usuario or "").strip()
+    if permitir_residencia:
+        return (endereco_usuario or "").strip()
+    return ""
 
 
 def _bairro_usuario(protocolo) -> str:
@@ -159,6 +167,11 @@ def sincronizar_localidade_protocolo(protocolo, *, persistir: bool = True) -> bo
     alterou_dados = False
     alterou_endereco = False
 
+    from atendimentos.models import Protocolo as ProtocoloModel
+
+    permitir_residencia = (
+        protocolo.origem_localizacao == ProtocoloModel.OrigemLocalizacao.RESIDENCIA_CONFIRMADA
+    )
     bairro_equipamento = _bairro_equipamento_vinculado(protocolo)
     if bairro_equipamento:
         bairro = bairro_equipamento
@@ -166,11 +179,16 @@ def sincronizar_localidade_protocolo(protocolo, *, persistir: bool = True) -> bo
         bairro = bairro_de_dados_dinamicos(dados)
         if not bairro:
             bairro = bairro_de_endereco_texto(protocolo.endereco_texto or "")
-        if not bairro:
+        if not bairro and permitir_residencia:
             bairro = _bairro_usuario(protocolo)
     cidade = (dados.get("cidade") or "").strip()
 
-    if not cidade or (not bairro and not bairro_equipamento):
+    origem_geo = protocolo.origem_localizacao in (
+        ProtocoloModel.OrigemLocalizacao.OCORRENCIA_GPS,
+        ProtocoloModel.OrigemLocalizacao.EQUIPAMENTO_PUBLICO,
+        ProtocoloModel.OrigemLocalizacao.RESIDENCIA_CONFIRMADA,
+    )
+    if origem_geo and (not cidade or (not bairro and not bairro_equipamento)):
         geo_bairro, geo_cidade, geo_endereco = _enriquecer_via_geocode(protocolo)
         if not bairro and geo_bairro and not bairro_equipamento:
             bairro = geo_bairro

@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
-
 from django.db.models import Count, Prefetch, Q
-from django.db.models import DateTimeField, F, ExpressionWrapper
-from django.db.models.functions import Now
 from django.utils import timezone
 
 from atendimentos.backoffice_serializers import calcular_sla, extrair_urgencia
@@ -159,7 +155,7 @@ def montar_item_super_os(super_os: SuperOS, filhos: list[Protocolo]) -> dict:
         "servico_nome": filhos[0].servico.nome if filhos and filhos[0].servico_id else None,
         "_sort_vencido": sla["vencido"],
         "_sort_horas": sla["horas_restantes"],
-        "_sort_urgencia": _peso_urgencia_protocolo(protocolo),
+        "_sort_urgencia": _peso_urgencia(urgencia),
         "_sort_criado": super_os.criado_em,
     }
 
@@ -228,57 +224,54 @@ def queryset_super_os_kanban(user=None):
     return qs
 
 
+def _parametros_ativos(params) -> set[str]:
+    """Chaves de filtro presentes na query (multi-value ou escalar)."""
+    chaves = {
+        "busca",
+        "status",
+        "sla_vencido",
+        "urgencia",
+        "unidade_id",
+        "servico_id",
+        "bairro",
+        "equipamento_id",
+        "apenas_cobrados",
+        "apenas_reabertos",
+        "apenas_sugestao_urgencia_ia",
+    }
+    ativos: set[str] = set()
+    if hasattr(params, "keys"):
+        for key in chaves:
+            if hasattr(params, "getlist"):
+                if params.getlist(key):
+                    ativos.add(key)
+                    continue
+            raw = params.get(key)
+            if raw not in (None, "", [], ()):
+                ativos.add(key)
+    elif isinstance(params, dict):
+        for key in chaves:
+            raw = params.get(key)
+            if raw not in (None, "", [], ()):
+                ativos.add(key)
+    return ativos
+
+
+def _filtros_so_super_os(params) -> bool:
+    """True quando só busca/status afetam cartões de Super OS (sem recorte por filhos)."""
+    ativos = _parametros_ativos(params)
+    restritivos = ativos - {"busca", "status"}
+    return not restritivos
+
+
 def filtrar_protocolos_kanban(qs, params):
-    """Aplica filtros alinhados à mesa (subset dos query params)."""
-    status = params.get("status")
-    if status:
-        valores = [v.strip() for v in status.split(",") if v.strip()]
-        if valores:
-            qs = qs.filter(status__in=valores)
+    """Mesma semântica de ``GET /backoffice/protocolos`` (matriz de urgência inclusa)."""
+    from atendimentos.backoffice_views import BackofficeProtocoloFilterSet
 
-    busca = (params.get("busca") or "").strip()
-    if busca:
-        qs = qs.filter(
-            Q(codigo__icontains=busca) | Q(descricao__icontains=busca)
-        )
-
-    apenas_cobrados = params.get("apenas_cobrados")
-    if apenas_cobrados is not None and str(apenas_cobrados).lower() in ("1", "true", "yes"):
-        qs = qs.filter(qtd_cobrancas_cidadao__gte=1)
-
-    apenas_reabertos = params.get("apenas_reabertos")
-    if apenas_reabertos is not None and str(apenas_reabertos).lower() in ("1", "true", "yes"):
-        qs = qs.filter(qtd_reaberturas__gte=1)
-
-    sla_vencido = params.get("sla_vencido")
-    if sla_vencido is not None:
-        flag = str(sla_vencido).lower() in ("1", "true", "yes")
-        qs = qs.annotate(
-            _prazo_sla=ExpressionWrapper(
-                F("data_criacao") + timedelta(hours=1) * F("servico__sla_horas"),
-                output_field=DateTimeField(),
-            )
-        )
-        qs = qs.filter(_prazo_sla__lt=Now()) if flag else qs.filter(_prazo_sla__gte=Now())
-
-    urgencia = params.get("urgencia")
-    if urgencia:
-        valores = [v.strip().lower() for v in urgencia.split(",") if v.strip()]
-        if valores:
-            q = Q()
-            for val in valores:
-                q |= (
-                    Q(dados_dinamicos__urgencia__iexact=val)
-                    | Q(dados_dinamicos__prioridade__iexact=val)
-                    | Q(dados_dinamicos__urgencia_estimada__iexact=val)
-                )
-            qs = qs.filter(q).distinct()
-
-    equipamento_id = (params.get("equipamento_id") or "").strip()
-    if equipamento_id:
-        qs = qs.filter(equipamento_id=equipamento_id)
-
-    return qs
+    fs = BackofficeProtocoloFilterSet(params, queryset=qs)
+    if not fs.is_valid():
+        return qs
+    return fs.qs.distinct()
 
 
 def filtrar_super_os_kanban(qs, params):
@@ -298,15 +291,52 @@ def filtrar_super_os_kanban(qs, params):
     return qs
 
 
+def resumo_contadores_mesa(itens: list[dict], *, user=None, params=None) -> dict:
+    """Totais do recorte filtrado (todos os cartões, não só a página)."""
+    resumo = {
+        "total_itens": len(itens),
+        "em_andamento": 0,
+        "aguardando_validacao": 0,
+        "sla_vencido": 0,
+        "criticos": 0,
+        "concluidos_hoje": 0,
+    }
+    for item in itens:
+        status = (item.get("status") or "").lower()
+        if status == Protocolo.Status.EM_ANDAMENTO:
+            resumo["em_andamento"] += 1
+        if status == Protocolo.Status.AGUARDANDO_REVISAO:
+            resumo["aguardando_validacao"] += 1
+        if (item.get("sla") or {}).get("vencido"):
+            resumo["sla_vencido"] += 1
+        if (item.get("urgencia") or "").lower() == Protocolo.Urgencia.CRITICA:
+            resumo["criticos"] += 1
+    if user is not None and params is not None:
+        hoje = timezone.localdate()
+        proto_qs = filtrar_protocolos_kanban(queryset_protocolos_kanban(user), params)
+        resumo["concluidos_hoje"] = proto_qs.filter(
+            status=Protocolo.Status.RESOLVIDO,
+            data_atualizacao__date=hoje,
+        ).count()
+    return resumo
+
+
 def montar_kanban_unificado(request_query_params, *, user=None) -> list[dict]:
-    protocolos = list(
-        filtrar_protocolos_kanban(
-            queryset_protocolos_kanban(user), request_query_params
+    proto_base = queryset_protocolos_kanban(user)
+    protocolos = list(filtrar_protocolos_kanban(proto_base, request_query_params))
+
+    super_qs = filtrar_super_os_kanban(queryset_super_os_kanban(user), request_query_params)
+    if _filtros_so_super_os(request_query_params):
+        super_list = list(super_qs)
+    else:
+        filhos_qs = filtrar_protocolos_kanban(
+            Protocolo.objects.filter(super_os__isnull=False),
+            request_query_params,
         )
-    )
-    super_list = list(
-        filtrar_super_os_kanban(queryset_super_os_kanban(user), request_query_params)
-    )
+        ids_super = set(
+            filhos_qs.exclude(super_os_id__isnull=True).values_list("super_os_id", flat=True)
+        )
+        super_list = list(super_qs.filter(pk__in=ids_super)) if ids_super else []
 
     itens = [montar_item_protocolo(p) for p in protocolos]
     for sos in super_list:

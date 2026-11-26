@@ -16,6 +16,8 @@ from atendimentos.backoffice_serializers import calcular_sla
 from atendimentos.models import Protocolo
 from atendimentos.services.analytics_service import escopo_dashboard, queryset_protocolos_escopo
 from atendimentos.services.dashboard_filters import aplicar_filtro_bairro
+from atendimentos.models import Protocolo as ProtocoloModel
+from atendimentos.services.protocolo_geolocalizacao import queryset_geo_ocorrencia_valida
 from atendimentos.services.protocolo_localidade import bairro_protocolo
 
 MAPA_CALOR_LIMITE_PADRAO = 5000
@@ -86,7 +88,7 @@ def queryset_mapa_calor(user, query_params: dict) -> tuple[Any, dict[str, Any]]:
     escopo = escopo_dashboard(user)
     meta: dict[str, Any] = {"escopo": escopo["tipo"]}
 
-    qs = queryset_protocolos_escopo(user).filter(localizacao__isnull=False)
+    qs = queryset_geo_ocorrencia_valida(queryset_protocolos_escopo(user))
 
     req_unidade = (query_params.get("unidade_responsavel_id") or "").strip() or None
     if escopo["tipo"] == "unidade" and escopo["unidade_id"]:
@@ -157,10 +159,14 @@ def _serializar_demanda_mapa(protocolo: Protocolo, lat: float, lng: float) -> di
         if endereco:
             endereco_usuario = (endereco.bairro or "").strip()
 
+    permitir_residencia = (
+        protocolo.origem_localizacao == ProtocoloModel.OrigemLocalizacao.RESIDENCIA_CONFIRMADA
+    )
     bairro = bairro_protocolo(
         protocolo.dados_dinamicos,
         protocolo.endereco_texto or "",
         endereco_usuario,
+        permitir_residencia=permitir_residencia,
     )
     descricao = (protocolo.descricao or "").strip()
     if len(descricao) > DESC_RESUMO_MAX:

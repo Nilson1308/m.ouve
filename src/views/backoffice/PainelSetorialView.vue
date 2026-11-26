@@ -222,7 +222,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { watchDebounced } from '@vueuse/core'
@@ -546,9 +546,22 @@ async function enviarDespachoAoGestor(dados) {
   }
 }
 
+function aplicarQueryRadarSetorial() {
+  const q = route.query || {}
+  if (q.busca) setorialStore.filtros.busca = String(q.busca).trim()
+}
+
+watch(
+  () => route.query,
+  () => {
+    aplicarQueryRadarSetorial()
+    atualizarDados()
+  },
+  { deep: true }
+)
+
 onMounted(() => {
-  const busca = route.query?.busca
-  if (busca) setorialStore.filtros.busca = String(busca).trim()
+  aplicarQueryRadarSetorial()
   setorialStore.carregarOpcoesFiltrosSetorial().catch(() => null)
   atualizarDados()
 })

@@ -41,6 +41,12 @@
       <span v-if="textoGeracao" class="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:inline">
         {{ textoGeracao }}
       </span>
+      <p
+        v-if="resumoTopo"
+        class="w-full basis-full text-xs sm:text-sm leading-relaxed text-slate-700 dark:text-slate-200 border-t border-slate-200/80 dark:border-slate-700/80 pt-2 mt-1"
+      >
+        {{ resumoTopo }}
+      </p>
 
       <button
         type="button"
@@ -75,8 +81,11 @@
       <p v-else-if="erroLeitura" class="text-sm text-red-600 dark:text-red-400">{{ erroLeitura }}</p>
 
       <template v-else-if="briefing">
-        <p class="text-sm leading-relaxed text-slate-800 dark:text-slate-200 font-medium">
-          {{ briefing.resumoExecutivo }}
+        <p
+          v-if="resumoTopo"
+          class="text-sm leading-relaxed text-slate-800 dark:text-slate-100 font-medium border-b border-slate-100 dark:border-slate-700/80 pb-3"
+        >
+          {{ resumoTopo }}
         </p>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -220,6 +229,16 @@ const deveExibir = computed(() => {
 
 const insightsVisiveis = computed(() => (briefing.value?.insights || []).slice(0, 5))
 
+const resumoTopo = computed(() => {
+  const b = briefing.value
+  if (!b) return ''
+  return (
+    (b.resumoExecutivo || '').trim() ||
+    (b.resumoExecutivoEmail || '').trim() ||
+    ''
+  )
+})
+
 const rotuloLente = computed(() => {
   if (!briefing.value) return ''
   const nome =
@@ -361,10 +380,23 @@ function acaoValida(insight) {
   }
 }
 
-function irParaAcao(insight) {
-  const acao = insight.acao_sugerida
-  if (!acao?.rota || !acaoValida(insight)) return
-  router.push({ path: acao.rota, query: acao.query || {} })
+async function irParaAcao(insight) {
+  const acao = insight?.acao_sugerida
+  if (!acao?.rota || !acaoValida(insight)) {
+    console.warn('Radar IA: rota inválida ou ausente', acao)
+    return
+  }
+  const destino = { path: acao.rota, query: { ...(acao.query || {}) } }
+  try {
+    if (router.currentRoute.value.path === acao.rota) {
+      await router.replace(destino)
+    } else {
+      await router.push(destino)
+    }
+  } catch (err) {
+    console.error('Radar IA: falha na navegação', err)
+    throw err
+  }
 }
 
 async function enviarAvaliacao(insightId, util) {

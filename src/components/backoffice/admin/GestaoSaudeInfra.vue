@@ -175,6 +175,15 @@
               <p class="text-[11px] text-slate-500 dark:text-slate-500">
                 Último briefing: {{ formatarIso(agenteIa.ultimo_briefing_em) }}
               </p>
+              <p
+                v-if="agenteIa.ultimo_fallback_motivo"
+                class="text-[11px] text-amber-800 dark:text-amber-200/90 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 rounded-lg px-3 py-2"
+              >
+                Último briefing em modo determinístico: {{ agenteIa.ultimo_fallback_motivo }}
+                <span v-if="agenteIa.ultimo_fallback_em" class="text-slate-500 dark:text-slate-400">
+                  ({{ formatarIso(agenteIa.ultimo_fallback_em) }})
+                </span>
+              </p>
             </div>
             <p v-else class="text-sm text-slate-500">Dados do agente indisponíveis.</p>
           </article>

@@ -67,6 +67,13 @@ def montar_acao_sugerida(
     busca = " ".join(str(c) for c in codigos if c)
 
     if detector == "critico_sem_campo":
+        if len(codigos) == 1:
+            cod = codigos[0]
+            return {
+                "label": f"Abrir protocolo {cod}",
+                "rota": f"/backoffice/protocolo/{cod}",
+                "query": {},
+            }
         return {
             **_mesa({"urgencia": "critica", "status": "em_analise,em_andamento,aguardando_revisao"}),
             "label": "Abrir críticos na Mesa",
@@ -89,9 +96,25 @@ def montar_acao_sugerida(
     if detector == "diligencia_expirando":
         return {**_mesa({"status": "aguardando_cidadao"}), "label": "Diligências a expirar"}
     if detector == "pico_bairro":
+        if not m.get("tem_geo_ocorrencia"):
+            q = {}
+            if bairro:
+                q["bairro"] = bairro
+            servicos = m.get("servicos_principais") or []
+            if servicos and not q.get("bairro"):
+                q["busca"] = str(servicos[0])[:80]
+            return {**_mesa(q), "label": "Ver demanda na Mesa"}
         q = {"bairro": bairro} if bairro else {}
         return {**_mapa(q), "label": "Ver no Mapa Territorial"}
     if detector == "pico_equipamento":
+        if not m.get("tem_geo_ocorrencia"):
+            q = {}
+            if equipamento_id:
+                q["equipamento_id"] = equipamento_id
+            servicos = m.get("servicos_principais") or []
+            if servicos:
+                q["busca"] = str(servicos[0])[:80]
+            return {**_mesa(q), "label": "Ver demanda na Mesa"}
         q = {}
         if equipamento_id:
             q["equipamento_id"] = equipamento_id

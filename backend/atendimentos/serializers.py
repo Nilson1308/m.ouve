@@ -302,8 +302,15 @@ class ProtocoloCreateSerializer(serializers.Serializer):
         lng = validated_data.get("longitude")
         if lat is not None and lng is not None:
             protocolo.localizacao = Point(lng, lat, srid=4326)
+        from atendimentos.services.protocolo_geolocalizacao import aplicar_origem_na_abertura
         from atendimentos.services.protocolo_localidade import sincronizar_localidade_protocolo
 
+        aplicar_origem_na_abertura(
+            protocolo,
+            latitude=lat,
+            longitude=lng,
+            endereco_ocorrencia=validated_data.get("endereco", ""),
+        )
         sincronizar_localidade_protocolo(protocolo, persistir=False)
         protocolo.save()
         from atendimentos.services.equipamento_protocolo import sincronizar_equipamento_no_protocolo

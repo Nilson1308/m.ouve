@@ -50,18 +50,22 @@
             </button>
 
             <button
-              @click="onToggleUrgentes"
+              type="button"
+              @click="onToggleCritico"
               :class="[
                 'inline-flex items-center gap-2 px-4 py-2 rounded-button text-sm font-medium transition-all duration-200',
-                filtros.urgentes
-                  ? 'bg-warning-500 text-white shadow-button-hover'
-                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:border-warning-500 hover:text-warning-500'
+                filtros.critico
+                  ? 'bg-red-600 text-white shadow-button-hover'
+                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:border-red-500 hover:text-red-600 dark:hover:text-red-400'
               ]"
             >
               <BoltIcon class="w-5 h-5" />
-              <span>Urgentes</span>
-              <span v-if="contadores.urgentes > 0" class="badge bg-white text-warning-600 ml-1">
-                {{ contadores.urgentes }}
+              <span>Crítico</span>
+              <span
+                v-if="contadores.criticos > 0"
+                class="badge bg-white text-red-700 dark:text-red-300 ml-1"
+              >
+                {{ contadores.criticos }}
               </span>
             </button>
 
@@ -300,6 +304,7 @@
         @abrir-mapa-ia="abrirMapaIa()"
       />
 
+      <div id="mesa-protocolos-area" class="min-h-0">
       <div v-if="loading" class="card p-12 flex flex-col items-center justify-center gap-4 min-h-[420px]">
         <div class="animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent" />
         <p class="text-gray-600 dark:text-gray-400 text-sm">Carregando protocolos...</p>
@@ -360,6 +365,7 @@
           </div>
         </div>
       </transition>
+      </div>
       </template>
     </main>
 
@@ -496,7 +502,7 @@ const temFiltrosAtivos = computed(
     Boolean(
       filtros.value.busca ||
         filtros.value.slaVencido ||
-        filtros.value.urgentes ||
+        filtros.value.critico ||
         totalFiltrosAvancados.value > 0
     )
 )
@@ -505,7 +511,7 @@ const filtrosAtivosArray = computed(() => {
   const ativos = []
   const f = filtros.value
   if (f.slaVencido) ativos.push({ key: 'slaVencido', label: 'SLA vencido' })
-  if (f.urgentes) ativos.push({ key: 'urgentes', label: 'Urgentes (alta/crítica)' })
+  if (f.critico) ativos.push({ key: 'critico', label: 'Urgência crítica' })
   if (f.busca) ativos.push({ key: 'busca', label: `Busca: ${f.busca}` })
   for (const id of f.unidadesIds || []) {
     const u = unidades.value.find((x) => x.id === id)
@@ -608,15 +614,15 @@ function onToggleSlaVencido() {
   recarregar()
 }
 
-function onToggleUrgentes() {
-  backofficeStore.toggleFiltroBoolean('urgentes')
+function onToggleCritico() {
+  backofficeStore.toggleFiltroBoolean('critico')
   recarregar()
 }
 
 function removerFiltro(key) {
   if (key === 'busca') {
     backofficeStore.setFiltro('busca', '')
-  } else if (key === 'slaVencido' || key === 'urgentes') {
+  } else if (key === 'slaVencido' || key === 'critico') {
     backofficeStore.setFiltro(key, false)
   } else {
     const item = filtrosAtivosArray.value.find((x) => x.key === key)
@@ -847,6 +853,25 @@ function aplicarQueryInicialRadar() {
   if (Object.keys(payload).length) backofficeStore.aplicarFiltrosAvancados(payload)
   if (q.busca) backofficeStore.filtros.busca = String(q.busca).trim()
 }
+
+async function aplicarQueryRadarENavegar() {
+  aplicarQueryInicialRadar()
+  await recarregar()
+  requestAnimationFrame(() => {
+    document.getElementById('mesa-protocolos-area')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+}
+
+watch(
+  () => route.query,
+  () => {
+    if (route.name !== 'backoffice-mesa-trabalho') return
+    const chaves = Object.keys(route.query || {})
+    if (!chaves.length) return
+    aplicarQueryRadarENavegar()
+  },
+  { deep: true }
+)
 
 onMounted(async () => {
   aplicarQueryInicialRadar()

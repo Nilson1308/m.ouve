@@ -68,6 +68,9 @@ def herdar_localizacao_do_equipamento(protocolo, equipamento: EquipamentoPublico
     if protocolo.localizacao:
         return False
     protocolo.localizacao = equipamento.localizacao
+    from atendimentos.services.protocolo_geolocalizacao import marcar_origem_equipamento_publico
+
+    marcar_origem_equipamento_publico(protocolo)
     return True
 
 
@@ -78,7 +81,7 @@ def sincronizar_equipamento_no_protocolo(protocolo, *, persistir: bool = True) -
         if eq and eq.ativo and eq.unidade_responsavel.ativo:
             update_fields = []
             if herdar_localizacao_do_equipamento(protocolo, eq):
-                update_fields.append("localizacao")
+                update_fields.extend(["localizacao", "origem_localizacao"])
             bairro_eq = (eq.bairro or "").strip()
             if bairro_eq:
                 dados = dict(protocolo.dados_dinamicos or {})
@@ -99,7 +102,7 @@ def sincronizar_equipamento_no_protocolo(protocolo, *, persistir: bool = True) -
     protocolo.equipamento = eq
     update_fields = ["equipamento", "data_atualizacao"]
     if herdar_localizacao_do_equipamento(protocolo, eq):
-        update_fields.append("localizacao")
+        update_fields.extend(["localizacao", "origem_localizacao"])
 
     bairro_eq = (eq.bairro or "").strip()
     if bairro_eq:

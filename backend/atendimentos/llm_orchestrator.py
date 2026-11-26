@@ -960,12 +960,30 @@ def _mensagem_limite_taxa(exc: BaseException) -> str:
     )
 
 
+def _extrair_tokens_usage(
+    response,
+    mensagens: list[dict[str, str]],
+    texto_resposta: str,
+) -> tuple[int, int, bool]:
+    """Retorna (entrada, saída, estimado)."""
+    usage = getattr(response, "usage", None)
+    if usage is not None:
+        ent = int(getattr(usage, "prompt_tokens", 0) or 0)
+        sai = int(getattr(usage, "completion_tokens", 0) or 0)
+        if ent or sai:
+            return ent, sai, False
+    est_in = sum(len(m.get("content") or "") for m in mensagens) // 4
+    est_out = max(1, len(texto_resposta or "") // 4)
+    return max(est_in, 1), est_out, True
+
+
 def _chamar_json_estruturado(
     *,
     nome_schema: str,
     schema: dict,
     mensagens: list[dict[str, str]],
     strict: bool = True,
+    usage_sink: list | None = None,
 ) -> dict:
     client = _cliente_llm()
     modelos = _modelos_fallback()
@@ -1043,7 +1061,19 @@ def _chamar_json_estruturado(
             f"(ex.: openai/gpt-oss-20b). Detalhe: {ultimo_erro}"
         ) from ultimo_erro
 
-    return _extrair_json_resposta(response.choices[0].message.content or "")
+    bruto = response.choices[0].message.content or ""
+    parsed = _extrair_json_resposta(bruto)
+    if usage_sink is not None:
+        ent, sai, estimado = _extrair_tokens_usage(response, msgs, bruto)
+        usage_sink[:] = [ent, sai, estimado]
+        if estimado:
+            logger.info(
+                "LLM usage ausente (%s); estimativa conservadora in=%s out=%s",
+                provider,
+                ent,
+                sai,
+            )
+    return parsed
 
 
 def _validar_servico_id(servico_id: str, permitidos: set[str]) -> str | None:

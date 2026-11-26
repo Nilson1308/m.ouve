@@ -23,6 +23,7 @@ from atendimentos.models import (
 from atendimentos.services.analytics_service import calcular_kpi_retrabalho
 from atendimentos.services.escopo_dados import q_protocolo_visivel_na_unidade
 from atendimentos.services.agente_acoes import montar_acao_sugerida
+from atendimentos.services.protocolo_geolocalizacao import queryset_geo_ocorrencia_valida
 from atendimentos.services.sla_cobranca_service import STATUS_ABERTOS, sla_vencido
 from catalogo.models import EquipamentoPublico, ServicoCatalogo, UnidadeAdministrativa
 
@@ -170,6 +171,10 @@ def _detectar_picos_equipamento(
             if cresc < pct_min:
                 continue
         nome_eq = nomes.get(eq_id, "Equipamento")
+        tem_geo = False
+        eq_obj = EquipamentoPublico.objects.filter(pk=eq_id).only("localizacao").first()
+        if eq_obj and eq_obj.localizacao:
+            tem_geo = queryset_geo_ocorrencia_valida(qs_eq).exists()
         titulo = (
             f"Novo foco de demanda: {nome_eq[:60]}"
             if novo_foco
@@ -188,6 +193,7 @@ def _detectar_picos_equipamento(
                     "novo_foco": novo_foco,
                     "servicos_principais": servicos,
                     "protocolos_exemplo": _codigos_protocolo(qs_eq),
+                    "tem_geo_ocorrencia": tem_geo,
                 },
                 escopo_tipo=escopo_tipo,
             )
@@ -196,6 +202,7 @@ def _detectar_picos_equipamento(
 
 
 def _contar_protocolos_por_bairro(qs, *, status_abertos: bool = False) -> dict[str, int]:
+    qs = queryset_geo_ocorrencia_valida(qs)
     if status_abertos:
         qs = qs.filter(status__in=STATUS_ABERTOS)
     buckets: dict[str, int] = {}
@@ -237,7 +244,10 @@ def _detectar_picos_bairro(
             Q(dados_dinamicos__bairro__iexact=bairro)
             | Q(dados_dinamicos__bairro__icontains=bairro)
         )
-        servicos = _servico_top_nome(qs_bairro)
+        qs_bairro_geo = queryset_geo_ocorrencia_valida(qs_bairro)
+        if not qs_bairro_geo.exists():
+            continue
+        servicos = _servico_top_nome(qs_bairro_geo)
         titulo = (
             f"Novo foco de demanda no bairro {bairro[:50]}"
             if novo_foco
@@ -254,7 +264,8 @@ def _detectar_picos_bairro(
                     "crescimento_percentual": cresc,
                     "novo_foco": novo_foco,
                     "servicos_principais": servicos,
-                    "protocolos_exemplo": _codigos_protocolo(qs_bairro),
+                    "protocolos_exemplo": _codigos_protocolo(qs_bairro_geo),
+                    "tem_geo_ocorrencia": True,
                 },
                 escopo_tipo=escopo_tipo,
             )

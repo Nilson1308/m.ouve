@@ -13,6 +13,7 @@ from django.utils import timezone
 from django.db.models import Prefetch
 
 from atendimentos.models import ConfiguracaoSistema, OrdemServico, Protocolo, SuperOS
+from atendimentos.services.protocolo_geolocalizacao import queryset_geo_ocorrencia_valida
 
 EARTH_RADIUS_M = 6_371_000
 DEFAULT_RAIO_METROS = 300
@@ -113,14 +114,14 @@ def protocolo_elegivel_clusterizacao(protocolo: Protocolo) -> bool:
 def queryset_candidatos_cluster() -> QuerySet[Protocolo]:
     """Protocolos abertos na janela temporal, com geo, ainda sem Super OS."""
     cutoff = timezone.now() - timedelta(days=dias_janela_cluster_ia())
+    base = Protocolo.objects.filter(
+        status__in=STATUS_AGRUPAVEL_IA,
+        super_os__isnull=True,
+        servico__permite_cluster=True,
+        data_criacao__gte=cutoff,
+    )
     return (
-        Protocolo.objects.filter(
-            status__in=STATUS_AGRUPAVEL_IA,
-            super_os__isnull=True,
-            localizacao__isnull=False,
-            servico__permite_cluster=True,
-            data_criacao__gte=cutoff,
-        )
+        queryset_geo_ocorrencia_valida(base)
         .select_related("servico", "super_os")
         .prefetch_related(_prefetch_ordens_ativas())
         .order_by("data_criacao")

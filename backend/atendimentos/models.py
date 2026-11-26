@@ -44,6 +44,20 @@ class Protocolo(models.Model):
         max_length=20, choices=Status.choices, default=Status.EM_ANALISE
     )
     endereco_texto = models.CharField(max_length=500, blank=True)
+
+    class OrigemLocalizacao(models.TextChoices):
+        NENHUMA = "nenhuma", "Sem localização da ocorrência"
+        OCORRENCIA_GPS = "ocorrencia_gps", "GPS/endereço da ocorrência (chat/formulário)"
+        OCORRENCIA_ENDERECO = "ocorrencia_endereco", "Endereço textual da ocorrência"
+        EQUIPAMENTO_PUBLICO = "equipamento_publico", "Equipamento público vinculado"
+        RESIDENCIA_CONFIRMADA = "residencia_confirmada", "Residência confirmada pelo cidadão"
+
+    origem_localizacao = models.CharField(
+        max_length=32,
+        choices=OrigemLocalizacao.choices,
+        default=OrigemLocalizacao.NENHUMA,
+        db_index=True,
+    )
     localizacao = gis_models.PointField(geography=True, srid=4326, null=True, blank=True)
     embedding = VectorField(dimensions=settings.EMBEDDING_DIMENSIONS, null=True, blank=True)
     resposta_cidadao = models.TextField(

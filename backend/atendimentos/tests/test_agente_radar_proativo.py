@@ -265,7 +265,7 @@ class AgenteRadarProativoTests(TestCase):
             "controladoria",
         )
         self.assertNotEqual(a["acao_sugerida"]["label"], b["acao_sugerida"]["label"])
-        self.assertEqual(a["acao_sugerida"]["rota"], "/backoffice/mesa-trabalho")
+        self.assertEqual(a["acao_sugerida"]["rota"], "/backoffice/protocolo/P-1")
         self.assertEqual(b["acao_sugerida"]["rota"], "/backoffice/relatorios/sla-cobrancas")
 
     def test_resolvido_nao_entra_diligencia_pendente(self):
@@ -324,3 +324,78 @@ class AgenteRadarProativoTests(TestCase):
         )
         invalidar_cache_briefing_protocolo(p)
         self.assertIsNone(cache.get(chave))
+
+    @override_settings(LLM_CHAT_API_KEY="test-key")
+    @patch("atendimentos.llm_orchestrator._chamar_json_estruturado")
+    def test_llm_usage_persiste_tokens(self, mock_json):
+        from atendimentos.services.agente_briefing_service import _validar_conteudo_ia
+
+        fatos_stub = {"sinais": [], "escopo_tipo": "controladoria"}
+        conteudo = _fallback_conteudo(fatos_stub, "controladoria")
+
+        def _fake(**kwargs):
+            sink = kwargs.get("usage_sink")
+            if sink is not None:
+                sink[:] = [512, 256, False]
+            return _validar_conteudo_ia(conteudo, fatos_stub)
+
+        mock_json.side_effect = _fake
+        cfg = ConfiguracaoAgenteGestao.load()
+        cfg.agente_ativo = True
+        cfg.orcamento_tokens_mensal = 9_999_999
+        cfg.save()
+        b = gerar_briefing_escopo("controladoria", forcar=True)
+        self.assertEqual(b.modo_geracao, "llm")
+        self.assertEqual(b.tokens_entrada, 512)
+        self.assertEqual(b.tokens_saida, 256)
+
+    def test_critico_unico_rota_protocolo(self):
+        from atendimentos.services.agente_acoes import montar_acao_sugerida
+
+        acao = montar_acao_sugerida(
+            "critico_sem_campo",
+            escopo_tipo="controladoria",
+            metricas={"protocolos_exemplo": ["P-TRI-99"]},
+        )
+        self.assertEqual(acao["rota"], "/backoffice/protocolo/P-TRI-99")
+        self.assertIn("P-TRI-99", acao["label"])
+
+    def test_ouvidoria_sem_geo_nao_entra_mapa_calor(self):
+        from django.contrib.gis.geos import Point
+
+        from core_auth.models import EnderecoCidadao
+        from atendimentos.services.mapa_calor_service import queryset_mapa_calor
+        from atendimentos.services.protocolo_localidade import sincronizar_localidade_protocolo
+
+        EnderecoCidadao.objects.create(
+            usuario=self.gestor_a,
+            logradouro="Rua Teste",
+            numero="1",
+            bairro="BairroResidencial",
+            cidade="Mogi das Cruzes",
+            estado="SP",
+            cep="08700-000",
+            localizacao=Point(-46.2, -23.5, srid=4326),
+        )
+        p = Protocolo.objects.create(
+            codigo="P-GEO-LGPD",
+            usuario=self.gestor_a,
+            servico=self.servico,
+            descricao="Reclamação administrativa sem local",
+            status=Protocolo.Status.EM_ANALISE,
+            dados_dinamicos={},
+            origem_localizacao=Protocolo.OrigemLocalizacao.NENHUMA,
+        )
+        sincronizar_localidade_protocolo(p, persistir=True)
+        p.refresh_from_db()
+        self.assertNotEqual(
+            (p.dados_dinamicos or {}).get("bairro", "").lower(),
+            "bairroresidencial",
+        )
+        qs, _meta = queryset_mapa_calor(self.super, {})
+        self.assertFalse(qs.filter(codigo="P-GEO-LGPD").exists())
+        fatos = coletar_fatos_operacionais("controladoria")
+        picos = [s for s in fatos["sinais"] if s.get("detector") == "pico_bairro"]
+        for s in picos:
+            codigos = s.get("metricas", {}).get("protocolos_exemplo") or []
+            self.assertNotIn("P-GEO-LGPD", codigos)

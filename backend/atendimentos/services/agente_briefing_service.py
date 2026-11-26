@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import uuid
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -83,6 +84,26 @@ def registrar_fallback_motivo(codigo: str, detalhe: str = "") -> None:
 def obter_ultimo_fallback_motivo() -> dict | None:
     raw = cache.get(ULTIMO_FALLBACK_CACHE_KEY)
     return raw if isinstance(raw, dict) else None
+
+
+_GLOSSARIO_DOMINIO = """
+Glossário (obrigatório):
+- Inelegibilidade: cidadão barrado no chat por regra do catálogo. Nunca sugira treinar operadores;
+  sugira revisar a regra/mensagem de orientação ao cidadão ou comunicação pública.
+- Triagem parada / Crítico sem OS: recomende despacho imediato citando códigos PROT-..., serviço e secretaria.
+- Concordância: use "1 protocolo" (singular), nunca "1 protocolos". Plural correto: "2 protocolos críticos".
+- Evite conselhos vagos ("mapear no GIS") sem citar serviço, equipamento ou bairro presente no snapshot.
+"""
+
+
+def _sanitizar_gramatica_pt(texto: str) -> str:
+    t = (texto or "").strip()
+    if not t:
+        return t
+    t = re.sub(r"\b1\s+protocolos\b", "1 protocolo", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b1\s+críticos\b", "1 crítico", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b1\s+criticos\b", "1 crítico", t, flags=re.IGNORECASE)
+    return t
 
 
 def classificar_erro_llm(exc: BaseException) -> str:
@@ -226,8 +247,18 @@ def _validar_conteudo_ia(raw: dict, fatos: dict) -> dict:
     if not insights_limpos:
         raise ValueError("json_invalido")
     out["insights"] = insights_limpos[:5]
-    out["resumo_executivo"] = (out.get("resumo_executivo") or "").strip()[:1200]
-    out["resumo_executivo_email"] = (out.get("resumo_executivo_email") or "").strip()[:800]
+    out["resumo_executivo"] = _sanitizar_gramatica_pt(
+        (out.get("resumo_executivo") or "").strip()[:1200]
+    )
+    out["resumo_executivo_email"] = _sanitizar_gramatica_pt(
+        (out.get("resumo_executivo_email") or "").strip()[:800]
+    )
+    for item in out.get("insights") or []:
+        if isinstance(item, dict):
+            item["evidencia_numerica"] = _sanitizar_gramatica_pt(
+                (item.get("evidencia_numerica") or "")[:300]
+            )
+            item["recomendacao"] = _sanitizar_gramatica_pt((item.get("recomendacao") or "")[:500])
     return out
 
 
@@ -241,22 +272,29 @@ def _chamar_llm_briefing(fatos: dict, escopo_tipo: str) -> tuple[dict, int, int,
         "Cada insight deve referenciar o campo id do sinal correspondente. "
         "evidencia_numerica: frase curta legível (sem nomes técnicos de campo). "
         "recomendacao: conduta concreta, sem repetir o título. "
+        "resumo_executivo: parágrafo executivo completo (2–4 frases) visível no topo do painel. "
+        f"{_GLOSSARIO_DOMINIO} "
         f"{_persona_instrucao(escopo_tipo)}"
     )
     mensagens = [
         {"role": "system", "content": sistema},
         {"role": "user", "content": json.dumps(fatos, ensure_ascii=False)},
     ]
+    uso: list = []
     parsed = _chamar_json_estruturado(
         nome_schema="briefing_operacional",
         schema=BRIEFING_JSON_SCHEMA,
         mensagens=mensagens,
         strict=False,
+        usage_sink=uso,
     )
     modelo = _modelo()
-    # estimativa tokens (serviço ainda não retorna usage nativo)
-    tokens_in = max(500, len(json.dumps(fatos)) // 4)
-    tokens_out = max(200, len(json.dumps(parsed)) // 4)
+    if len(uso) >= 2:
+        tokens_in, tokens_out = int(uso[0]), int(uso[1])
+    else:
+        tokens_in = max(500, len(json.dumps(fatos, ensure_ascii=False)) // 4)
+        tokens_out = max(200, len(json.dumps(parsed, ensure_ascii=False)) // 4)
+        logger.warning("Briefing LLM sem usage_sink; estimativa len/4 aplicada")
     return _validar_conteudo_ia(parsed, fatos), tokens_in, tokens_out, modelo
 
 

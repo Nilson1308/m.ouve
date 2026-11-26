@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from atendimentos.backoffice_views import IsBackofficeStaff
-from atendimentos.kanban_services import montar_kanban_unificado
+from atendimentos.kanban_services import montar_kanban_unificado, resumo_contadores_mesa
 
 
 class KanbanPagination(PageNumberPagination):
@@ -26,14 +26,16 @@ class BackofficeKanbanView(APIView):
 
     def get(self, request):
         itens = montar_kanban_unificado(request.query_params, user=request.user)
+        resumo = resumo_contadores_mesa(itens, user=request.user, params=request.query_params)
         paginator = KanbanPagination()
         page = paginator.paginate_queryset(itens, request, view=self)
         if page is None:
-            return Response({"data": itens, "count": len(itens)})
+            return Response({"data": itens, "count": len(itens), "resumo": resumo})
         return Response(
             {
                 "data": page,
                 "count": len(itens),
+                "resumo": resumo,
                 "pagination": {
                     "current_page": paginator.page.number,
                     "per_page": paginator.get_page_size(request),
