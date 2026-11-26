@@ -113,3 +113,32 @@ class KanbanFiltrosMesaTests(TestCase):
         resumo = resumo_contadores_mesa(itens, user=self.super, params=q)
         self.assertEqual(resumo["total_itens"], 1)
         self.assertEqual(resumo["criticos"], 1)
+
+    def test_busca_multiplos_codigos_radar(self):
+        p1 = Protocolo.objects.create(
+            codigo="PROT-2026-001",
+            usuario=self.cidadao,
+            servico=self.servico,
+            descricao="um",
+            status=Protocolo.Status.EM_ANALISE,
+        )
+        p2 = Protocolo.objects.create(
+            codigo="PROT-2026-002",
+            usuario=self.cidadao,
+            servico=self.servico,
+            descricao="dois",
+            status=Protocolo.Status.EM_ANALISE,
+        )
+        Protocolo.objects.create(
+            codigo="PROT-2026-099",
+            usuario=self.cidadao,
+            servico=self.servico,
+            descricao="outro",
+            status=Protocolo.Status.EM_ANALISE,
+        )
+        q = QueryDict(mutable=True)
+        q["busca"] = "PROT-2026-001 PROT-2026-002"
+        q["status"] = "em_analise"
+        itens = montar_kanban_unificado(q, user=self.super)
+        codigos = {i["codigo"] for i in itens if i.get("tipo") == "protocolo"}
+        self.assertEqual(codigos, {p1.codigo, p2.codigo})

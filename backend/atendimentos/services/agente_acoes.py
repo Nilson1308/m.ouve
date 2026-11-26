@@ -64,7 +64,7 @@ def montar_acao_sugerida(
     codigos = list(m.get("protocolos_exemplo") or m.get("codigos") or [])[:3]
     bairro = (m.get("bairro") or "").strip()
     equipamento_id = (m.get("equipamento_id") or "").strip()
-    busca = " ".join(str(c) for c in codigos if c)
+    busca = ",".join(str(c) for c in codigos if c)
 
     if detector == "critico_sem_campo":
         if len(codigos) == 1:

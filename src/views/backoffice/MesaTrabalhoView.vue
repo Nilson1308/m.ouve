@@ -828,7 +828,18 @@ function aplicarQueryInicialRadar() {
   const q = route.query || {}
   const chaves = Object.keys(q)
   if (!chaves.length) return
-  const payload = {}
+  const payload = {
+    unidadesIds: [],
+    servicoIds: [],
+    bairros: [],
+    statusLista: [],
+    urgenciaLista: [],
+    equipamentoId: '',
+    equipamentoRotulo: '',
+    apenasCobrados: false,
+    apenasReabertos: false,
+    apenasSugestaoUrgenciaIa: false
+  }
   if (q.urgencia) {
     payload.urgenciaLista = String(q.urgencia)
       .split(',')
@@ -850,8 +861,10 @@ function aplicarQueryInicialRadar() {
   if (q.equipamento_id) payload.equipamentoId = String(q.equipamento_id).trim()
   if (q.apenas_sugestao_urgencia_ia === 'true') payload.apenasSugestaoUrgenciaIa = true
   if (q.apenas_reabertos === 'true') payload.apenasReabertos = true
-  if (Object.keys(payload).length) backofficeStore.aplicarFiltrosAvancados(payload)
-  if (q.busca) backofficeStore.filtros.busca = String(q.busca).trim()
+  backofficeStore.aplicarFiltrosAvancados(payload)
+  backofficeStore.setFiltro('busca', q.busca ? String(q.busca).trim() : '')
+  backofficeStore.setFiltro('slaVencido', false)
+  backofficeStore.setFiltro('critico', false)
 }
 
 async function aplicarQueryRadarENavegar() {

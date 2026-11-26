@@ -73,12 +73,9 @@ class BackofficeProtocoloFilterSet(filters.FilterSet):
         fields = ("status",)
 
     def filter_busca(self, queryset, name, value):
-        if not value:
-            return queryset
-        termo = value.strip()
-        return queryset.filter(
-            Q(codigo__icontains=termo) | Q(descricao__icontains=termo)
-        )
+        from atendimentos.services.mesa_busca import filtrar_queryset_busca_protocolo
+
+        return filtrar_queryset_busca_protocolo(queryset, value or "")
 
     def filter_urgencia(self, queryset, name, value):
         from atendimentos.urgencia_constants import normalizar_nivel
