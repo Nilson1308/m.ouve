@@ -29,8 +29,6 @@ def _q_token_protocolo(tok: str) -> Q:
         | Q(equipamento__nome__icontains=tok)
         | Q(equipamento__bairro__icontains=tok)
     )
-    if len(tok) <= 24:
-        q |= Q(ordens_servico__codigo__icontains=tok)
     return q
 
 
@@ -99,13 +97,17 @@ def filtrar_queryset_busca_ordem_servico(queryset, termo: str):
     for tok in tokens:
         q_tok = (
             Q(descricao__icontains=tok)
+            | Q(nome_equipe__icontains=tok)
+            | Q(despacho_tecnico__icontains=tok)
+            | Q(observacoes_execucao__icontains=tok)
             | Q(protocolo__codigo__icontains=tok)
             | Q(protocolo__descricao__icontains=tok)
             | Q(protocolo__endereco_texto__icontains=tok)
             | Q(protocolo__dados_dinamicos__bairro__icontains=tok)
             | Q(protocolo__servico__nome__icontains=tok)
+            | Q(protocolo__servico__categoria__nome__icontains=tok)
             | Q(protocolo__equipamento__nome__icontains=tok)
-            | Q(codigo__icontains=tok)
+            | Q(super_os__codigo__icontains=tok)
         )
         q_total &= q_tok
     return queryset.filter(q_total).distinct()
