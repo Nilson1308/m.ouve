@@ -201,18 +201,27 @@ def equipamento_coincide_busca(equipamento: EquipamentoPublico, busca: str) -> b
 
 
 def filtrar_equipamentos_busca(qs, busca: str):
+    """Busca por tokens em nome, bairro, endereço, tipo, secretaria e apelidos (JSON)."""
     termo = (busca or "").strip()
     if not termo:
         return qs
-    base = qs.filter(Q(nome__icontains=termo) | Q(bairro__icontains=termo))
-    ids_base = set(base.values_list("pk", flat=True))
-    extra_ids: list[Any] = []
-    for eq in qs.exclude(pk__in=ids_base).only("id", "nome", "bairro", "apelidos"):
-        if equipamento_coincide_busca(eq, termo):
-            extra_ids.append(eq.pk)
-    if extra_ids:
-        return qs.filter(Q(pk__in=ids_base) | Q(pk__in=extra_ids)).distinct()
-    return base.distinct()
+    tokens = tokens_significativos(termo)
+    if not tokens:
+        brutos = re.findall(r"[a-z0-9]{2,}", normalizar_texto_busca(termo))
+        tokens = brutos or [termo]
+    q_total = Q()
+    for tok in tokens:
+        q_tok = (
+            Q(nome__icontains=tok)
+            | Q(bairro__icontains=tok)
+            | Q(endereco__icontains=tok)
+            | Q(tipo__icontains=tok)
+            | Q(unidade_responsavel__nome__icontains=tok)
+            | Q(unidade_responsavel__sigla__icontains=tok)
+            | Q(apelidos__icontains=tok)
+        )
+        q_total &= q_tok
+    return qs.filter(q_total).distinct()
 
 
 def campos_schema_datasource(schema: dict | None, datasource: str) -> list[str]:

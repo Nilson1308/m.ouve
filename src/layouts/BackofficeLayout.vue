@@ -259,13 +259,6 @@ const menuDef = computed(() => [
     perm: 'mesa_trabalho.ler'
   },
   {
-    key: 'sla-cobrancas',
-    to: '/backoffice/relatorios/sla-cobrancas',
-    icon: ClockIcon,
-    label: 'SLA & Cobranças',
-    perm: 'mesa_trabalho.ler'
-  },
-  {
     key: 'setorial',
     to: '/backoffice/setorial',
     icon: BuildingOffice2Icon,
@@ -287,6 +280,13 @@ const menuDef = computed(() => [
     perm: 'mapa_ia.ler'
   },
   {
+    key: 'sla-cobrancas',
+    to: '/backoffice/relatorios/sla-cobrancas',
+    icon: ClockIcon,
+    label: 'SLA & Cobranças',
+    perm: 'mesa_trabalho.ler'
+  },
+  {
     key: 'notificacoes',
     to: '/backoffice/notificacoes',
     icon: BellAlertIcon,
@@ -298,13 +298,6 @@ const menuDef = computed(() => [
           ? '99+'
           : String(notificacoesStore.naoLidas)
         : null
-  },
-  {
-    key: 'manual',
-    to: '/backoffice/manual',
-    icon: BookOpenIcon,
-    label: 'Manual do Sistema',
-    sempreVisivel: true
   },
   { type: 'divider' },
   {
@@ -328,6 +321,14 @@ const menuDef = computed(() => [
     label: 'Configurações',
     perm: 'configuracoes.ler',
     allowSuperAdminOnly: false
+  },
+  { type: 'divider' },
+  {
+    key: 'manual',
+    to: '/backoffice/manual',
+    icon: BookOpenIcon,
+    label: 'Manual do Sistema',
+    sempreVisivel: true
   }
 ])
 

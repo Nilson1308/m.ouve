@@ -74,27 +74,29 @@
             <li
               v-for="s in store.sessoes"
               :key="s.id"
-              class="group flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50"
+              class="group flex items-stretch gap-0 min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 overflow-hidden"
             >
               <button
                 type="button"
-                class="flex-1 text-left px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/60 active:bg-slate-200/80 dark:active:bg-slate-600/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:focus-visible:ring-primary-400"
+                class="flex-1 min-w-0 text-left px-3 py-2.5 pr-2 hover:bg-slate-100 dark:hover:bg-slate-700/60 active:bg-slate-200/80 dark:active:bg-slate-600/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 dark:focus-visible:ring-primary-400"
                 @click="store.abrirSessao(s.id)"
               >
-                <span class="block text-sm font-medium text-slate-900 dark:text-white truncate">
+                <span
+                  class="block text-sm font-medium text-slate-900 dark:text-white line-clamp-2 break-words leading-snug"
+                >
                   {{ s.titulo }}
                 </span>
-                <span class="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                <span class="block text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                   {{ formatarData(s.atualizadoEm) }}
                 </span>
               </button>
               <button
                 type="button"
-                class="shrink-0 p-2 mr-1 rounded-lg text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                class="shrink-0 self-center p-2.5 m-1 rounded-lg text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:focus-visible:ring-red-400"
                 title="Excluir conversa"
-                @click="confirmarExclusao(s)"
+                @click.stop="confirmarExclusao(s)"
               >
-                <TrashIcon class="w-4 h-4" />
+                <TrashIcon class="w-4 h-4" aria-hidden="true" />
               </button>
             </li>
           </ul>

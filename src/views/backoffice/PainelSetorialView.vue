@@ -96,7 +96,7 @@
             <input
               :value="filtros.busca"
               type="text"
-              placeholder="Buscar OS ou protocolo..."
+              placeholder="Buscar OS, protocolo, serviço ou endereço..."
               class="input pl-10 w-80 max-w-full"
               @input="onBuscaInput"
             />
