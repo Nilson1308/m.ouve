@@ -365,6 +365,12 @@ def reabrir_protocolo(
     from atendimentos.notificacoes_cidadao import notificar_status_protocolo
 
     notificar_status_protocolo(protocolo, status_destino)
+    try:
+        from atendimentos.services.agente_briefing_service import invalidar_cache_briefing_protocolo
+
+        invalidar_cache_briefing_protocolo(protocolo)
+    except Exception:
+        pass
     return reabertura
 
 

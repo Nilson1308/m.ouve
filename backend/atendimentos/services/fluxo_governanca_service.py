@@ -185,4 +185,10 @@ def tentar_encerramento_direto_secretaria(
 
     aplicar_janela_reabertura_apos_conclusao(protocolo)
     notificar_status_protocolo(protocolo, Protocolo.Status.RESOLVIDO)
+    try:
+        from atendimentos.services.agente_briefing_service import invalidar_cache_briefing_protocolo
+
+        invalidar_cache_briefing_protocolo(protocolo)
+    except Exception:
+        pass
     return True

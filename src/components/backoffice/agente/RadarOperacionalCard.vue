@@ -107,7 +107,7 @@
               {{ insight.recomendacao }}
             </p>
             <button
-              v-if="insight.acao_sugerida?.rota"
+              v-if="acaoValida(insight)"
               type="button"
               class="self-start text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 dark:focus-visible:ring-offset-gray-900 transition-colors"
               @click="irParaAcao(insight)"
@@ -350,9 +350,20 @@ async function forcarAtualizacao() {
   await carregarBriefing(true)
 }
 
+function acaoValida(insight) {
+  const acao = insight?.acao_sugerida
+  if (!acao?.rota) return false
+  try {
+    const alvo = router.resolve({ path: acao.rota, query: acao.query || {} })
+    return Boolean(alvo?.name || alvo?.matched?.length)
+  } catch {
+    return false
+  }
+}
+
 function irParaAcao(insight) {
   const acao = insight.acao_sugerida
-  if (!acao?.rota) return
+  if (!acao?.rota || !acaoValida(insight)) return
   router.push({ path: acao.rota, query: acao.query || {} })
 }
 

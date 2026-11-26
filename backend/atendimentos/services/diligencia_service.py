@@ -426,6 +426,12 @@ def responder_diligencia(
     )
 
     _notificar_unidade_resposta(diligencia, request=request)
+    try:
+        from atendimentos.services.agente_briefing_service import invalidar_cache_briefing_protocolo
+
+        invalidar_cache_briefing_protocolo(protocolo)
+    except Exception:
+        pass
     return diligencia
 
 

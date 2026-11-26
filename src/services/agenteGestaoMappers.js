@@ -12,7 +12,7 @@ export function labelEscopoBriefing(escopoTipo, unidadeNome = '') {
 }
 
 export function labelModoGeracao(modo) {
-  return modo === 'llm' ? 'Síntese IA' : 'Análise determinística'
+  return modo === 'llm' ? 'Síntese IA' : 'Análise municipal'
 }
 
 export function normalizarBriefing(data) {

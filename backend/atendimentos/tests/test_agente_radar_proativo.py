@@ -228,3 +228,99 @@ class AgenteRadarProativoTests(TestCase):
         enviar_digest_sla_atrasados(incluir_controladoria=True)
         self.assertTrue(mail.outbox)
         self.assertNotIn("Radar IA", mail.outbox[-1].body)
+
+    def test_fallback_sem_chaves_tecnicas(self):
+        fatos = coletar_fatos_operacionais("controladoria")
+        conteudo = _fallback_conteudo(fatos, "controladoria")
+        bruto = json.dumps(conteudo, ensure_ascii=False).lower()
+        self.assertNotIn("motivo_hash", bruto)
+        self.assertNotIn("fallback", bruto)
+        for ins in conteudo.get("insights") or []:
+            self.assertNotIn("=", ins.get("evidencia_numerica", ""))
+            self.assertNotIn("Priorize acompanhamento", ins.get("recomendacao", ""))
+
+    def test_acoes_distintas_por_detector(self):
+        from atendimentos.services.agente_fallback_narrativa import insight_fallback_de_sinal
+
+        a = insight_fallback_de_sinal(
+            {
+                "id": "critico_sem_campo",
+                "detector": "critico_sem_campo",
+                "categoria": "acao_imediata",
+                "severidade": "critica",
+                "titulo": "Críticos",
+                "metricas": {"protocolos_exemplo": ["P-1"]},
+            },
+            "controladoria",
+        )
+        b = insight_fallback_de_sinal(
+            {
+                "id": "sla_vencido",
+                "detector": "sla_vencido",
+                "categoria": "acao_imediata",
+                "severidade": "critica",
+                "titulo": "SLA",
+                "metricas": {"total_vencidos": 2},
+            },
+            "controladoria",
+        )
+        self.assertNotEqual(a["acao_sugerida"]["label"], b["acao_sugerida"]["label"])
+        self.assertEqual(a["acao_sugerida"]["rota"], "/backoffice/mesa-trabalho")
+        self.assertEqual(b["acao_sugerida"]["rota"], "/backoffice/relatorios/sla-cobrancas")
+
+    def test_resolvido_nao_entra_diligencia_pendente(self):
+        from atendimentos.models import DiligenciaProtocolo
+
+        p_aberto = Protocolo.objects.create(
+            codigo="P-DIL-AB",
+            usuario=self.gestor_a,
+            servico=self.servico,
+            descricao="Aberto",
+            status=Protocolo.Status.EM_ANDAMENTO,
+        )
+        p_fechado = Protocolo.objects.create(
+            codigo="P-DIL-OK",
+            usuario=self.gestor_a,
+            servico=self.servico,
+            descricao="Fechado",
+            status=Protocolo.Status.RESOLVIDO,
+        )
+        for prot in (p_aberto, p_fechado):
+            DiligenciaProtocolo.objects.create(
+                protocolo=prot,
+                unidade_solicitante=self.unidade_a,
+                autor_servidor=self.gestor_a,
+                pergunta="Envie foto",
+                status=DiligenciaProtocolo.Status.RESPONDIDA,
+                prazo_resposta=timezone.now() + timedelta(days=1),
+                respondida_em=timezone.now(),
+            )
+        fatos = coletar_fatos_operacionais("unidade", unidade=self.unidade_a)
+        sinal = next(
+            (s for s in fatos["sinais"] if s.get("detector") == "diligencia_respondida_pendente"),
+            None,
+        )
+        self.assertIsNotNone(sinal)
+        codigos = sinal["metricas"].get("protocolos_exemplo") or []
+        self.assertIn("P-DIL-AB", codigos)
+        self.assertNotIn("P-DIL-OK", codigos)
+
+    def test_cache_invalida_ao_resolver_protocolo(self):
+        from atendimentos.services.agente_briefing_service import (
+            _cache_key_briefing,
+            invalidar_cache_briefing_protocolo,
+        )
+
+        cache.clear()
+        b = gerar_briefing_escopo("controladoria", forcar=True)
+        chave = _cache_key_briefing("controladoria", None, b.data_referencia)
+        cache.set(chave, str(b.id), timeout=3600)
+        p = Protocolo.objects.create(
+            codigo="P-CACHE",
+            usuario=self.gestor_a,
+            servico=self.servico,
+            descricao="x",
+            status=Protocolo.Status.EM_ANALISE,
+        )
+        invalidar_cache_briefing_protocolo(p)
+        self.assertIsNone(cache.get(chave))

@@ -399,7 +399,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { watchDebounced } from '@vueuse/core'
 import {
@@ -439,6 +439,7 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { protocolosElegiveisMapa } from '@/utils/superOsMappers'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const backofficeStore = useBackofficeStore()
 
@@ -817,7 +818,38 @@ watch(modoVisualizacao, async () => {
   }
 })
 
+function aplicarQueryInicialRadar() {
+  const q = route.query || {}
+  const chaves = Object.keys(q)
+  if (!chaves.length) return
+  const payload = {}
+  if (q.urgencia) {
+    payload.urgenciaLista = String(q.urgencia)
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean)
+  }
+  if (q.status) {
+    payload.statusLista = String(q.status)
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean)
+  }
+  if (q.bairro) {
+    payload.bairros = String(q.bairro)
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean)
+  }
+  if (q.equipamento_id) payload.equipamentoId = String(q.equipamento_id).trim()
+  if (q.apenas_sugestao_urgencia_ia === 'true') payload.apenasSugestaoUrgenciaIa = true
+  if (q.apenas_reabertos === 'true') payload.apenasReabertos = true
+  if (Object.keys(payload).length) backofficeStore.aplicarFiltrosAvancados(payload)
+  if (q.busca) backofficeStore.filtros.busca = String(q.busca).trim()
+}
+
 onMounted(async () => {
+  aplicarQueryInicialRadar()
   await Promise.all([
     backofficeStore.carregarUnidades().catch(() => {}),
     backofficeStore.carregarOpcoesFiltrosMesa().catch(() => null),

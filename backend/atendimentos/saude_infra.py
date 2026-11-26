@@ -165,6 +165,9 @@ def _status_agente_ia() -> dict:
     ultimo = (
         BriefingOperacionalIA.objects.order_by("-criado_em").values_list("criado_em", flat=True).first()
     )
+    from atendimentos.services.agente_briefing_service import obter_ultimo_fallback_motivo
+
+    fb = obter_ultimo_fallback_motivo() or {}
     return {
         "ativo": bool(cfg.agente_ativo),
         "tokens_mes_atual": consumo,
@@ -173,4 +176,7 @@ def _status_agente_ia() -> dict:
         "alerta_budget_80": pct >= 80.0,
         "budget_esgotado": orcamento > 0 and consumo >= orcamento,
         "ultimo_briefing_em": ultimo.isoformat() if ultimo else None,
+        "ultimo_fallback_motivo": fb.get("codigo"),
+        "ultimo_fallback_detalhe": fb.get("detalhe"),
+        "ultimo_fallback_em": fb.get("em"),
     }

@@ -14,6 +14,11 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from atendimentos.models import BriefingOperacionalIA, ConfiguracaoAgenteGestao, Protocolo
+from atendimentos.services.agente_acoes import montar_acao_sugerida
+from atendimentos.services.agente_fallback_narrativa import (
+    insight_fallback_de_sinal,
+    resumo_executivo_fallback,
+)
 from atendimentos.services.agente_sinais_service import coletar_fatos_operacionais
 from catalogo.models import UnidadeAdministrativa
 
@@ -43,15 +48,6 @@ BRIEFING_JSON_SCHEMA = {
                     "titulo": {"type": "string"},
                     "evidencia_numerica": {"type": "string"},
                     "recomendacao": {"type": "string"},
-                    "acao_sugerida": {
-                        "type": "object",
-                        "properties": {
-                            "label": {"type": "string"},
-                            "rota": {"type": "string"},
-                            "query": {"type": "object"},
-                        },
-                        "required": ["label", "rota", "query"],
-                    },
                 },
                 "required": [
                     "id",
@@ -60,7 +56,6 @@ BRIEFING_JSON_SCHEMA = {
                     "titulo",
                     "evidencia_numerica",
                     "recomendacao",
-                    "acao_sugerida",
                 ],
                 "additionalProperties": False,
             },
@@ -72,6 +67,43 @@ BRIEFING_JSON_SCHEMA = {
 
 SEVERIDADE_ORDEM = {"critica": 0, "alta": 1, "media": 2, "info": 3}
 FORCAR_COOLDOWN_SEG = 15 * 60
+ULTIMO_FALLBACK_CACHE_KEY = "agente_ia:ultimo_fallback_motivo"
+
+
+def registrar_fallback_motivo(codigo: str, detalhe: str = "") -> None:
+    payload = {
+        "codigo": codigo,
+        "detalhe": (detalhe or "")[:500],
+        "em": timezone.now().isoformat(),
+    }
+    cache.set(ULTIMO_FALLBACK_CACHE_KEY, payload, timeout=86400 * 14)
+    logger.info("Briefing IA fallback: %s %s", codigo, detalhe[:200] if detalhe else "")
+
+
+def obter_ultimo_fallback_motivo() -> dict | None:
+    raw = cache.get(ULTIMO_FALLBACK_CACHE_KEY)
+    return raw if isinstance(raw, dict) else None
+
+
+def classificar_erro_llm(exc: BaseException) -> str:
+    msg = str(exc).lower()
+    if "json" in msg or "validate" in msg or "schema" in msg:
+        return "json_invalido"
+    if "429" in msg or "rate" in msg or "limite" in msg:
+        return "erro_http"
+    if "timeout" in msg or "timed out" in msg:
+        return "timeout"
+    return "erro_llm"
+
+
+def invalidar_cache_briefing_protocolo(protocolo) -> None:
+    """Invalida briefings do dia para escopos afetados pelo protocolo."""
+    invalidar_cache_briefing_escopo("controladoria")
+    invalidar_cache_briefing_escopo("ouvidoria")
+    uid = None
+    if getattr(protocolo, "servico_id", None) and protocolo.servico.unidade_responsavel_id:
+        uid = protocolo.servico.unidade_responsavel_id
+        invalidar_cache_briefing_escopo("unidade", uid)
 
 
 def _cache_key_briefing(escopo_tipo: str, unidade_id, ref: date) -> str:
@@ -94,12 +126,7 @@ def invalidar_cache_briefing_escopo(escopo_tipo: str, unidade_id=None) -> None:
 
 
 def invalidar_cache_ao_protocolo_critico(protocolo) -> None:
-    invalidar_cache_briefing_escopo("controladoria")
-    invalidar_cache_briefing_escopo("ouvidoria")
-    uid = None
-    if protocolo.servico_id and protocolo.servico.unidade_responsavel_id:
-        uid = protocolo.servico.unidade_responsavel_id
-        invalidar_cache_briefing_escopo("unidade", uid)
+    invalidar_cache_briefing_protocolo(protocolo)
 
 
 def obter_consumo_tokens_mes(agora: datetime | None = None) -> int:
@@ -130,59 +157,27 @@ def _persona_instrucao(escopo_tipo: str) -> str:
     return mapa.get(escopo_tipo, mapa["controladoria"])
 
 
-def _metricas_evidencia(metricas: dict) -> str:
-    partes = []
-    for chave, valor in (metricas or {}).items():
-        if isinstance(valor, (int, float)):
-            partes.append(f"{chave}={valor}")
-        elif isinstance(valor, str) and len(valor) < 40:
-            partes.append(f"{chave}={valor}")
-    return "; ".join(partes[:6]) or "ver painel"
-
-
-def _insight_de_sinal(sinal: dict, idx: int) -> dict:
-    return {
-        "id": f"det-{idx + 1}",
-        "categoria": sinal.get("categoria") or "tendencia_anomalia",
-        "severidade": sinal.get("severidade") or "media",
-        "titulo": sinal.get("titulo") or "Sinal operacional",
-        "evidencia_numerica": _metricas_evidencia(sinal.get("metricas")),
-        "recomendacao": f"Priorize acompanhamento: {sinal.get('titulo', '')[:120]}",
-        "acao_sugerida": sinal.get("acao_sugerida")
-        or {"label": "Abrir Mesa", "rota": "/backoffice/mesa", "query": {}},
-    }
-
-
 def _fallback_conteudo(fatos: dict, escopo_tipo: str) -> dict:
     sinais = list(fatos.get("sinais") or [])
     sinais.sort(key=lambda s: SEVERIDADE_ORDEM.get(s.get("severidade", "info"), 9))
-    insights = [_insight_de_sinal(s, i) for i, s in enumerate(sinais[:5])]
+    insights = [insight_fallback_de_sinal(s, escopo_tipo) for s in sinais[:5]]
     if not insights:
         insights = [
-            {
-                "id": "sem-sinais",
-                "categoria": "sugestao_conducao",
-                "severidade": "info",
-                "titulo": "Operação estável no período",
-                "evidencia_numerica": "sem anomalias acima dos limiares",
-                "recomendacao": "Manter monitoramento rotineiro na Mesa.",
-                "acao_sugerida": {
-                    "label": "Abrir Mesa",
-                    "rota": "/backoffice/mesa",
-                    "query": {},
+            insight_fallback_de_sinal(
+                {
+                    "id": "sem-sinais",
+                    "detector": "sem-sinais",
+                    "categoria": "sugestao_conducao",
+                    "severidade": "info",
+                    "titulo": "Operação estável no período",
+                    "metricas": {},
                 },
-            }
+                escopo_tipo,
+            )
         ]
-    criticos = sum(1 for s in sinais if s.get("severidade") == "critica")
-    resumo = (
-        f"Radar {escopo_tipo}: {len(sinais)} sinal(is) detectado(s)"
-        f"{f', sendo {criticos} crítico(s)' if criticos else ''}. "
-        "Síntese gerada pelo motor determinístico (fallback)."
-    )
-    email = (
-        f"Radar IA — {'Críticos detectados' if criticos else 'Resumo operacional'}: "
-        + "; ".join(i["titulo"] for i in insights[:3])
-    )
+        insights[0]["evidencia_numerica"] = "Nenhum alerta acima dos limiares"
+        insights[0]["recomendacao"] = "Mantenha o acompanhamento rotineiro na Mesa de Trabalho."
+    resumo, email = resumo_executivo_fallback(sinais, escopo_tipo)
     return {
         "resumo_executivo": resumo,
         "resumo_executivo_email": email,
@@ -191,32 +186,45 @@ def _fallback_conteudo(fatos: dict, escopo_tipo: str) -> dict:
 
 
 def _validar_conteudo_ia(raw: dict, fatos: dict) -> dict:
-    sinais_por_titulo = {s.get("titulo"): s for s in fatos.get("sinais") or []}
+    escopo = fatos.get("escopo_tipo", "controladoria")
+    sinais = list(fatos.get("sinais") or [])
+    sinais_por_id = {
+        (s.get("id") or s.get("detector")): s for s in sinais if s.get("id") or s.get("detector")
+    }
     out = dict(raw)
     insights_limpos = []
     for item in raw.get("insights") or []:
         if not isinstance(item, dict):
             continue
-        titulo = (item.get("titulo") or "").strip()
-        acao = item.get("acao_sugerida") or {}
-        base = sinais_por_titulo.get(titulo)
-        if base and isinstance(base.get("acao_sugerida"), dict):
-            acao = base["acao_sugerida"]
-        elif not isinstance(acao.get("rota"), str):
-            acao = {"label": "Abrir Mesa", "rota": "/backoffice/mesa", "query": {}}
+        insight_id = (item.get("id") or "").strip()
+        base = sinais_por_id.get(insight_id)
+        if base is None and not insight_id:
+            titulo = (item.get("titulo") or "").strip()
+            base = next((s for s in sinais if s.get("titulo") == titulo), None)
+        if base:
+            acao = base.get("acao_sugerida") or montar_acao_sugerida(
+                base.get("detector") or insight_id,
+                escopo_tipo=escopo,
+                metricas=base.get("metricas"),
+            )
+            titulo = (item.get("titulo") or base.get("titulo") or "Insight").strip()
+        else:
+            titulo = (item.get("titulo") or "Insight").strip()
+            acao = montar_acao_sugerida("sinal_generico", escopo_tipo=escopo, metricas={})
+            acao["label"] = "Abrir Mesa de Trabalho"
         insights_limpos.append(
             {
-                "id": (item.get("id") or str(uuid.uuid4()))[:64],
-                "categoria": item.get("categoria") or "tendencia_anomalia",
-                "severidade": item.get("severidade") or "media",
-                "titulo": titulo or "Insight",
+                "id": (insight_id or (base.get("id") if base else str(uuid.uuid4())))[:64],
+                "categoria": item.get("categoria") or (base or {}).get("categoria") or "tendencia_anomalia",
+                "severidade": item.get("severidade") or (base or {}).get("severidade") or "media",
+                "titulo": titulo,
                 "evidencia_numerica": (item.get("evidencia_numerica") or "")[:300],
                 "recomendacao": (item.get("recomendacao") or "")[:500],
                 "acao_sugerida": acao,
             }
         )
     if not insights_limpos:
-        return _fallback_conteudo(fatos, fatos.get("escopo_tipo", "controladoria"))
+        raise ValueError("json_invalido")
     out["insights"] = insights_limpos[:5]
     out["resumo_executivo"] = (out.get("resumo_executivo") or "").strip()[:1200]
     out["resumo_executivo_email"] = (out.get("resumo_executivo_email") or "").strip()[:800]
@@ -227,8 +235,12 @@ def _chamar_llm_briefing(fatos: dict, escopo_tipo: str) -> tuple[dict, int, int,
     from atendimentos.llm_orchestrator import _chamar_json_estruturado, _modelo
 
     sistema = (
-        "Você sintetiza fatos operacionais municipais em JSON estruturado. "
-        "NÃO invente números: use apenas o JSON de fatos. Sem dados pessoais de cidadãos. "
+        "Você é redator executivo do gabinete municipal. Sintetize o JSON de fatos em português "
+        "claro, objetivo e acionável. Cite códigos PROT-…, serviços e prazos que constam no snapshot. "
+        "NÃO invente números nem nomes/CPF/telefone/e-mail de cidadãos. "
+        "Cada insight deve referenciar o campo id do sinal correspondente. "
+        "evidencia_numerica: frase curta legível (sem nomes técnicos de campo). "
+        "recomendacao: conduta concreta, sem repetir o título. "
         f"{_persona_instrucao(escopo_tipo)}"
     )
     mensagens = [
@@ -327,12 +339,25 @@ def gerar_briefing_escopo(
     tokens_out = 0
     conteudo = _fallback_conteudo(fatos, escopo_tipo)
 
+    if not cfg.agente_ativo:
+        registrar_fallback_motivo("agente_inativo")
+    elif not api_key:
+        registrar_fallback_motivo("sem_api_key")
+    elif consumo >= int(cfg.orcamento_tokens_mensal):
+        registrar_fallback_motivo("budget_esgotado", f"consumo={consumo}")
+
     if usar_llm:
         try:
             conteudo, tokens_in, tokens_out, modelo = _chamar_llm_briefing(fatos, escopo_tipo)
             modo = BriefingOperacionalIA.ModoGeracao.LLM
         except Exception as exc:
+            codigo = classificar_erro_llm(exc)
+            registrar_fallback_motivo(codigo, str(exc))
             logger.warning("Briefing LLM falhou (%s): %s", escopo_tipo, exc)
+    elif cfg.agente_ativo and api_key and consumo >= int(cfg.orcamento_tokens_mensal):
+        pass
+    elif not api_key or not cfg.agente_ativo:
+        pass
 
     briefing, _created = BriefingOperacionalIA.objects.update_or_create(
         escopo_tipo=escopo_tipo,

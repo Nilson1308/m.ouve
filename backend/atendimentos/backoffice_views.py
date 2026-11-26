@@ -285,6 +285,13 @@ class BackofficeDespacharProtocoloView(APIView):
 
         notificar_status_protocolo(protocolo, Protocolo.Status.EM_ANDAMENTO)
 
+        try:
+            from atendimentos.services.agente_briefing_service import invalidar_cache_briefing_protocolo
+
+            invalidar_cache_briefing_protocolo(protocolo)
+        except Exception:
+            pass
+
         protocolo.refresh_from_db()
         ordens_qs = protocolo.ordens_servico.select_related("unidade").order_by(
             "criado_em"
@@ -503,6 +510,13 @@ class BackofficeValidarProtocoloView(APIView):
 
         aplicar_janela_reabertura_apos_conclusao(protocolo)
         notificar_status_protocolo(protocolo, Protocolo.Status.RESOLVIDO)
+
+        try:
+            from atendimentos.services.agente_briefing_service import invalidar_cache_briefing_protocolo
+
+            invalidar_cache_briefing_protocolo(protocolo)
+        except Exception:
+            pass
 
         return Response(
             {

@@ -223,6 +223,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { watchDebounced } from '@vueuse/core'
 import {
@@ -247,6 +248,7 @@ import { useNotificacoesInternasStore } from '@/stores/notificacoesInternas'
 import { useAssinaturasStore } from '@/stores/assinaturas'
 import { getApiErrorMessage } from '@/utils/apiError'
 
+const route = useRoute()
 const setorialStore = useSetorialStore()
 const textosPadraoStore = useTextosPadraoStore()
 const notificacoesStore = useNotificacoesInternasStore()
@@ -545,6 +547,8 @@ async function enviarDespachoAoGestor(dados) {
 }
 
 onMounted(() => {
+  const busca = route.query?.busca
+  if (busca) setorialStore.filtros.busca = String(busca).trim()
   setorialStore.carregarOpcoesFiltrosSetorial().catch(() => null)
   atualizarDados()
 })
