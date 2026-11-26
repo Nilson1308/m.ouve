@@ -67,6 +67,21 @@
           <div class="flex flex-wrap items-center gap-3">
             <StatusBadge :status="protocolo.status" tipo="zeladoria" :show-icon="true" size="lg" />
 
+            <UrgenciaBadge
+              :nivel="protocolo.urgencia"
+              :sugestao-ia-pendente="sugestaoUrgenciaPendente"
+              size="lg"
+            />
+
+            <button
+              v-if="podeAlterarUrgenciaEfetivo"
+              type="button"
+              class="btn-secondary text-sm min-h-[40px] focus-visible:ring-2 focus-visible:ring-primary-500 dark:focus-visible:ring-primary-400"
+              @click="modalAlterarUrgencia = true"
+            >
+              Alterar urgência
+            </button>
+
             <div
               :class="slaBadgeClass"
               class="inline-flex items-center gap-2 rounded-badge px-4 py-2 font-semibold"
@@ -114,8 +129,12 @@
         <div class="flex-1 space-y-6">
           <ProtocoloContexto
             :protocolo="protocolo"
+            :pode-alterar-urgencia="podeAlterarUrgenciaEfetivo"
+            :processando-urgencia="processandoUrgencia"
             @abrir-diligencia="mostrarModalDiligencia = true"
             @atualizar-diligencia="recarregarDiligencia"
+            @alterar-urgencia="modalAlterarUrgencia = true"
+            @acao-urgencia-ia="onAcaoUrgenciaIa"
           />
         </div>
 
@@ -151,6 +170,14 @@
       :prefill-ordens="prefillOrdens"
       @fechar="fecharDespacho"
       @confirmar="confirmarDespacho"
+    />
+
+    <ModalAlterarUrgencia
+      :aberto="modalAlterarUrgencia"
+      :protocolo="protocolo"
+      :salvando="processandoUrgencia"
+      @fechar="modalAlterarUrgencia = false"
+      @confirmar="confirmarAlteracaoUrgencia"
     />
 
     <Teleport to="body">
@@ -189,7 +216,11 @@ import ModalAbrirDiligencia from '@/components/backoffice/protocolo/ModalAbrirDi
 import ProtocoloOperacao from '@/components/backoffice/protocolo/ProtocoloOperacao.vue'
 import DespacharProtocolo from '@/components/backoffice/DespacharProtocolo.vue'
 import BannerAlertaIA from '@/components/backoffice/ia/BannerAlertaIA.vue'
+import UrgenciaBadge from '@/components/backoffice/common/UrgenciaBadge.vue'
+import ModalAlterarUrgencia from '@/components/backoffice/protocolo/ModalAlterarUrgencia.vue'
 import { useBackofficeStore } from '@/stores/backoffice'
+import { useRbac } from '@/composables/useRbac'
+import { sugestaoIaPendente } from '@/utils/urgenciaHelpers'
 import { useNotificacoesInternasStore } from '@/stores/notificacoesInternas'
 import { useSuperOSStore } from '@/stores/super_os'
 import { useFormatacao } from '@/composables/useFormatacao'
@@ -203,6 +234,7 @@ const route = useRoute()
 const backofficeStore = useBackofficeStore()
 const notificacoesInternasStore = useNotificacoesInternasStore()
 const superOSStore = useSuperOSStore()
+const { podeAlterarUrgencia } = useRbac()
 
 const {
   protocoloAtual,
@@ -220,9 +252,20 @@ const toastAberto = ref(false)
 const toastMensagem = ref('')
 const toastSucesso = ref(false)
 const processandoSugestaoIa = ref(false)
+const modalAlterarUrgencia = ref(false)
+const processandoUrgencia = ref(false)
 let toastTimer = null
 
 const protocolo = computed(() => protocoloAtual.value)
+
+const sugestaoUrgenciaPendente = computed(() => sugestaoIaPendente(protocolo.value))
+
+const podeAlterarUrgenciaEfetivo = computed(() => {
+  if (protocolo.value && protocolo.value.podeAlterarUrgencia !== undefined) {
+    return Boolean(protocolo.value.podeAlterarUrgencia)
+  }
+  return Boolean(podeAlterarUrgencia.value)
+})
 
 const indicadorFluxoDireto = computed(() => indicadorFluxoDiretoProtocolo(protocolo.value))
 
@@ -283,6 +326,35 @@ async function recarregarDiligencia() {
     mostrarToast('Diligência atualizada.', true)
   } catch (e) {
     mostrarToast(getApiErrorMessage(e, 'Falha ao atualizar.'), false)
+  }
+}
+
+async function onAcaoUrgenciaIa({ acao }) {
+  const id = protocolo.value?.id
+  if (!id || !acao) return
+  processandoUrgencia.value = true
+  try {
+    await backofficeStore.alterarUrgenciaProtocolo(id, { acao })
+    mostrarToast('Urgência atualizada com sucesso.', true)
+  } catch (e) {
+    mostrarToast(getApiErrorMessage(e, 'Não foi possível atualizar a urgência.'), false)
+  } finally {
+    processandoUrgencia.value = false
+  }
+}
+
+async function confirmarAlteracaoUrgencia(payload) {
+  const id = protocolo.value?.id
+  if (!id) return
+  processandoUrgencia.value = true
+  try {
+    await backofficeStore.alterarUrgenciaProtocolo(id, payload)
+    modalAlterarUrgencia.value = false
+    mostrarToast('Urgência alterada e registrada no histórico.', true)
+  } catch (e) {
+    mostrarToast(getApiErrorMessage(e, 'Não foi possível alterar a urgência.'), false)
+  } finally {
+    processandoUrgencia.value = false
   }
 }
 

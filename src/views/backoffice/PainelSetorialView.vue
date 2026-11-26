@@ -80,6 +80,13 @@
       </div>
     </header>
 
+    <div class="px-6 pt-4">
+      <RadarOperacionalCard
+        storage-key="radar-setorial"
+        :unidade-nome-override="unidade.nome"
+      />
+    </div>
+
     <div class="px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
       <div class="flex items-center justify-between flex-wrap gap-4">
         <div class="flex items-center gap-3 flex-wrap">
@@ -230,6 +237,7 @@ import {
   XMarkIcon
 } from '@heroicons/vue/24/outline'
 
+import RadarOperacionalCard from '@/components/backoffice/agente/RadarOperacionalCard.vue'
 import WorklistOS from '@/components/backoffice/setorial/WorklistOS.vue'
 import ModalFormalizacaoOS from '@/components/backoffice/setorial/ModalFormalizacaoOS.vue'
 import ModalFiltrosAvancadosSetorial from '@/components/backoffice/setorial/ModalFiltrosAvancadosSetorial.vue'
@@ -319,6 +327,13 @@ const filtrosAtivosArray = computed(() => {
   if (f.apenasReabertos) {
     ativos.push({ key: 'apenasReabertos', kind: 'apenasReabertos', label: 'Apenas reabertos' })
   }
+  if (f.apenasSugestaoUrgenciaIa) {
+    ativos.push({
+      key: 'apenasSugestaoUrgenciaIa',
+      kind: 'apenasSugestaoUrgenciaIa',
+      label: 'Triagem de urgência (revisão pendente)'
+    })
+  }
   return ativos
 })
 
@@ -370,13 +385,16 @@ function removerFiltro(key) {
       f.urgenciaLista = f.urgenciaLista.filter((u) => u !== item.value)
     } else if (item.kind === 'apenasReabertos') {
       f.apenasReabertos = false
+    } else if (item.kind === 'apenasSugestaoUrgenciaIa') {
+      f.apenasSugestaoUrgenciaIa = false
     }
     setorialStore.aplicarFiltrosAvancados({
       servicoIds: f.servicoIds,
       bairros: f.bairros,
       statusLista: f.statusLista,
       urgenciaLista: f.urgenciaLista,
-      apenasReabertos: f.apenasReabertos
+      apenasReabertos: f.apenasReabertos,
+      apenasSugestaoUrgenciaIa: f.apenasSugestaoUrgenciaIa
     })
   }
   recarregarOrdens()

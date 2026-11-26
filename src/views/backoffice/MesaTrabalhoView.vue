@@ -285,6 +285,13 @@
         </div>
       </div>
 
+      <RadarOperacionalCard
+        v-if="abaMesa === 'protocolos' && (modoVisualizacao === 'kanban' || modoVisualizacao === 'lista')"
+        storage-key="radar-mesa"
+        :perspectiva="perspectivaRadarMesa"
+        class="mb-4"
+      />
+
       <ResumoIaMesa
         v-if="!loading && abaMesa === 'protocolos' && (modoVisualizacao === 'kanban' || modoVisualizacao === 'lista')"
         class="mb-4"
@@ -420,7 +427,10 @@ import AssinaturasPendentesPanel from '@/components/backoffice/AssinaturasPenden
 import WidgetSugestoesIA from '@/components/backoffice/ia/WidgetSugestoesIA.vue'
 import MapaClustersView from '@/components/backoffice/ia/MapaClustersView.vue'
 import ResumoIaMesa from '@/components/backoffice/ia/ResumoIaMesa.vue'
+import RadarOperacionalCard from '@/components/backoffice/agente/RadarOperacionalCard.vue'
 import { useBackofficeStore } from '@/stores/backoffice'
+import { useAuthStore } from '@/stores/auth'
+import { LABEL_URGENCIA } from '@/utils/urgenciaHelpers'
 import { useNotificacoesInternasStore } from '@/stores/notificacoesInternas'
 import { useAssinaturasStore } from '@/stores/assinaturas'
 import { useSuperOSStore } from '@/stores/super_os'
@@ -429,7 +439,13 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { protocolosElegiveisMapa } from '@/utils/superOsMappers'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const backofficeStore = useBackofficeStore()
+
+/** Escopo municipal na Mesa → lente Ouvidoria (v4.17) */
+const perspectivaRadarMesa = computed(() =>
+  authStore.user?.unidade_id ? '' : 'ouvidoria'
+)
 const notificacoesInternasStore = useNotificacoesInternasStore()
 const assinaturasStore = useAssinaturasStore()
 const superOSStore = useSuperOSStore()
@@ -514,7 +530,7 @@ const filtrosAtivosArray = computed(() => {
       key: `urgencia:${u}`,
       kind: 'urgencia',
       value: u,
-      label: `Urgência: ${u}`
+      label: `Urgência: ${LABEL_URGENCIA[u] || u}`
     })
   }
   if (f.equipamentoId) {
@@ -529,6 +545,13 @@ const filtrosAtivosArray = computed(() => {
   }
   if (f.apenasReabertos) {
     ativos.push({ key: 'apenasReabertos', kind: 'apenasReabertos', label: 'Apenas reabertos' })
+  }
+  if (f.apenasSugestaoUrgenciaIa) {
+    ativos.push({
+      key: 'apenasSugestaoUrgenciaIa',
+      kind: 'apenasSugestaoUrgenciaIa',
+      label: 'Triagem de urgência (revisão pendente)'
+    })
   }
   return ativos
 })
@@ -615,6 +638,8 @@ function removerFiltro(key) {
       f.apenasCobrados = false
     } else if (item.kind === 'apenasReabertos') {
       f.apenasReabertos = false
+    } else if (item.kind === 'apenasSugestaoUrgenciaIa') {
+      f.apenasSugestaoUrgenciaIa = false
     }
     backofficeStore.aplicarFiltrosAvancados({
       unidadesIds: f.unidadesIds,
@@ -625,7 +650,8 @@ function removerFiltro(key) {
       equipamentoId: f.equipamentoId,
       equipamentoRotulo: f.equipamentoRotulo,
       apenasCobrados: f.apenasCobrados,
-      apenasReabertos: f.apenasReabertos
+      apenasReabertos: f.apenasReabertos,
+      apenasSugestaoUrgenciaIa: f.apenasSugestaoUrgenciaIa
     })
   }
   recarregar()

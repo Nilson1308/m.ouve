@@ -51,6 +51,8 @@
           <GestaoCatalogo v-else-if="secaoAtiva === 'servicos'" />
           <GestaoEquipamentos v-else-if="secaoAtiva === 'equipamentos'" />
           <GestaoSlaCobranca v-else-if="secaoAtiva === 'sla-cobranca'" />
+          <GestaoMatrizUrgencia v-else-if="secaoAtiva === 'matriz-urgencia'" />
+          <GestaoAgenteIA v-else-if="secaoAtiva === 'agente-ia'" />
           <GestaoSaudeInfra v-else-if="secaoAtiva === 'monitoramento'" />
           <p v-else class="text-center py-16 text-slate-500 dark:text-slate-400 text-sm">
             Selecione uma seção ao lado.
@@ -93,7 +95,9 @@ import {
   BuildingStorefrontIcon,
   ClockIcon,
   CheckCircleIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+  ExclamationTriangleIcon,
+  SparklesIcon
 } from '@heroicons/vue/24/outline'
 import GestaoUnidades from '@/components/backoffice/admin/GestaoUnidades.vue'
 import GestaoUsuarios from '@/components/backoffice/admin/GestaoUsuarios.vue'
@@ -102,6 +106,8 @@ import GestaoCatalogo from '@/components/backoffice/catalogo/GestaoCatalogo.vue'
 import GestaoSaudeInfra from '@/components/backoffice/admin/GestaoSaudeInfra.vue'
 import GestaoEquipamentos from '@/components/backoffice/admin/GestaoEquipamentos.vue'
 import GestaoSlaCobranca from '@/components/backoffice/admin/GestaoSlaCobranca.vue'
+import GestaoMatrizUrgencia from '@/components/backoffice/admin/GestaoMatrizUrgencia.vue'
+import GestaoAgenteIA from '@/components/backoffice/admin/GestaoAgenteIA.vue'
 import { useAdminStore } from '@/stores/admin'
 import { useCatalogoStore } from '@/stores/catalogo'
 import { useAdminToast } from '@/composables/useAdminToast'
@@ -116,7 +122,17 @@ const { totalServicos } = storeToRefs(catalogoStore)
 const { toastAberto, toastMensagem, toastErro } = useAdminToast()
 const { can, isSuperAdmin } = useRbac()
 
-const SECOES_VALIDAS = ['unidades', 'usuarios', 'perfis', 'servicos', 'equipamentos', 'sla-cobranca', 'monitoramento']
+const SECOES_VALIDAS = [
+  'unidades',
+  'usuarios',
+  'perfis',
+  'servicos',
+  'equipamentos',
+  'sla-cobranca',
+  'matriz-urgencia',
+  'agente-ia',
+  'monitoramento'
+]
 const secaoAtiva = ref('unidades')
 
 const secoes = computed(() => [
@@ -159,6 +175,20 @@ const secoes = computed(() => [
     id: 'sla-cobranca',
     nome: 'SLA & Cobrança',
     icon: ClockIcon,
+    badge: null,
+    visible: () => can('configuracoes.ler') || isSuperAdmin.value
+  },
+  {
+    id: 'matriz-urgencia',
+    nome: 'Matriz de Urgência',
+    icon: ExclamationTriangleIcon,
+    badge: null,
+    visible: () => can('configuracoes.ler') || isSuperAdmin.value
+  },
+  {
+    id: 'agente-ia',
+    nome: 'Agente IA de Gestão',
+    icon: SparklesIcon,
     badge: null,
     visible: () => can('configuracoes.ler') || isSuperAdmin.value
   },

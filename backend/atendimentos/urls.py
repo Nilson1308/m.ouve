@@ -32,6 +32,15 @@ from atendimentos.admin_notificacoes_views import (
     NotificacaoBroadcastView,
 )
 from atendimentos.configuracao_sistema_views import ConfiguracaoSistemaAdminView
+from atendimentos.matriz_urgencia_views import (
+    ConfiguracaoMatrizUrgenciaView,
+    ProtocoloUrgenciaView,
+)
+from atendimentos.agente_gestao_views import (
+    AvaliarInsightBriefingView,
+    BriefingAgenteGestaoView,
+    ConfiguracaoAgenteGestaoView,
+)
 from atendimentos.diligencia_views import (
     BackofficeAbrirDiligenciaView,
     BackofficeCancelarDiligenciaView,
@@ -177,6 +186,32 @@ urlpatterns = [
     path(
         "backoffice/configuracoes/sla-cobranca/",
         ConfiguracaoSlaCobrancaView.as_view(),
+    ),
+    path(
+        "backoffice/configuracoes/matriz-urgencia",
+        ConfiguracaoMatrizUrgenciaView.as_view(),
+    ),
+    path(
+        "backoffice/configuracoes/matriz-urgencia/",
+        ConfiguracaoMatrizUrgenciaView.as_view(),
+    ),
+    path(
+        "backoffice/configuracoes/agente-gestao",
+        ConfiguracaoAgenteGestaoView.as_view(),
+    ),
+    path(
+        "backoffice/configuracoes/agente-gestao/",
+        ConfiguracaoAgenteGestaoView.as_view(),
+    ),
+    path("backoffice/agente/briefing", BriefingAgenteGestaoView.as_view()),
+    path("backoffice/agente/briefing/", BriefingAgenteGestaoView.as_view()),
+    path(
+        "backoffice/agente/briefing/<uuid:briefing_id>/avaliar",
+        AvaliarInsightBriefingView.as_view(),
+    ),
+    path(
+        "backoffice/protocolos/<str:protocolo_id>/urgencia",
+        ProtocoloUrgenciaView.as_view(),
     ),
     path(
         "backoffice/relatorios/sla-atrasados",

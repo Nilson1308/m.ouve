@@ -8,6 +8,14 @@
 
     <ProtocoloReaberturasCard :protocolo="protocolo" />
 
+    <ProtocoloUrgenciaCard
+      :protocolo="protocolo"
+      :pode-alterar="podeAlterarUrgencia"
+      :processando="processandoUrgencia"
+      @alterar-manual="$emit('alterar-urgencia')"
+      @acao-ia="$emit('acao-urgencia-ia', $event)"
+    />
+
     <!-- Vitais: sempre visíveis -->
     <ProtocoloSlaCobrancaResumo :protocolo="protocolo" />
 
@@ -239,6 +247,7 @@
 import ProtocoloDiligenciaBackoffice from '@/components/backoffice/protocolo/ProtocoloDiligenciaBackoffice.vue'
 import ProtocoloReaberturasCard from '@/components/backoffice/protocolo/ProtocoloReaberturasCard.vue'
 import ProtocoloSlaCobrancaResumo from '@/components/backoffice/protocolo/ProtocoloSlaCobrancaResumo.vue'
+import ProtocoloUrgenciaCard from '@/components/backoffice/protocolo/ProtocoloUrgenciaCard.vue'
 import { computed, ref, nextTick } from 'vue'
 import {
   CpuChipIcon,
@@ -256,13 +265,15 @@ import LocationMap from '@/components/pwa/LocationMap.vue'
 import BackofficeAccordion from '@/components/backoffice/BackofficeAccordion.vue'
 import { labelTipoEquipamento } from '@/constants/equipamentosPublicos'
 
-defineEmits(['abrir-diligencia', 'atualizar-diligencia'])
+defineEmits(['abrir-diligencia', 'atualizar-diligencia', 'alterar-urgencia', 'acao-urgencia-ia'])
 
 const props = defineProps({
   protocolo: {
     type: Object,
     required: true
-  }
+  },
+  podeAlterarUrgencia: { type: Boolean, default: false },
+  processandoUrgencia: { type: Boolean, default: false }
 })
 
 const mapaRef = ref(null)

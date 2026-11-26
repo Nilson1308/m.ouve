@@ -8,6 +8,10 @@ from atendimentos.models import (
     CobrancaProtocolo,
     DiligenciaProtocolo,
     ReaberturaProtocolo,
+    AvaliacaoInsightIA,
+    BriefingOperacionalIA,
+    ConfiguracaoAgenteGestao,
+    ConfiguracaoMatrizUrgencia,
     ConfiguracaoSlaCobranca,
     ConfiguracaoSistema,
     RelatorioSlaEnvio,
@@ -132,6 +136,57 @@ class RelatorioSlaEnvioAdmin(admin.ModelAdmin):
     list_display = ("tipo", "status", "total_protocolos", "criado_em")
     list_filter = ("tipo", "status")
     raw_id_fields = ("unidade", "disparado_por")
+
+
+@admin.register(ConfiguracaoAgenteGestao)
+class ConfiguracaoAgenteGestaoAdmin(admin.ModelAdmin):
+    list_display = (
+        "singleton_id",
+        "agente_ativo",
+        "briefing_proativo_ativo",
+        "briefing_hora_geracao",
+        "orcamento_tokens_mensal",
+        "atualizado_em",
+    )
+    readonly_fields = ("atualizado_em",)
+
+    def has_add_permission(self, request):
+        return not ConfiguracaoAgenteGestao.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(BriefingOperacionalIA)
+class BriefingOperacionalIAAdmin(admin.ModelAdmin):
+    list_display = ("escopo_tipo", "unidade", "data_referencia", "modo_geracao", "criado_em")
+    list_filter = ("escopo_tipo", "modo_geracao", "data_referencia")
+    raw_id_fields = ("unidade",)
+
+
+@admin.register(AvaliacaoInsightIA)
+class AvaliacaoInsightIAAdmin(admin.ModelAdmin):
+    list_display = ("briefing", "insight_id", "usuario", "util", "criado_em")
+    raw_id_fields = ("briefing", "usuario")
+
+
+@admin.register(ConfiguracaoMatrizUrgencia)
+class ConfiguracaoMatrizUrgenciaAdmin(admin.ModelAdmin):
+    list_display = (
+        "singleton_id",
+        "matriz_ativa",
+        "ia_urgencia_modo",
+        "super_os_limite_alta",
+        "super_os_limite_critica",
+        "atualizado_em",
+    )
+    readonly_fields = ("atualizado_em",)
+
+    def has_add_permission(self, request):
+        return not ConfiguracaoMatrizUrgencia.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(ConfiguracaoSistema)

@@ -124,19 +124,15 @@
               </p>
             </div>
             <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-              <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Prioridade</p>
-              <span
-                :class="[
-                  'inline-flex items-center gap-1 px-2 py-0.5 rounded-badge text-xs font-semibold',
-                  ordem.prioridade === 'urgente'
-                    ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                    : ordem.prioridade === 'alta'
-                    ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
-                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                ]"
-              >
-                {{ ordem.prioridade === 'urgente' ? 'Urgente' : ordem.prioridade === 'alta' ? 'Alta' : 'Normal' }}
-              </span>
+              <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Urgência</p>
+              <UrgenciaBadge
+                :nivel="ordem.urgencia || ordem.prioridade"
+                :sugestao-ia-pendente="ordem.sugereIa"
+                size="sm"
+              />
+              <p v-if="ordem.sugereIa" class="text-[10px] text-violet-800 dark:text-violet-200 mt-1.5">
+                Revisar urgência: {{ labelUrgencia(ordem.urgenciaSugeridaIa) }}
+              </p>
             </div>
             <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
               <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Prazo / SLA</p>
@@ -496,6 +492,8 @@ import ProtocoloDiligenciaBackoffice from '@/components/backoffice/protocolo/Pro
 import ModalAbrirDiligencia from '@/components/backoffice/protocolo/ModalAbrirDiligencia.vue'
 import DiligenciaAnexosGrade from '@/components/diligencia/DiligenciaAnexosGrade.vue'
 import ProtocoloReaberturasCard from '@/components/backoffice/protocolo/ProtocoloReaberturasCard.vue'
+import UrgenciaBadge from '@/components/backoffice/common/UrgenciaBadge.vue'
+import { labelUrgencia } from '@/utils/urgenciaHelpers'
 import { protocoloDiligenciaFromOrdem, protocoloReaberturaFromOrdem } from '@/utils/setorialMappers'
 import { formatarPrazoHumano } from '@/utils/diligenciaHelpers'
 

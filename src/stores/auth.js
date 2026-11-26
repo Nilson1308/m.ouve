@@ -39,6 +39,10 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('sinapse_user', JSON.stringify(user.value))
   }
 
+  const podeAlterarUrgencia = computed(
+    () => Boolean(user.value?.pode_alterar_urgencia) || isSuperAdmin.value
+  )
+
   function can(codigo) {
     return usuarioPode({ permissoes: permissoes.value, isSuperAdmin: isSuperAdmin.value }, codigo)
   }
@@ -238,6 +242,7 @@ export const useAuthStore = defineStore('auth', () => {
     isSuperAdmin,
     isBackoffice,
     isCidadao,
+    podeAlterarUrgencia,
     can,
     refreshPerfil,
     mergeUsuarioPerfil,

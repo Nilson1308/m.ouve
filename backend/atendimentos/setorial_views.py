@@ -59,6 +59,7 @@ class SetorialOrdemFilterSet(filters.FilterSet):
     bairro = filters.BaseInFilter(method="filter_bairro")
     status_ui = filters.BaseInFilter(method="filter_status_ui")
     urgencia = filters.BaseInFilter(method="filter_urgencia")
+    apenas_sugestao_urgencia_ia = filters.BooleanFilter(method="filter_sugestao_ia")
     apenas_reabertos = filters.BooleanFilter(method="filter_apenas_reabertos")
 
     class Meta:
@@ -103,18 +104,20 @@ class SetorialOrdemFilterSet(filters.FilterSet):
         return queryset.filter(status__in=status_api).distinct()
 
     def filter_urgencia(self, queryset, name, value):
+        from atendimentos.urgencia_constants import normalizar_nivel
+
         valores = value if isinstance(value, (list, tuple)) else [value]
-        valores = [str(v).strip().lower() for v in valores if str(v).strip()]
+        valores = [normalizar_nivel(str(v).strip()) for v in valores if str(v).strip()]
         if not valores:
             return queryset
-        q = Q()
-        for val in valores:
-            q |= (
-                Q(protocolo__dados_dinamicos__urgencia__iexact=val)
-                | Q(protocolo__dados_dinamicos__prioridade__iexact=val)
-                | Q(protocolo__dados_dinamicos__urgencia_estimada__iexact=val)
-            )
-        return queryset.filter(q).distinct()
+        return queryset.filter(protocolo__urgencia__in=valores).distinct()
+
+    def filter_sugestao_ia(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(
+            protocolo__urgencia_sugestao_status=Protocolo.UrgenciaSugestaoStatus.PENDENTE
+        ).distinct()
 
     def filter_apenas_reabertos(self, queryset, name, value):
         if not value:
@@ -162,10 +165,8 @@ class SetorialFiltrosOpcoesView(APIView):
                 "urgencias": [
                     {"value": "baixa", "label": "Baixa"},
                     {"value": "normal", "label": "Normal"},
-                    {"value": "media", "label": "Média"},
                     {"value": "alta", "label": "Alta"},
                     {"value": "critica", "label": "Crítica"},
-                    {"value": "urgente", "label": "Urgente"},
                 ],
             }
         )
@@ -197,7 +198,7 @@ def queryset_ordem_setorial(user):
             ),
         )
         .exclude(status=OrdemServico.Status.CANCELADA)
-        .order_by("-criado_em")
+        .order_by("-protocolo__urgencia_peso", "protocolo__prazo_sla", "-criado_em")
     )
     if getattr(user, "is_superuser", False) and not user.unidade_id:
         return qs

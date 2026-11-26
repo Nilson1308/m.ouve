@@ -112,6 +112,9 @@ def criar_super_os_a_partir_protocolos(
             equipe_nome="Mesa de Trabalho",
         )
 
+    from atendimentos.services.matriz_urgencia_service import avaliar_escalonamento_super_os
+
+    avaliar_escalonamento_super_os(super_os)
     return super_os
 
 
@@ -318,6 +321,9 @@ def anexar_protocolo_a_super_os(super_os: SuperOS, protocolo_id: str) -> Protoco
             super_os.longitude_centro = lon
             super_os.save(update_fields=["latitude_centro", "longitude_centro", "atualizado_em"])
 
+    from atendimentos.services.matriz_urgencia_service import avaliar_escalonamento_super_os
+
+    avaliar_escalonamento_super_os(super_os)
     return protocolo
 
 
@@ -421,6 +427,9 @@ def criar_super_os_retroativa(
         ordem.super_os = super_os
         ordem.save(update_fields=["super_os", "atualizado_em"])
 
+    from atendimentos.services.matriz_urgencia_service import avaliar_escalonamento_super_os
+
+    avaliar_escalonamento_super_os(super_os)
     return super_os
 
 

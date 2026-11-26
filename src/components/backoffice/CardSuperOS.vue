@@ -46,12 +46,7 @@
           </div>
         </div>
         <div class="ml-2 flex-shrink-0">
-          <span :class="urgenciaClass">
-            <BoltIcon
-              v-if="item.urgencia === 'alta' || item.urgencia === 'critica'"
-              class="w-3.5 h-3.5"
-            />
-          </span>
+          <UrgenciaBadge :nivel="item.urgencia" size="md" />
         </div>
       </div>
 
@@ -136,12 +131,12 @@
 import { computed } from 'vue'
 import {
   MapPinIcon,
-  BoltIcon,
   PaperAirplaneIcon,
   EyeIcon,
   ShieldCheckIcon
 } from '@heroicons/vue/24/outline'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
+import UrgenciaBadge from '@/components/backoffice/common/UrgenciaBadge.vue'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -153,16 +148,6 @@ const emit = defineEmits(['despachar', 'detalhes', 'integrar'])
 const superOsEncerrado = computed(() =>
   ['resolvido', 'rejeitado'].includes(props.item?.status)
 )
-
-const urgenciaClass = computed(() => {
-  const classes = {
-    baixa: 'w-8 h-8 rounded-lg bg-success-100 dark:bg-success-900 text-success-600 dark:text-success-400 flex items-center justify-center',
-    media: 'w-8 h-8 rounded-lg bg-warning-100 dark:bg-warning-900 text-warning-600 dark:text-warning-400 flex items-center justify-center',
-    alta: 'w-8 h-8 rounded-lg bg-danger-100 dark:bg-danger-900 text-danger-600 dark:text-danger-400 flex items-center justify-center',
-    critica: 'w-8 h-8 rounded-lg bg-danger-200 dark:bg-danger-800 text-danger-700 dark:text-danger-300 flex items-center justify-center animate-pulse'
-  }
-  return classes[props.item.urgencia] || classes.baixa
-})
 
 const slaClass = computed(() => {
   if (props.item.sla.vencido) return 'border-l-4 border-danger-500'

@@ -168,6 +168,20 @@
                 </div>
 
                 <div>
+                  <label for="urgencia-padrao-servico" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Urgência padrão na abertura
+                  </label>
+                  <select id="urgencia-padrao-servico" v-model="formulario.urgencia_padrao" class="input">
+                    <option v-for="opt in opcoesUrgenciaPadrao" :key="opt.value" :value="opt.value">
+                      {{ opt.label }}
+                    </option>
+                  </select>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5 leading-relaxed max-w-prose">
+                    O protocolo nasce com este nível. Pode ser elevado depois por regras do formulário, IA ou agrupamentos (Super OS).
+                  </p>
+                </div>
+
+                <div>
                   <label for="prazo-reabertura-servico" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                     Prazo de reabertura (dias, opcional)
                   </label>
@@ -558,6 +572,7 @@ import SandboxServicoDrawer from './SandboxServicoDrawer.vue'
 import CardSecao from './FormBuilderCardSecao.vue'
 import SlaUnidadeInput from './SlaUnidadeInput.vue'
 import { FLUXO_TRAMITACAO_OPCOES } from '@/constants/fluxoTramitacao'
+import { OPCOES_URGENCIA_FILTRO } from '@/utils/urgenciaHelpers'
 import {
   XMarkIcon,
   Cog6ToothIcon,
@@ -606,11 +621,13 @@ function abaClasse(id) {
 const categorias = computed(() => catalogoStore.categoriasCatalogo)
 
 const fluxoTramitacaoOpcoes = FLUXO_TRAMITACAO_OPCOES
+const opcoesUrgenciaPadrao = OPCOES_URGENCIA_FILTRO
 
 const formulario = reactive({
   nome: '',
   descricao: '',
   sla_padrao_horas: 72,
+  urgencia_padrao: 'normal',
   fluxo_tramitacao: 'direto_secretaria',
   exigir_validacao_ouvidoria: false,
   executor_padrao_id: null,
@@ -708,6 +725,7 @@ function preencherFormulario(servico) {
   formulario.nome = servico?.nome || ''
   formulario.descricao = servico?.descricao || ''
   formulario.sla_padrao_horas = servico?.sla_padrao_horas ?? servico?.sla_horas ?? 72
+  formulario.urgencia_padrao = servico?.urgencia_padrao || 'normal'
   formulario.prazo_reabertura_dias =
     servico?.prazo_reabertura_dias === null || servico?.prazo_reabertura_dias === undefined
       ? null
@@ -794,6 +812,7 @@ function payloadForm() {
     descricao: formulario.descricao,
     icone: formulario.icone,
     sla_padrao_horas: formulario.sla_padrao_horas,
+    urgencia_padrao: formulario.urgencia_padrao || 'normal',
     fluxo_tramitacao: formulario.fluxo_tramitacao,
     exigir_validacao_ouvidoria: formulario.exigir_validacao_ouvidoria,
     executor_padrao_id:

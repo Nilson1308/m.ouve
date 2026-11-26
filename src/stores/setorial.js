@@ -4,6 +4,7 @@ import api from '@/services/api'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { serializarQueryParams } from '@/utils/apiQuery'
 import { mapOrdemSetorial, mapOrdensSetorialLista } from '@/utils/setorialMappers'
+import { OPCOES_URGENCIA_FILTRO } from '@/utils/urgenciaHelpers'
 
 export const useSetorialStore = defineStore('setorial', () => {
   const ordens = ref([])
@@ -21,7 +22,8 @@ export const useSetorialStore = defineStore('setorial', () => {
     bairros: [],
     statusLista: [],
     urgenciaLista: [],
-    apenasReabertos: false
+    apenasReabertos: false,
+    apenasSugestaoUrgenciaIa: false
   })
   const gerandoLink = ref(false)
   const formalizando = ref(false)
@@ -87,6 +89,9 @@ export const useSetorialStore = defineStore('setorial', () => {
     if (filtros.value.apenasReabertos) {
       p.apenas_reabertos = 'true'
     }
+    if (filtros.value.apenasSugestaoUrgenciaIa) {
+      p.apenas_sugestao_urgencia_ia = 'true'
+    }
     return p
   }
 
@@ -97,7 +102,8 @@ export const useSetorialStore = defineStore('setorial', () => {
       (f.bairros?.length || 0) +
       (f.statusLista?.length || 0) +
       (f.urgenciaLista?.length || 0) +
-      (f.apenasReabertos ? 1 : 0)
+      (f.apenasReabertos ? 1 : 0) +
+      (f.apenasSugestaoUrgenciaIa ? 1 : 0)
     )
   })
 
@@ -107,6 +113,7 @@ export const useSetorialStore = defineStore('setorial', () => {
     filtros.value.statusLista = payload.statusLista || []
     filtros.value.urgenciaLista = payload.urgenciaLista || []
     filtros.value.apenasReabertos = Boolean(payload.apenasReabertos)
+    filtros.value.apenasSugestaoUrgenciaIa = Boolean(payload.apenasSugestaoUrgenciaIa)
   }
 
   function setFiltroBusca(val) {
@@ -120,7 +127,8 @@ export const useSetorialStore = defineStore('setorial', () => {
       bairros: [],
       statusLista: [],
       urgenciaLista: [],
-      apenasReabertos: false
+      apenasReabertos: false,
+      apenasSugestaoUrgenciaIa: false
     }
   }
 
@@ -132,7 +140,8 @@ export const useSetorialStore = defineStore('setorial', () => {
         bairros: data.bairros || [],
         servicos: data.servicos || [],
         status: data.status || [],
-        urgencias: data.urgencias || []
+        urgencias:
+          data.urgencias?.length > 0 ? data.urgencias : [...OPCOES_URGENCIA_FILTRO]
       }
       return opcoesFiltrosSetorial.value
     } catch (e) {
@@ -140,7 +149,7 @@ export const useSetorialStore = defineStore('setorial', () => {
         bairros: [],
         servicos: [],
         status: [],
-        urgencias: []
+        urgencias: [...OPCOES_URGENCIA_FILTRO]
       }
       throw e
     } finally {

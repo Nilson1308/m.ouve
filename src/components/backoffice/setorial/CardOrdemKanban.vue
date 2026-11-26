@@ -40,21 +40,11 @@
         Encerrado
       </span>
 
-      <!-- Prioridade Badge -->
-      <span
-        :class="[
-          'inline-flex items-center gap-1 px-2 py-0.5 rounded-badge text-xs font-semibold',
-          ordem.prioridade === 'urgente'
-            ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-            : ordem.prioridade === 'alta'
-            ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
-            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-        ]"
-      >
-        <ExclamationCircleIcon v-if="ordem.prioridade === 'urgente'" class="w-3 h-3" />
-        <FireIcon v-else-if="ordem.prioridade === 'alta'" class="w-3 h-3" />
-        {{ ordem.prioridade === 'urgente' ? 'URG' : ordem.prioridade === 'alta' ? 'ALTA' : 'NORM' }}
-      </span>
+      <UrgenciaBadge
+        :nivel="ordem.urgencia || ordem.prioridade"
+        :sugestao-ia-pendente="ordem.sugereIa"
+        size="sm"
+      />
     </div>
 
     <!-- Serviço -->
@@ -68,6 +58,12 @@
         :reaberto="ordem.protocoloReaberto ?? ordem.protocolo_reaberto"
       />
     </div>
+    <p
+      v-if="ordem.sugereIa"
+      class="text-[10px] font-medium text-violet-800 dark:text-violet-200 mb-2"
+    >
+      Revisar urgência: {{ labelSugestaoOrdem }}
+    </p>
 
     <!-- Endereço -->
     <div class="flex items-start gap-1.5 text-xs text-gray-600 dark:text-gray-400 mb-3">
@@ -143,9 +139,9 @@ import { computed } from 'vue'
 import BadgeSuperOS from './BadgeSuperOS.vue'
 import BadgeDiligenciaOS from './BadgeDiligenciaOS.vue'
 import BadgeReabertoProtocolo from '@/components/backoffice/protocolo/BadgeReabertoProtocolo.vue'
+import UrgenciaBadge from '@/components/backoffice/common/UrgenciaBadge.vue'
+import { labelUrgencia } from '@/utils/urgenciaHelpers'
 import {
-  ExclamationCircleIcon,
-  FireIcon,
   MapPinIcon,
   ClockIcon,
   PhotoIcon,
@@ -162,6 +158,10 @@ const props = defineProps({
 })
 
 defineEmits(['click'])
+
+const labelSugestaoOrdem = computed(() =>
+  labelUrgencia(props.ordem.urgenciaSugeridaIa || props.ordem.urgencia_sugerida_ia || 'alta')
+)
 
 const noEncerrado = computed(
   () =>

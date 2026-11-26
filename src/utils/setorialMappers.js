@@ -1,6 +1,7 @@
-/** Normaliza payloads de GET /backoffice/setorial/ordens (API v4.14.2) */
+/** Normaliza payloads de GET /backoffice/setorial/ordens (API v4.16) */
 
 import { mapDiligenciaFromApi } from '@/utils/diligenciaHelpers'
+import { normalizarUrgencia } from '@/utils/urgenciaHelpers'
 import { mapReaberturaFromApi } from '@/utils/reaberturaHelpers'
 
 export function mapEvidenciaSetorial(api) {
@@ -24,7 +25,11 @@ export function mapOrdemSetorial(api) {
     descricao: api.descricao,
     endereco: api.endereco || '',
     coordenadas: api.coordenadas,
-    prioridade: api.prioridade || 'normal',
+    prioridade: normalizarUrgencia(api.prioridade || api.urgencia),
+    urgencia: normalizarUrgencia(api.urgencia || api.prioridade),
+    urgenciaSugestaoStatus: api.urgencia_sugestao_status || '',
+    urgenciaSugeridaIa: api.urgencia_sugerida_ia || '',
+    sugereIa: api.urgencia_sugestao_status === 'pendente',
     status: api.status,
     status_api: api.status_api,
     sla_status: api.sla_status || 'normal',

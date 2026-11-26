@@ -264,7 +264,10 @@ def _mesclar_dados_sem_sobrescrever(sessao: SessaoChat, novos: dict[str, Any]) -
         aplicados[chave] = valor
     if aplicados:
         sessao.dados_coletados = dados
-        sessao.save(update_fields=["dados_coletados", "atualizado_em"])
+        from atendimentos.chat_sandbox import is_sessao_sandbox
+
+        if not is_sessao_sandbox(sessao):
+            sessao.save(update_fields=["dados_coletados", "atualizado_em"])
     return aplicados
 
 
@@ -385,10 +388,22 @@ def _chamar_llm_slot_filling(texto: str, servico: ServicoCatalogo) -> dict | Non
 
 def _texto_rede_seguranca_equipamento(sessao: SessaoChat, dados_existentes: dict) -> str:
     partes: list[str] = []
-    for msg in sessao.mensagens.filter(autor=MensagemChat.Autor.CIDADAO).order_by("criado_em"):
-        t = (msg.conteudo_texto or "").strip()
-        if len(t) >= 4:
-            partes.append(t)
+    from atendimentos.chat_sandbox import is_sessao_sandbox
+
+    if is_sessao_sandbox(sessao):
+        for item in sessao.historico or []:
+            if not isinstance(item, dict) or (item.get("role") or "").strip() != "user":
+                continue
+            t = (item.get("content") or "").strip()
+            if len(t) >= 4:
+                partes.append(t)
+    else:
+        for msg in sessao.mensagens.filter(autor=MensagemChat.Autor.CIDADAO).order_by(
+            "criado_em"
+        ):
+            t = (msg.conteudo_texto or "").strip()
+            if len(t) >= 4:
+                partes.append(t)
     for chave in (
         "descricao_detalhada",
         "descricao_problema",

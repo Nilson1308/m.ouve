@@ -46,6 +46,21 @@ def aplicar_escopo_protocolos(user, qs: QuerySet) -> QuerySet:
     return qs.filter(q_protocolo_visivel_na_unidade(uid)).distinct()
 
 
+def protocolo_no_escopo_usuario(user, protocolo: Protocolo) -> bool:
+    if usuario_e_super_admin(user):
+        return True
+    escopo = escopo_dashboard(user)
+    if escopo["tipo"] != "unidade":
+        return True
+    uid = escopo["unidade_id"]
+    if not uid:
+        return False
+    return (
+        queryset_protocolos_escopo(user, Protocolo.objects.filter(pk=protocolo.pk))
+        .exists()
+    )
+
+
 def queryset_protocolos_escopo(user, base_qs=None) -> QuerySet:
     qs = (
         Protocolo.objects.all()

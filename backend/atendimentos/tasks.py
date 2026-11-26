@@ -99,6 +99,15 @@ def encerrar_janelas_reabertura_expiradas_task() -> int:
 
 
 @shared_task
+def gerar_briefings_operacionais_diarios_task() -> int:
+    from atendimentos.services.agente_briefing_service import (
+        gerar_briefings_operacionais_diarios,
+    )
+
+    return gerar_briefings_operacionais_diarios()
+
+
+@shared_task
 def enviar_digest_sla_atrasados_task() -> int:
     from atendimentos.services.sla_cobranca_service import (
         digest_agendado_se_aplica,

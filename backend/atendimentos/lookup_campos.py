@@ -58,7 +58,10 @@ def higienizar_lookup_na_sessao(sessao) -> bool:
             alterou = True
     if alterou:
         sessao.dados_coletados = dados
-        sessao.save(update_fields=["dados_coletados", "atualizado_em"])
+        from atendimentos.chat_sandbox import is_sessao_sandbox
+
+        if not is_sessao_sandbox(sessao):
+            sessao.save(update_fields=["dados_coletados", "atualizado_em"])
     return alterou
 
 

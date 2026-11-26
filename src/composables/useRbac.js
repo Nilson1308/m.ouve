@@ -44,10 +44,13 @@ export function useRbac() {
   const isSuperAdmin = computed(() => authStore.isSuperAdmin)
   const isBackoffice = computed(() => authStore.isBackoffice)
   const isCidadao = computed(() => authStore.isCidadao)
+  const podeAlterarUrgencia = computed(
+    () => Boolean(authStore.user?.pode_alterar_urgencia) || authStore.isSuperAdmin
+  )
 
   function can(codigo) {
     return usuarioPode(authStore, codigo)
   }
 
-  return { can, permissoes, isSuperAdmin, isBackoffice, isCidadao }
+  return { can, permissoes, isSuperAdmin, isBackoffice, isCidadao, podeAlterarUrgencia }
 }

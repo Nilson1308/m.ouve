@@ -35,6 +35,8 @@
         </p>
       </div>
 
+      <RadarOperacionalCard storage-key="radar-eficiencia" class="mb-8" />
+
       <!-- Cards de KPI -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6 mb-8">
         <!-- TMA Global -->
@@ -372,6 +374,7 @@ import KpiCard from '@/components/backoffice/dashboard/KpiCard.vue'
 import SkeletonKpi from '@/components/backoffice/dashboard/SkeletonKpi.vue'
 import RankingGargalos from '@/components/backoffice/dashboard/RankingGargalos.vue'
 import MatrizQualidade from '@/components/backoffice/dashboard/MatrizQualidade.vue'
+import RadarOperacionalCard from '@/components/backoffice/agente/RadarOperacionalCard.vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAdminToast } from '@/composables/useAdminToast'
 

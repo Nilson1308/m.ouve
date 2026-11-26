@@ -13,23 +13,17 @@ from atendimentos.backoffice_serializers import calcular_sla, extrair_urgencia
 from atendimentos.models import OrdemServico, Protocolo, SuperOS
 from atendimentos.services.escopo_dados import aplicar_escopo_protocolos
 from atendimentos.super_os_services import super_os_precisa_integracao_ancora
-
-URGENCY_ORDER = {
-    "critica": 0,
-    "crítica": 0,
-    "urgente": 0,
-    "alta": 1,
-    "media": 2,
-    "média": 2,
-    "normal": 3,
-    "baixa": 4,
-}
+from atendimentos.urgencia_constants import normalizar_nivel, peso_nivel
 
 
 def _peso_urgencia(valor: str | None) -> int:
-    if not valor:
-        return URGENCY_ORDER["media"]
-    return URGENCY_ORDER.get(str(valor).lower().strip(), 3)
+    return peso_nivel(normalizar_nivel(valor))
+
+
+def _peso_urgencia_protocolo(protocolo: Protocolo) -> int:
+    if getattr(protocolo, "urgencia_peso", None):
+        return int(protocolo.urgencia_peso)
+    return peso_nivel(extrair_urgencia(protocolo))
 
 
 def _titulo_protocolo(protocolo: Protocolo) -> str:
@@ -52,7 +46,7 @@ def _prazo_operacional_horas(protocolo: Protocolo) -> int | None:
 
 def montar_item_protocolo(protocolo: Protocolo) -> dict:
     sla = calcular_sla(protocolo)
-    urgencia = extrair_urgencia(protocolo.dados_dinamicos)
+    urgencia = extrair_urgencia(protocolo)
     u = protocolo.usuario
     cidadao = (
         {
@@ -91,7 +85,7 @@ def montar_item_protocolo(protocolo: Protocolo) -> dict:
         "triagem_sugerida": protocolo.triagem_sugerida or {},
         "_sort_vencido": sla["vencido"],
         "_sort_horas": sla["horas_restantes"],
-        "_sort_urgencia": _peso_urgencia(urgencia),
+        "_sort_urgencia": _peso_urgencia_protocolo(protocolo),
         "_sort_criado": protocolo.data_criacao,
     }
 
@@ -121,7 +115,7 @@ def _agregar_urgencia_filhos(filhos: list[Protocolo]) -> str:
     melhor = "media"
     peso = 99
     for p in filhos:
-        u = extrair_urgencia(p.dados_dinamicos)
+        u = extrair_urgencia(p)
         pu = _peso_urgencia(u)
         if pu < peso:
             peso = pu
@@ -165,19 +159,19 @@ def montar_item_super_os(super_os: SuperOS, filhos: list[Protocolo]) -> dict:
         "servico_nome": filhos[0].servico.nome if filhos and filhos[0].servico_id else None,
         "_sort_vencido": sla["vencido"],
         "_sort_horas": sla["horas_restantes"],
-        "_sort_urgencia": _peso_urgencia(urgencia),
+        "_sort_urgencia": _peso_urgencia_protocolo(protocolo),
         "_sort_criado": super_os.criado_em,
     }
 
 
 def ordenar_itens_kanban(itens: list[dict]) -> list[dict]:
-    """SLA vencido primeiro; depois menor tempo restante; depois urgência."""
+    """Prioridade: maior urgência, depois SLA mais próximo de vencer."""
 
     def chave(item: dict):
         return (
+            -item["_sort_urgencia"],
             0 if item["_sort_vencido"] else 1,
             item["_sort_horas"],
-            item["_sort_urgencia"],
             item["_sort_criado"],
         )
 

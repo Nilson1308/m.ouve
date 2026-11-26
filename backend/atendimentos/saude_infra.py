@@ -144,9 +144,33 @@ def montar_relatorio_saude_infra() -> dict:
     redis = verificar_redis()
     celery = verificar_celery()
     chat_operacional = bool(redis.get("ok") and celery.get("ok"))
+    agente_ia = _status_agente_ia()
     return {
         "chat_operacional": chat_operacional,
         "redis": redis,
         "celery": celery,
+        "agente_ia": agente_ia,
         "verificado_em": _agora_iso(),
+    }
+
+
+def _status_agente_ia() -> dict:
+    from atendimentos.models import BriefingOperacionalIA, ConfiguracaoAgenteGestao
+    from atendimentos.services.agente_briefing_service import obter_consumo_tokens_mes
+
+    cfg = ConfiguracaoAgenteGestao.load()
+    orcamento = int(cfg.orcamento_tokens_mensal or 0)
+    consumo = obter_consumo_tokens_mes()
+    pct = round(100.0 * consumo / orcamento, 2) if orcamento else 0.0
+    ultimo = (
+        BriefingOperacionalIA.objects.order_by("-criado_em").values_list("criado_em", flat=True).first()
+    )
+    return {
+        "ativo": bool(cfg.agente_ativo),
+        "tokens_mes_atual": consumo,
+        "orcamento_tokens_mensal": orcamento,
+        "percentual_consumo": pct,
+        "alerta_budget_80": pct >= 80.0,
+        "budget_esgotado": orcamento > 0 and consumo >= orcamento,
+        "ultimo_briefing_em": ultimo.isoformat() if ultimo else None,
     }

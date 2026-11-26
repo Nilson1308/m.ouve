@@ -207,6 +207,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "atendimentos.tasks.encerrar_janelas_reabertura_expiradas_task",
         "schedule": crontab(minute=30),
     },
+    "briefings-operacionais-diarios": {
+        "task": "atendimentos.tasks.gerar_briefings_operacionais_diarios_task",
+        "schedule": crontab(minute=0),
+    },
 }
 
 BACKOFFICE_FRONTEND_BASE_URL = config("BACKOFFICE_FRONTEND_BASE_URL", default="")

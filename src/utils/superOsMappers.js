@@ -2,8 +2,10 @@
 
 import {
   formatValorColetado,
+  mapCamposUrgenciaProtocolo,
   mapOrdemServicoDetalhe
 } from '@/utils/backofficeMappers'
+import { normalizarUrgencia } from '@/utils/urgenciaHelpers'
 
 const MOGI_CENTER = { lat: -23.522, lng: -46.1883 }
 
@@ -45,7 +47,8 @@ export function mapKanbanItem(api) {
     numero: api.codigo,
     titulo: api.titulo || api.codigo,
     status: api.status,
-    urgencia: api.urgencia || 'media',
+    urgencia: normalizarUrgencia(api.urgencia),
+    ...mapCamposUrgenciaProtocolo(api),
     sla,
     criadoEm: api.criado_em,
     endereco: api.endereco || '',

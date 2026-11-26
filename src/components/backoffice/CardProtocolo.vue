@@ -81,10 +81,17 @@
         </div>
       </div>
 
-      <!-- Badge de Urgência -->
-      <div class="ml-2 flex-shrink-0">
-        <span :class="urgenciaClass">
-          <BoltIcon v-if="protocolo.urgencia === 'alta' || protocolo.urgencia === 'critica'" class="w-3.5 h-3.5" />
+      <div class="ml-2 flex-shrink-0 flex flex-col items-end gap-1">
+        <UrgenciaBadge
+          :nivel="protocolo.urgencia"
+          :sugestao-ia-pendente="sugestaoUrgenciaPendente"
+          size="md"
+        />
+        <span
+          v-if="sugestaoUrgenciaPendente"
+          class="text-[10px] font-medium text-violet-800 dark:text-violet-200 bg-violet-50 dark:bg-violet-950/40 border border-violet-200/80 dark:border-violet-800/60 rounded px-1.5 py-0.5 max-w-[7rem] text-right leading-tight"
+        >
+          Revisar: {{ labelSugestaoIa }}
         </span>
       </div>
     </div>
@@ -263,7 +270,6 @@ import {
   MapPinIcon,
   BuildingOffice2Icon,
   UserIcon,
-  BoltIcon,
   PaperClipIcon,
   MapIcon,
   PaperAirplaneIcon,
@@ -272,6 +278,8 @@ import {
   ShieldCheckIcon
 } from '@heroicons/vue/24/outline'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
+import UrgenciaBadge from '@/components/backoffice/common/UrgenciaBadge.vue'
+import { labelUrgencia, sugestaoIaPendente } from '@/utils/urgenciaHelpers'
 import TriagemSugeridaIndicador from '@/components/backoffice/protocolo/TriagemSugeridaIndicador.vue'
 import BadgeReabertoProtocolo from '@/components/backoffice/protocolo/BadgeReabertoProtocolo.vue'
 import { temTriagemEncaminhamento as protocoloTemTriagem } from '@/utils/triagemEncaminhamento'
@@ -328,16 +336,11 @@ const rotuloNosAbertos = computed(() =>
   nosAbertosLista.value.map((o) => nomeSecretariaNo(o)).join(' · ')
 )
 
-// Classes de urgência
-const urgenciaClass = computed(() => {
-  const classes = {
-    baixa: 'w-8 h-8 rounded-lg bg-success-100 dark:bg-success-900 text-success-600 dark:text-success-400 flex items-center justify-center',
-    media: 'w-8 h-8 rounded-lg bg-warning-100 dark:bg-warning-900 text-warning-600 dark:text-warning-400 flex items-center justify-center',
-    alta: 'w-8 h-8 rounded-lg bg-danger-100 dark:bg-danger-900 text-danger-600 dark:text-danger-400 flex items-center justify-center',
-    critica: 'w-8 h-8 rounded-lg bg-danger-200 dark:bg-danger-800 text-danger-700 dark:text-danger-300 flex items-center justify-center animate-pulse'
-  }
-  return classes[props.protocolo.urgencia] || classes.baixa
-})
+const sugestaoUrgenciaPendente = computed(() => sugestaoIaPendente(props.protocolo))
+
+const labelSugestaoIa = computed(() =>
+  labelUrgencia(props.protocolo.urgenciaSugeridaIa || props.protocolo.urgencia_sugerida_ia)
+)
 
 // Classes de SLA
 const slaClass = computed(() => {

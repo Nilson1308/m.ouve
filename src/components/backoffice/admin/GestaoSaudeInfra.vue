@@ -109,6 +109,76 @@
             </div>
           </div>
 
+          <article
+            class="rounded-xl border backdrop-blur-md bg-white/90 dark:bg-slate-900/60 p-5 sm:p-6 shadow-sm"
+            :class="cardBorderClassAgente"
+          >
+            <header class="flex items-start justify-between gap-3 mb-4">
+              <div class="flex items-center gap-3">
+                <div class="p-2.5 rounded-xl bg-violet-500/10 dark:bg-violet-500/15 border border-violet-200 dark:border-violet-500/30">
+                  <SparklesIcon class="w-6 h-6 text-violet-600 dark:text-violet-300" />
+                </div>
+                <div>
+                  <h3 class="text-base font-bold text-slate-900 dark:text-white">Agente IA &amp; Orçamento de Tokens</h3>
+                  <p class="text-xs text-slate-500">Radar operacional · consumo mensal</p>
+                </div>
+              </div>
+              <span
+                v-if="agenteIa?.ativo"
+                class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600/50 bg-emerald-50 dark:bg-emerald-950/50"
+              >
+                Ativo
+              </span>
+              <span
+                v-else
+                class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-600"
+              >
+                Inativo
+              </span>
+            </header>
+
+            <div v-if="agenteIa" class="space-y-3">
+              <div class="flex justify-between text-sm text-slate-700 dark:text-slate-300">
+                <span>{{ formatarNumero(agenteIa.tokens_mes_atual) }} tokens usados</span>
+                <span class="font-semibold" :class="classePercentualAgente">
+                  {{ percentualAgenteFmt }}%
+                </span>
+              </div>
+              <div
+                class="h-3 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden border border-slate-300/50 dark:border-slate-600/50"
+                role="progressbar"
+                :aria-valuenow="percentualAgenteNum"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                <div
+                  class="h-full rounded-full transition-all duration-500"
+                  :class="barraAgenteClass"
+                  :style="{ width: `${Math.min(percentualAgenteNum, 100)}%` }"
+                />
+              </div>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                Orçamento mensal: {{ formatarNumero(agenteIa.orcamento_tokens_mensal) }} tokens
+              </p>
+              <p
+                v-if="agenteIa.alerta_budget_80 && !agenteIa.budget_esgotado"
+                class="text-xs font-medium text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2"
+              >
+                Consumo acima de 80% — considere revisar o orçamento ou ajustar sensibilidade.
+              </p>
+              <p
+                v-if="agenteIa.budget_esgotado"
+                class="text-xs font-medium text-red-800 dark:text-red-200 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2"
+              >
+                Orçamento esgotado — Radar em modo determinístico (sem custo adicional de modelo).
+              </p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-500">
+                Último briefing: {{ formatarIso(agenteIa.ultimo_briefing_em) }}
+              </p>
+            </div>
+            <p v-else class="text-sm text-slate-500">Dados do agente indisponíveis.</p>
+          </article>
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <article
               class="rounded-xl border backdrop-blur-md bg-white/90 dark:bg-slate-900/60 p-5 sm:p-6 flex flex-col min-h-[220px] shadow-sm"
@@ -243,7 +313,8 @@ import {
   CircleStackIcon,
   ExclamationTriangleIcon,
   ServerStackIcon,
-  SignalIcon
+  SignalIcon,
+  SparklesIcon
 } from '@heroicons/vue/24/outline'
 import { useSistemaStore } from '@/stores/sistema'
 
@@ -265,6 +336,51 @@ const celeryStatus = computed(() => dados.value?.celery?.status || 'OFFLINE')
 const workersVivos = computed(() => Number(dados.value?.celery?.workers_vivos ?? 0))
 const filas = computed(() => dados.value?.celery?.filas_detectadas || [])
 const filaPadrao = computed(() => dados.value?.celery?.fila_padrao)
+
+const agenteIa = computed(() => dados.value?.agente_ia || null)
+
+const percentualAgenteNum = computed(() => {
+  const pct = Number(agenteIa.value?.percentual_consumo)
+  if (Number.isFinite(pct)) return Math.max(0, pct)
+  const uso = Number(agenteIa.value?.tokens_mes_atual || 0)
+  const cap = Number(agenteIa.value?.orcamento_tokens_mensal || 0)
+  return cap > 0 ? (100 * uso) / cap : 0
+})
+
+const percentualAgenteFmt = computed(() => percentualAgenteNum.value.toFixed(1))
+
+const classePercentualAgente = computed(() => {
+  if (agenteIa.value?.budget_esgotado) return 'text-red-700 dark:text-red-300'
+  if (agenteIa.value?.alerta_budget_80) return 'text-amber-700 dark:text-amber-300'
+  return 'text-slate-700 dark:text-slate-200'
+})
+
+const barraAgenteClass = computed(() => {
+  if (agenteIa.value?.budget_esgotado) return 'bg-red-500 dark:bg-red-500'
+  if (agenteIa.value?.alerta_budget_80) return 'bg-amber-500 dark:bg-amber-400'
+  return 'bg-violet-500 dark:bg-violet-400'
+})
+
+function cardBorderClassAgente() {
+  if (agenteIa.value?.budget_esgotado) return 'border-red-200 dark:border-red-800/50'
+  if (agenteIa.value?.alerta_budget_80) return 'border-amber-200 dark:border-amber-800/50'
+  return 'border-violet-200 dark:border-violet-800/40'
+}
+
+function formatarNumero(n) {
+  const v = Number(n)
+  if (!Number.isFinite(v)) return '—'
+  return new Intl.NumberFormat('pt-BR').format(v)
+}
+
+function formatarIso(iso) {
+  if (!iso) return '—'
+  try {
+    return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+  } catch {
+    return iso
+  }
+}
 
 const formatadoEm = computed(() => {
   const iso = dados.value?.verificado_em

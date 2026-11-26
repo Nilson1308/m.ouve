@@ -5,6 +5,10 @@ import {
   mapDashboardQualidade,
   mapMapaCalorApi
 } from '@/utils/dashboardMappers'
+import {
+  normalizarBriefing,
+  normalizarConfigAgente
+} from '@/services/agenteGestaoMappers'
 
 // Configuração base do Axios
 const api = axios.create({
@@ -682,6 +686,23 @@ export const diligenciaBackofficeService = {
   }
 }
 
+export const matrizUrgenciaService = {
+  async obterConfiguracao() {
+    const { data } = await api.get('/backoffice/configuracoes/matriz-urgencia')
+    return data
+  },
+
+  async salvarConfiguracao(patch) {
+    const { data } = await api.patch('/backoffice/configuracoes/matriz-urgencia', patch)
+    return data
+  },
+
+  async alterarUrgenciaProtocolo(protocoloId, body) {
+    const { data } = await api.post(`/backoffice/protocolos/${protocoloId}/urgencia`, body)
+    return data
+  }
+}
+
 export const slaCobrancaService = {
   async obterConfiguracao() {
     const { data } = await api.get('/backoffice/configuracoes/sla-cobranca')
@@ -712,6 +733,37 @@ export const slaCobrancaService = {
 
   async listarEnvios(params = {}) {
     const { data } = await api.get('/backoffice/relatorios/sla-atrasados/envios', { params })
+    return data
+  }
+}
+
+// ==================== AGENTE IA GESTÃO (v4.17) ====================
+
+export const agenteGestaoService = {
+  async obterConfiguracao() {
+    const { data } = await api.get('/backoffice/configuracoes/agente-gestao')
+    return normalizarConfigAgente(data)
+  },
+
+  async salvarConfiguracao(patch) {
+    const { data } = await api.patch('/backoffice/configuracoes/agente-gestao', patch)
+    return normalizarConfigAgente(data)
+  },
+
+  async obterBriefing(params = {}) {
+    const { data } = await api.get('/backoffice/agente/briefing', { params })
+    return normalizarBriefing(data)
+  },
+
+  async atualizarBriefing(params = {}) {
+    const { data } = await api.get('/backoffice/agente/briefing', {
+      params: { ...params, forcar: true }
+    })
+    return normalizarBriefing(data)
+  },
+
+  async avaliarInsight(briefingId, body) {
+    const { data } = await api.post(`/backoffice/agente/briefing/${briefingId}/avaliar`, body)
     return data
   }
 }

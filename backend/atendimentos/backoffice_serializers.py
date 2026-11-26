@@ -15,6 +15,8 @@ from atendimentos.models import (
 )
 from atendimentos.campo_exibicao import dados_coletados_para_exibicao
 from catalogo.models import ServicoCatalogo, UnidadeAdministrativa
+from atendimentos.urgencia_constants import normalizar_nivel
+from core_auth.rbac import usuario_pode_alterar_urgencia
 from ouvia_core.url_utils import public_absolute_uri
 
 _DADOS_RESUMO_KEYS = (
@@ -33,19 +35,27 @@ def resumir_dados_dinamicos(dados: dict | None) -> dict:
     return {k: dados[k] for k in _DADOS_RESUMO_KEYS if k in dados}
 
 
-def extrair_urgencia(dados: dict | None) -> str:
+def extrair_urgencia(protocolo_or_dados) -> str:
+    if isinstance(protocolo_or_dados, Protocolo):
+        if protocolo_or_dados.urgencia:
+            return normalizar_nivel(protocolo_or_dados.urgencia)
+        return extrair_urgencia(protocolo_or_dados.dados_dinamicos)
+    dados = protocolo_or_dados
     if not dados:
-        return "media"
+        return "normal"
     for key in ("urgencia", "prioridade", "urgencia_estimada"):
         val = dados.get(key)
         if val:
-            return str(val).lower()
-    return "media"
+            return normalizar_nivel(str(val))
+    return "normal"
 
 
 def calcular_sla(protocolo: Protocolo) -> dict:
     sla_horas = protocolo.servico.sla_horas if protocolo.servico_id else 72
-    prazo = protocolo.data_criacao + timedelta(hours=sla_horas)
+    if protocolo.prazo_sla:
+        prazo = protocolo.prazo_sla
+    else:
+        prazo = protocolo.data_criacao + timedelta(hours=sla_horas)
     agora = timezone.now()
     delta_horas = (prazo - agora).total_seconds() / 3600
     return {
@@ -217,7 +227,15 @@ class BackofficeProtocoloKanbanSerializer(serializers.ModelSerializer):
     servico = BackofficeServicoResumoSerializer(read_only=True)
     dados_dinamicos = serializers.SerializerMethodField()
     sla = serializers.SerializerMethodField()
-    urgencia = serializers.SerializerMethodField()
+    urgencia_sugerida_ia = serializers.CharField(read_only=True)
+    urgencia_motivo_ia = serializers.CharField(read_only=True)
+    urgencia_confianca_ia = serializers.FloatField(read_only=True, allow_null=True)
+    urgencia_sugestao_status = serializers.CharField(read_only=True)
+    urgencia_origem = serializers.CharField(read_only=True)
+    urgencia_peso = serializers.IntegerField(read_only=True)
+    urgencia_travada_manualmente = serializers.BooleanField(read_only=True)
+    pode_alterar_urgencia = serializers.SerializerMethodField()
+    urgencia_reduz_sla_ativo = serializers.SerializerMethodField()
     cidadao = serializers.SerializerMethodField()
     endereco = serializers.CharField(source="endereco_texto", read_only=True)
     tem_anexos = serializers.SerializerMethodField()
@@ -252,6 +270,15 @@ class BackofficeProtocoloKanbanSerializer(serializers.ModelSerializer):
             "dados_dinamicos",
             "sla",
             "urgencia",
+            "urgencia_peso",
+            "urgencia_origem",
+            "urgencia_sugerida_ia",
+            "urgencia_motivo_ia",
+            "urgencia_confianca_ia",
+            "urgencia_sugestao_status",
+            "urgencia_travada_manualmente",
+            "pode_alterar_urgencia",
+            "urgencia_reduz_sla_ativo",
             "cidadao",
             "endereco",
             "tem_anexos",
@@ -306,8 +333,16 @@ class BackofficeProtocoloKanbanSerializer(serializers.ModelSerializer):
     def get_sla(self, obj):
         return calcular_sla(obj)
 
-    def get_urgencia(self, obj):
-        return extrair_urgencia(obj.dados_dinamicos)
+    def get_pode_alterar_urgencia(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user:
+            return False
+        return usuario_pode_alterar_urgencia(request.user)
+
+    def get_urgencia_reduz_sla_ativo(self, obj):
+        from atendimentos.models import ConfiguracaoMatrizUrgencia
+
+        return ConfiguracaoMatrizUrgencia.load().urgencia_reduz_sla
 
     def get_cidadao(self, obj):
         u = obj.usuario

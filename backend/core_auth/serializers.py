@@ -6,7 +6,13 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from core_auth.models import DispositivoPush, EnderecoCidadao, Notificacao, Usuario
-from core_auth.rbac import listar_permissoes_efetivas, usuario_e_backoffice, usuario_e_cidadao, usuario_e_super_admin
+from core_auth.rbac import (
+    listar_permissoes_efetivas,
+    usuario_e_backoffice,
+    usuario_e_cidadao,
+    usuario_e_super_admin,
+    usuario_pode_alterar_urgencia,
+)
 from core_auth.utils import cpf_valido, formatar_cpf, normalizar_cpf
 from ouvia_core.url_utils import public_absolute_uri
 
@@ -43,6 +49,7 @@ class UsuarioResponseSerializer(serializers.ModelSerializer):
     is_backoffice = serializers.SerializerMethodField()
     is_cidadao = serializers.SerializerMethodField()
     avatar = serializers.SerializerMethodField()
+    pode_alterar_urgencia = serializers.SerializerMethodField()
 
     class Meta:
         model = Usuario
@@ -58,6 +65,7 @@ class UsuarioResponseSerializer(serializers.ModelSerializer):
             "unidade_administrativa",
             "is_superadmin",
             "permissoes",
+            "pode_alterar_urgencia",
             "tipo_usuario",
             "is_backoffice",
             "is_cidadao",
@@ -97,6 +105,9 @@ class UsuarioResponseSerializer(serializers.ModelSerializer):
 
     def get_permissoes(self, obj):
         return listar_permissoes_efetivas(obj)
+
+    def get_pode_alterar_urgencia(self, obj):
+        return usuario_pode_alterar_urgencia(obj)
 
     def get_tipo_usuario(self, obj):
         return "backoffice" if usuario_e_backoffice(obj) else "cidadao"

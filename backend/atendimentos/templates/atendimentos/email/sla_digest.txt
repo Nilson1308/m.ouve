@@ -1,4 +1,9 @@
-{{ titulo }}
+{% if radar_ia %}{{ radar_ia.titulo }}
+{{ radar_ia.resumo }}
+{% for a in radar_ia.alertas_top3 %}- [{{ a.severidade }}] {{ a.titulo }}
+{% endfor %}
+
+{% endif %}{{ titulo }}
 
 Total: {{ total_protocolos }} protocolo(s) em atraso
 Com cobrança do cidadão: {{ total_cobrados }}

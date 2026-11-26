@@ -1,6 +1,7 @@
 import { mapEquipamentoProtocolo } from '@/utils/equipamentoMappers'
 import { mapDiligenciaFromApi } from '@/utils/diligenciaHelpers'
 import { mapCamposReaberturaProtocolo } from '@/utils/reaberturaHelpers'
+import { normalizarUrgencia } from '@/utils/urgenciaHelpers'
 
 /** Normaliza payloads da API /backoffice/* para o UI da Mesa de Trabalho. */
 
@@ -20,9 +21,24 @@ function buildTags(api) {
   const dados = api.dados_dinamicos || {}
   if (dados.categoria_problema) tags.push(dados.categoria_problema)
   if (dados.tema) tags.push(dados.tema)
-  if (api.urgencia && api.urgencia !== 'media') tags.push(api.urgencia)
+  const u = normalizarUrgencia(api.urgencia)
+  if (u && u !== 'normal') tags.push(u)
   if (api.sla?.vencido) tags.push('atrasado')
   return tags.length ? tags : ['protocolo']
+}
+
+export function mapCamposUrgenciaProtocolo(api) {
+  return {
+    urgenciaPeso: Number(api.urgencia_peso ?? 2),
+    urgenciaOrigem: api.urgencia_origem || 'catalogo',
+    urgenciaSugeridaIa: api.urgencia_sugerida_ia || '',
+    urgenciaMotivoIa: api.urgencia_motivo_ia || '',
+    urgenciaConfiancaIa: api.urgencia_confianca_ia ?? null,
+    urgenciaSugestaoStatus: api.urgencia_sugestao_status || '',
+    urgenciaTravadaManualmente: Boolean(api.urgencia_travada_manualmente),
+    podeAlterarUrgencia: Boolean(api.pode_alterar_urgencia),
+    urgenciaReduzSlaAtivo: Boolean(api.urgencia_reduz_sla_ativo)
+  }
 }
 
 /**
@@ -62,7 +78,8 @@ export function mapProtocoloBackoffice(api) {
     bairro: api.dados_dinamicos?.bairro || '',
     cidadao: api.cidadao || { nome: '—', telefone: '' },
     status: api.status,
-    urgencia: api.urgencia || 'media',
+    urgencia: normalizarUrgencia(api.urgencia),
+    ...mapCamposUrgenciaProtocolo(api),
     sla: {
       prazo: api.sla?.prazo_em ?? null,
       vencido: Boolean(api.sla?.vencido) && api.status !== 'aguardando_cidadao',
@@ -187,7 +204,7 @@ export function mapOrdemServicoDetalhe(ordem, urgenciaProtocolo) {
     responsavel: ordem.nome_equipe || ordem.unidade?.nome || '—',
     status: statusUi,
     statusApi: ordem.status,
-    prioridade: urgenciaProtocolo || 'media',
+    prioridade: normalizarUrgencia(urgenciaProtocolo),
     instrucao: ordem.instrucao || ordem.descricao || '',
     despacho_tecnico: (ordem.despacho_tecnico || '').trim(),
     observacoes_extras: (ordem.observacoes_extras || '').trim(),

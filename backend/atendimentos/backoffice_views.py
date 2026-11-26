@@ -56,6 +56,7 @@ class BackofficeProtocoloFilterSet(filters.FilterSet):
     status = filters.BaseInFilter(field_name="status")
     busca = filters.CharFilter(method="filter_busca")
     urgencia = filters.BaseInFilter(method="filter_urgencia")
+    apenas_sugestao_urgencia_ia = filters.BooleanFilter(method="filter_sugestao_ia")
     sla_vencido = filters.BooleanFilter(method="filter_sla_vencido")
     unidade_id = filters.BaseInFilter(
         field_name="ordens_servico__unidade_id",
@@ -80,18 +81,18 @@ class BackofficeProtocoloFilterSet(filters.FilterSet):
         )
 
     def filter_urgencia(self, queryset, name, value):
+        from atendimentos.urgencia_constants import normalizar_nivel
+
         valores = value if isinstance(value, (list, tuple)) else [value]
-        valores = [str(v).strip().lower() for v in valores if str(v).strip()]
+        valores = [normalizar_nivel(str(v).strip()) for v in valores if str(v).strip()]
         if not valores:
             return queryset
-        q = Q()
-        for val in valores:
-            q |= (
-                Q(dados_dinamicos__urgencia__iexact=val)
-                | Q(dados_dinamicos__prioridade__iexact=val)
-                | Q(dados_dinamicos__urgencia_estimada__iexact=val)
-            )
-        return queryset.filter(q).distinct()
+        return queryset.filter(urgencia__in=valores).distinct()
+
+    def filter_sugestao_ia(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(urgencia_sugestao_status=Protocolo.UrgenciaSugestaoStatus.PENDENTE)
 
     def filter_bairro(self, queryset, name, value):
         valores = value if isinstance(value, (list, tuple)) else [value]
@@ -181,8 +182,8 @@ class BackofficeProtocoloListView(generics.ListAPIView):
     serializer_class = BackofficeProtocoloKanbanSerializer
     pagination_class = ContractPagination
     filterset_class = BackofficeProtocoloFilterSet
-    ordering_fields = ("data_criacao", "status", "codigo")
-    ordering = ("-data_criacao",)
+    ordering_fields = ("data_criacao", "status", "codigo", "urgencia_peso", "prazo_sla")
+    ordering = ("-urgencia_peso", "prazo_sla")
 
     def get_queryset(self):
         ordens_qs = OrdemServico.objects.select_related("unidade").order_by("criado_em")

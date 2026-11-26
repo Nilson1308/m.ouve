@@ -173,6 +173,16 @@ class ServicoCatalogo(models.Model):
         default=72,
         help_text="Prazo alvo de atendimento em horas (SLA padrão).",
     )
+    urgencia_padrao = models.CharField(
+        max_length=16,
+        choices=(
+            ("baixa", "Baixa"),
+            ("normal", "Normal"),
+            ("alta", "Alta"),
+            ("critica", "Crítica"),
+        ),
+        default="normal",
+    )
     prazo_reabertura_dias = models.PositiveIntegerField(
         null=True,
         blank=True,

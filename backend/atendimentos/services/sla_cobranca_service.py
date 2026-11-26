@@ -322,6 +322,8 @@ def _linha_protocolo_digest(protocolo: Protocolo, agora: datetime | None = None)
         "unidade_nome": protocolo.servico.unidade_responsavel.nome
         if protocolo.servico_id and protocolo.servico.unidade_responsavel_id
         else "—",
+        "urgencia": getattr(protocolo, "urgencia", "normal") or "normal",
+        "destaque_critico": getattr(protocolo, "urgencia", "") == "critica",
     }
 
 
@@ -415,6 +417,14 @@ def enviar_digest_sla_atrasados(
             "total_protocolos": len(grupo),
             "total_cobrados": sum(1 for g in grupo if g["cobrancas"] > 0),
         }
+        if unidade_obj:
+            from atendimentos.services.agente_briefing_service import (
+                obter_briefing_digest_unidade,
+            )
+
+            radar = obter_briefing_digest_unidade(unidade_obj)
+            if radar:
+                ctx["radar_ia"] = radar
         envios.append(
             _enviar_email_digest(
                 destinatarios=dest,
@@ -448,7 +458,17 @@ def enviar_digest_sla_atrasados(
             "ranking": ranking_list,
             "total_protocolos": len(linhas),
             "total_cobrados": sum(1 for g in linhas if g["cobrancas"] > 0),
+            "total_criticos_abertos": sum(
+                1 for g in linhas if g.get("urgencia") == "critica"
+            ),
         }
+        from atendimentos.services.agente_briefing_service import (
+            obter_briefing_digest_controladoria,
+        )
+
+        radar_ctrl = obter_briefing_digest_controladoria()
+        if radar_ctrl:
+            ctx_ctrl["radar_ia"] = radar_ctrl
         envios.append(
             _enviar_email_digest(
                 destinatarios=dest_ctrl,
@@ -623,6 +643,9 @@ def resumo_relatorio_atrasados(qs: QuerySet) -> dict[str, Any]:
         for p in itens
         if (p.ultimo_alerta_sla_nivel or "") == NIVEL_ESCALONADO
     )
+    total_criticos = sum(
+        1 for p in itens if getattr(p, "urgencia", "") == "critica"
+    )
     por_unidade: dict[str, dict] = {}
     for p in itens:
         nome = (
@@ -642,6 +665,7 @@ def resumo_relatorio_atrasados(qs: QuerySet) -> dict[str, Any]:
         "total_atrasados": total,
         "total_com_cobranca": com_cobranca,
         "total_escalonados": escalonados,
+        "total_criticos_abertos": total_criticos,
         "por_unidade": sorted(por_unidade.values(), key=lambda x: -x["total"]),
     }
 
@@ -682,6 +706,7 @@ def serializar_item_relatorio(protocolo: Protocolo) -> dict[str, Any]:
         if protocolo.ultima_cobranca_em
         else None,
         "ultimo_alerta_sla_nivel": protocolo.ultimo_alerta_sla_nivel or "",
+        "urgencia": getattr(protocolo, "urgencia", "normal") or "normal",
     }
 
 

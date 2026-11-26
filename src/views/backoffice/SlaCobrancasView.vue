@@ -31,10 +31,16 @@
     </header>
 
     <template v-if="aba === 'atrasados'">
-      <div v-if="resumo" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div v-if="resumo" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="card p-4 border-l-4 border-amber-500">
           <p class="text-xs uppercase font-semibold text-gray-500">Total em atraso</p>
           <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ resumo.total_atrasados }}</p>
+        </div>
+        <div class="card p-4 border-l-4 border-rose-600">
+          <p class="text-xs uppercase font-semibold text-gray-500">Críticos em aberto</p>
+          <p class="text-3xl font-bold text-rose-800 dark:text-rose-200">
+            {{ resumo.total_criticos_abertos ?? 0 }}
+          </p>
         </div>
         <div class="card p-4 border-l-4 border-red-500">
           <p class="text-xs uppercase font-semibold text-gray-500">Com cobrança do cidadão</p>
@@ -137,6 +143,7 @@
             <tr>
               <th class="px-4 py-3 text-left">Protocolo</th>
               <th class="px-4 py-3 text-left">Serviço</th>
+              <th class="px-4 py-3 text-left">Urgência</th>
               <th class="px-4 py-3 text-left">Secretaria</th>
               <th class="px-4 py-3 text-left">Equipamento</th>
               <th class="px-4 py-3 text-left">Responsável</th>
@@ -154,6 +161,9 @@
             >
               <td class="px-4 py-3 font-mono text-primary-600 dark:text-primary-400">{{ row.codigo }}</td>
               <td class="px-4 py-3 max-w-[12rem] truncate">{{ row.servico_nome }}</td>
+              <td class="px-4 py-3">
+                <UrgenciaBadge :nivel="row.urgencia" size="sm" />
+              </td>
               <td class="px-4 py-3 max-w-[10rem] truncate">{{ row.unidade_nome }}</td>
               <td class="px-4 py-3 max-w-[8rem] truncate">{{ row.equipamento || '—' }}</td>
               <td class="px-4 py-3 max-w-[8rem] truncate">{{ row.responsavel_nome }}</td>
@@ -301,6 +311,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ClockIcon, BellAlertIcon } from '@heroicons/vue/24/outline'
+import UrgenciaBadge from '@/components/backoffice/common/UrgenciaBadge.vue'
 import { catalogoLookupService, slaCobrancaService } from '@/services/api'
 import { useBackofficeStore } from '@/stores/backoffice'
 import { getApiErrorMessage } from '@/utils/apiError'

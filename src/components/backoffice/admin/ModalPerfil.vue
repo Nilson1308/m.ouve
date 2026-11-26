@@ -144,10 +144,30 @@
                     </p>
                   </div>
                 </div>
+
+                <div class="flex items-start gap-3 p-3 bg-rose-50 dark:bg-rose-950/30 rounded-lg border border-rose-200 dark:border-rose-800 md:col-span-2">
+                  <input
+                    v-model="formulario.permissoes.regras.pode_alterar_urgencia"
+                    type="checkbox"
+                    id="pode-alterar-urgencia"
+                    class="mt-0.5 w-4 h-4 text-rose-600 bg-gray-100 border-gray-300 rounded focus:ring-rose-500 dark:focus:ring-rose-400"
+                  />
+                  <div class="flex-1">
+                    <label
+                      for="pode-alterar-urgencia"
+                      class="block text-sm font-semibold text-gray-900 dark:text-white cursor-pointer"
+                    >
+                      Permitir alterar urgência manualmente nos protocolos
+                    </label>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      Inclui aceitar ou descartar sugestões da IA. Toda alteração exige justificativa auditável.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- Seção: MATRIZ DE PERMISSÕES 🎯 -->
+            <!-- Seção: MATRIZ DE PERMISSÕES -->
             <div>
               <div class="flex items-center justify-between mb-4">
                 <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -377,6 +397,14 @@ const formulario = ref({
 const salvando = ref(false)
 
 // Inicializar matriz de permissões
+function ensureRegrasPermissoes(perms) {
+  if (!perms.regras) perms.regras = {}
+  if (perms.regras.pode_alterar_urgencia === undefined) {
+    perms.regras.pode_alterar_urgencia = false
+  }
+  return perms
+}
+
 function inicializarPermissoes() {
   const perms = {}
   modulos.forEach(modulo => {
@@ -385,7 +413,7 @@ function inicializarPermissoes() {
       perms[modulo.key][acao.key] = false
     })
   })
-  return perms
+  return ensureRegrasPermissoes(perms)
 }
 
 // Preencher formulário se estiver editando
@@ -397,9 +425,11 @@ watch(() => props.perfil, (perfil) => {
       descricao: perfil.descricao || '',
       requer_vinculo: perfil.requer_vinculo || false,
       ativo: perfil.ativo !== false,
-      permissoes: perfil.permissoes ? JSON.parse(JSON.stringify(perfil.permissoes)) : inicializarPermissoes()
+      permissoes: ensureRegrasPermissoes(
+        perfil.permissoes ? JSON.parse(JSON.stringify(perfil.permissoes)) : inicializarPermissoes()
+      )
     }
-    
+
     // Garantir que todos os módulos existem
     modulos.forEach(modulo => {
       if (!formulario.value.permissoes[modulo.key]) {

@@ -25,6 +25,7 @@ PERMISSOES_TEMPLATE: dict[str, dict[str, bool]] = {
         "exige_unidade": False,
         "acesso_staff": False,
         "super_admin": False,
+        "pode_alterar_urgencia": False,
     },
 }
 
@@ -203,6 +204,17 @@ def make_has_module_permission(modulo: str, acao: str) -> type[BasePermission]:
 def codigos_permissao_catalogo() -> list[str]:
     """Lista canônica `modulo.acao` (matriz CRUD — consumida pelo frontend)."""
     return [f"{mod}.{acao}" for mod in MODULOS_MATRIZ for acao in ACOES_CRUD]
+
+
+def usuario_pode_alterar_urgencia(user) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    if usuario_e_super_admin(user):
+        return True
+    perfil = getattr(user, "perfil_acesso", None)
+    if not perfil:
+        return False
+    return bool(regras_do_perfil(perfil).get("pode_alterar_urgencia"))
 
 
 def listar_permissoes_efetivas(user) -> list[str]:

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import api from '@/services/api'
+import api, { matrizUrgenciaService } from '@/services/api'
+import { OPCOES_URGENCIA_FILTRO } from '@/utils/urgenciaHelpers'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
   mapOrdemServicoDetalhe,
@@ -51,6 +52,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
     equipamentoRotulo: '',
     apenasCobrados: false,
     apenasReabertos: false,
+    apenasSugestaoUrgenciaIa: false,
     page: 1
   })
 
@@ -100,6 +102,9 @@ export const useBackofficeStore = defineStore('backoffice', () => {
     if (filtros.value.apenasReabertos) {
       p.apenas_reabertos = 'true'
     }
+    if (filtros.value.apenasSugestaoUrgenciaIa) {
+      p.apenas_sugestao_urgencia_ia = 'true'
+    }
     return p
   }
 
@@ -132,7 +137,8 @@ export const useBackofficeStore = defineStore('backoffice', () => {
       (f.urgenciaLista?.length || 0) +
       (f.equipamentoId ? 1 : 0) +
       (f.apenasCobrados ? 1 : 0) +
-      (f.apenasReabertos ? 1 : 0)
+      (f.apenasReabertos ? 1 : 0) +
+      (f.apenasSugestaoUrgenciaIa ? 1 : 0)
     )
   })
 
@@ -275,6 +281,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
       equipamentoRotulo: '',
       apenasCobrados: false,
       apenasReabertos: false,
+      apenasSugestaoUrgenciaIa: false,
       page: 1
     }
   }
@@ -289,7 +296,21 @@ export const useBackofficeStore = defineStore('backoffice', () => {
     filtros.value.equipamentoRotulo = payload.equipamentoRotulo || ''
     filtros.value.apenasCobrados = Boolean(payload.apenasCobrados)
     filtros.value.apenasReabertos = Boolean(payload.apenasReabertos)
+    filtros.value.apenasSugestaoUrgenciaIa = Boolean(payload.apenasSugestaoUrgenciaIa)
     filtros.value.page = 1
+  }
+
+  async function alterarUrgenciaProtocolo(protocoloId, body) {
+    const data = await matrizUrgenciaService.alterarUrgenciaProtocolo(protocoloId, body)
+    const mapped = mapProtocoloDetalheBackoffice(data)
+    if (protocoloAtual.value?.id === protocoloId) {
+      protocoloAtual.value = mapped
+    }
+    const idx = protocolos.value.findIndex((p) => p.id === protocoloId)
+    if (idx >= 0) {
+      protocolos.value[idx] = { ...protocolos.value[idx], ...mapProtocoloBackoffice(data) }
+    }
+    return mapped
   }
 
   async function carregarOpcoesFiltrosMesa() {
@@ -300,7 +321,8 @@ export const useBackofficeStore = defineStore('backoffice', () => {
         bairros: data.bairros || [],
         servicos: data.servicos || [],
         status: data.status || [],
-        urgencias: data.urgencias || []
+        urgencias:
+          data.urgencias?.length > 0 ? data.urgencias : [...OPCOES_URGENCIA_FILTRO]
       }
       return opcoesFiltrosMesa.value
     } catch (e) {
@@ -308,7 +330,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
         bairros: [],
         servicos: [],
         status: [],
-        urgencias: []
+        urgencias: [...OPCOES_URGENCIA_FILTRO]
       }
       throw e
     } finally {
@@ -431,6 +453,7 @@ export const useBackofficeStore = defineStore('backoffice', () => {
     carregarDetalhesProtocolo,
     validarProtocolo,
     devolverOrdemServico,
+    alterarUrgenciaProtocolo,
     limparProtocoloAtual,
     setFiltro,
     toggleFiltroBoolean,

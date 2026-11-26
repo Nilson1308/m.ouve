@@ -1023,13 +1023,15 @@ Retorna o perfil do usuário autenticado (mesmo formato de `user` no login/regis
   ],
   "tipo_usuario": "backoffice",
   "is_backoffice": true,
-  "is_cidadao": false
+  "is_cidadao": false,
+  "pode_alterar_urgencia": true
 }
 ```
 
 | Campo | Descrição |
 |-------|-----------|
 | `permissoes` | Lista ordenada de códigos `modulo.acao` (matriz CRUD) **ativos** no perfil. Super Admin recebe o catálogo completo. Cidadão sem perfil: `[]`. |
+| `pode_alterar_urgencia` | (v4.16) `true` se `regras.pode_alterar_urgencia` ou Super Admin — alteração manual / aceite de sugestão IA |
 | `tipo_usuario` | `"backoffice"` ou `"cidadao"` — usado pelo frontend para rotear login PWA vs backoffice. |
 | `is_superadmin` | `true` se `regras.super_admin` ou `is_superuser` Django. |
 | `perfil` | `null` para cidadãos. |
@@ -1209,6 +1211,7 @@ Workers Celery Beat: `verificar_escalonamento_sla_task` (horária), `enviar_dige
     "total_atrasados": 12,
     "total_com_cobranca": 3,
     "total_escalonados": 2,
+    "total_criticos_abertos": 1,
     "por_unidade": [
       { "unidade_id": "uuid", "nome": "Secretaria X", "total": 5, "com_cobranca": 1 }
     ]
@@ -1226,11 +1229,14 @@ Workers Celery Beat: `verificar_escalonamento_sla_task` (horária), `enviar_dige
       "dias_atraso": 4,
       "qtd_cobrancas_cidadao": 2,
       "ultima_cobranca_em": "2026-11-22T10:00:00Z",
-      "ultimo_alerta_sla_nivel": "vencido"
+      "ultimo_alerta_sla_nivel": "vencido",
+      "urgencia": "critica"
     }
   ]
 }
 ```
+
+**Digest e-mail (v4.16):** contexto inclui `total_criticos_abertos`; linhas com `destaque_critico=true` para `urgencia=critica`.
 
 ### GET `/api/v1/backoffice/relatorios/sla-atrasados/exportar`
 
@@ -1297,12 +1303,13 @@ Lista protocolos otimizada para Kanban / tabela, com ordens de serviço aninhada
 |---------------|---------|--------------------------------------------------------|
 | `status`      | string  | `em_analise`, `em_andamento`, `aguardando_revisao`, `resolvido`, `rejeitado` |
 | `busca`       | string  | Busca em `codigo` e `descricao`                        |
-| `urgencia`    | string  | Valor em `dados_dinamicos` (urgencia/prioridade)       |
+| `urgencia`    | string  | (v4.16) Campo `Protocolo.urgencia` — único valor ou lista CSV (`baixa,normal,alta,critica`) |
+| `apenas_sugestao_urgencia_ia` | boolean | (v4.16) `urgencia_sugestao_status=pendente` |
 | `sla_vencido` | boolean | `true` = fora do prazo do catálogo (`sla_horas`)       |
 | `apenas_cobrados` | boolean | (v4.12) `true` = `qtd_cobrancas_cidadao >= 1`      |
 | `page`        | int     | Página (padrão 1)                                      |
 | `per_page`    | int     | Itens por página (máx. 100)                            |
-| `ordering`    | string  | Ex.: `-data_criacao`, `codigo`, `status`               |
+| `ordering`    | string  | Ex.: `-urgencia_peso`, `prazo_sla` (padrão v4.16), `-data_criacao`, `codigo` |
 | `equipamento_id` | uuid | Filtra protocolos vinculados ao equipamento (v4.11)   |
 
 **Response 200 (paginado):**
@@ -1334,6 +1341,15 @@ Lista protocolos otimizada para Kanban / tabela, com ordens de serviço aninhada
         "horas_restantes": 48.0
       },
       "urgencia": "alta",
+      "urgencia_peso": 3,
+      "urgencia_origem": "regra",
+      "urgencia_sugerida_ia": "",
+      "urgencia_motivo_ia": "",
+      "urgencia_confianca_ia": null,
+      "urgencia_sugestao_status": "",
+      "urgencia_travada_manualmente": false,
+      "pode_alterar_urgencia": true,
+      "urgencia_reduz_sla_ativo": false,
       "cidadao": {
         "id": "880e8400-e29b-41d4-a716-446655440003",
         "nome": "João Silva",
@@ -2433,7 +2449,192 @@ Scatter-gather da Super OS — mesmo contrato do despacho de protocolo.
 **Versão:** 2.2  
 **Data:** Novembro 2026  
 **Última Atualização:** Nov 17, 2026  
-**Versão do contrato:** 4.15.1
+**Versão do contrato:** 4.17.0
+
+---
+
+## 🚨 Matriz de Urgência Parametrizável (v4.16)
+
+Motor de governança com **quatro níveis canônicos**: `baixa`, `normal`, `alta`, `critica`. Pesos para ordenação: 1–4 (`urgencia_peso`). Parâmetros em banco (`ConfiguracaoMatrizUrgencia` — singleton); **sem critérios fixos de município no código**.
+
+**Classificação na abertura:** `servico.urgencia_padrao` → regras `regras_campo_urgencia` (match em `dados_dinamicos`) → sinais IA (`criterios_ia_customizados`, modo `sugerir` | `aplicar_automatico`). **Super OS:** escalonamento por volume (`super_os_limite_alta` / `super_os_limite_critica`) ao vincular protocolos.
+
+### GET / PATCH `/api/v1/backoffice/configuracoes/matriz-urgencia`
+
+**Permissão:** `configuracoes.ler` (GET) / `configuracoes.editar` (PATCH).
+
+| Campo | Tipo | Padrão | Descrição |
+|-------|------|--------|-----------|
+| `matriz_ativa` | bool | `true` | Liga o motor |
+| `ia_urgencia_ativa` | bool | `true` | Avaliação semântica/heurística configurável |
+| `ia_urgencia_modo` | string | `sugerir` | `sugerir` \| `aplicar_automatico` |
+| `ia_confianca_minima` | float | `0.85` | 0,50–1,00 — limiar no modo automático |
+| `criterios_ia_customizados` | object | `{}` | Por nível (`alta`, `critica`): listas `sinais` / `criterios` |
+| `regras_campo_urgencia` | array | `[]` | `{ "chave_schema", "valor", "urgencia" }` |
+| `super_os_escalonamento_ativo` | bool | `true` | Volume em cluster |
+| `super_os_limite_alta` | int | `5` | ≥ 2 protocolos abertos |
+| `super_os_limite_critica` | int | `15` | > `super_os_limite_alta` |
+| `urgencia_reduz_sla` | bool | `false` | Recalcula `prazo_sla` em alta/crítica |
+| `fator_sla_alta_percentual` | int | `50` | 10–95 % do SLA base |
+| `fator_sla_critica_percentual` | int | `25` | 5–90 % do SLA base |
+| `sla_minimo_critica_horas` | int | `24` | Piso em horas |
+| `notificar_gestor_em_alta` | bool | `true` | In-app gestores da unidade |
+| `notificar_controladoria_em_critica` | bool | `true` | In-app controladoria + unidade |
+| `atualizado_em` | string | — | ISO8601 (read-only) |
+
+### POST `/api/v1/backoffice/protocolos/<uuid:protocolo_id>/urgencia`
+
+**Permissão:** `regras.pode_alterar_urgencia` no perfil (seed: `ouvidor`, `super_admin` = `true`) + escopo `escopo_dados`.
+
+**Alteração manual:**
+
+```json
+{ "urgencia": "alta", "justificativa": "Mínimo 10 caracteres." }
+```
+
+**Sugestão IA:**
+
+```json
+{ "acao": "aceitar_sugestao_ia", "justificativa": "opcional" }
+```
+
+```json
+{ "acao": "descartar_sugestao_ia" }
+```
+
+**Erros:** `403` sem permissão; `400` justificativa &lt; 10 chars ou sugestão inexistente.
+
+**Response 200:** protocolo (formato Detalhe 360º / Kanban) com campos de urgência abaixo.
+
+### Campos `Protocolo` (v4.16)
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `urgencia` | string | `baixa` \| `normal` \| `alta` \| `critica` |
+| `urgencia_peso` | int | 1–4 (ordenção padrão) |
+| `urgencia_origem` | string | `catalogo` \| `regra` \| `ia` \| `super_os` \| `manual` |
+| `urgencia_sugerida_ia` | string | Nível sugerido (pode diferir da fila) |
+| `urgencia_motivo_ia` | string | Trecho / sinais matched |
+| `urgencia_confianca_ia` | float \| null | 0–1 |
+| `urgencia_sugestao_status` | string | `""` \| `pendente` \| `aceita` \| `descartada` |
+| `urgencia_travada_manualmente` | bool | Bloqueia escalonamento Super OS |
+| `pode_alterar_urgencia` | bool | (somente leitura API) usuário da requisição |
+| `urgencia_reduz_sla_ativo` | bool | (somente leitura) flag global `urgencia_reduz_sla` |
+
+**Catálogo:** `ServicoCatalogo.urgencia_padrao` — mesmo enum de quatro níveis.
+
+**Ordenação padrão Mesa e setorial:** `-urgencia_peso`, `prazo_sla` asc (custom `ordering` preservado na Mesa).
+
+**Filtros:** `urgencia` (valor único ou lista CSV) e `apenas_sugestao_urgencia_ia=true` (Mesa + setorial).
+
+**GET `/auth/me` (v4.16):** campo booleano `pode_alterar_urgencia` (espelha `regras.pode_alterar_urgencia`).
+
+**SLA pausado (v4.14):** com `sla_pausado_desde` preenchido, `aplicar_impacto_sla_urgencia` **não** altera prazo até retomar.
+
+---
+
+## 🤖 Agente IA Proativo — Radar (v4.17)
+
+**Sprint 4.7A (Fase A):** motor determinístico de fatos/anomalias (sem PII) + síntese LLM com **budget cap** mensal de tokens e **fallback determinístico** automático. Briefing diário por escopo (`controladoria`, `ouvidoria`, `unidade`); bloco **Radar IA** opcional no e-mail Digest SLA.
+
+**Princípio:** o LLM não consulta banco, não calcula métricas e não recebe dados pessoais de munícipes — apenas o JSON auditável `fatos_deterministicos`.
+
+### GET / PATCH `/api/v1/backoffice/configuracoes/agente-gestao`
+
+**Permissão:** `configuracoes.ler` (GET) / `configuracoes.editar` (PATCH).
+
+| Campo | Tipo | Padrão | Descrição |
+|-------|------|--------|-----------|
+| `agente_ativo` | bool | `true` | Liga o agente (LLM + fallback) |
+| `briefing_proativo_ativo` | bool | `true` | Celery Beat diário |
+| `briefing_hora_geracao` | int | `7` | 0–23 (hora local) |
+| `incluir_resumo_no_digest_email` | bool | `true` | Bloco Radar IA no Digest |
+| `copiloto_chat_ativo` | bool | `true` | Reservado Fase B |
+| `limite_perguntas_dia_por_usuario` | int | `30` | ≥ 1 (Fase B) |
+| `orcamento_tokens_mensal` | int | `2000000` | ≥ 10000 — budget cap |
+| `anomalia_percentual_minimo` | int | `50` | 10–500 % vs média 4 semanas |
+| `anomalia_volume_minimo` | int | `3` | ≥ 2 eventos no período |
+| `dias_parado_triagem_alerta` | int | `2` | ≥ 1 — gargalo `em_analise` |
+| `atualizado_em` | string | — | ISO8601 (read-only) |
+
+### GET `/api/v1/backoffice/agente/briefing`
+
+**Permissão:** `mesa_trabalho.ler` + `IsBackofficeStaff`.
+
+**Persona / escopo (anti-IDOR):**
+
+| Perfil | Escopo efetivo |
+|--------|----------------|
+| Super Admin / controladoria municipal | `controladoria` (opcional `?perspectiva=ouvidoria` ou `?unidade_id=<uuid>`) |
+| Ouvidor municipal | `ouvidoria` |
+| Gestor setorial | `unidade` — **ignora** `unidade_id`/`perspectiva` alheios (`403` se tentativa explícita) |
+
+**Query:** `?forcar=true` — regenera briefing (rate-limit Redis: **1 / 15 min** por escopo → `429` com `proxima_atualizacao_em`).
+
+**Response 200:**
+
+```json
+{
+  "briefing_id": "uuid",
+  "escopo_tipo": "controladoria",
+  "unidade_id": null,
+  "data_referencia": "2026-11-26",
+  "modo_geracao": "llm",
+  "modelo_llm": "…",
+  "fatos_deterministicos": { },
+  "conteudo": {
+    "resumo_executivo": "…",
+    "resumo_executivo_email": "…",
+    "insights": [
+      {
+        "id": "sla_vencidos",
+        "categoria": "acao_imediata",
+        "severidade": "alta",
+        "titulo": "…",
+        "evidencia_numerica": "…",
+        "recomendacao": "…",
+        "acao_sugerida": { "label": "…", "rota": "/backoffice/mesa", "query": { } }
+      }
+    ]
+  },
+  "resumo_executivo_email": "…",
+  "tokens_mes_atual": 12000,
+  "orcamento_tokens_mensal": 2000000,
+  "percentual_consumo": 0.6,
+  "minhas_avaliacoes": { "insight_id": true }
+}
+```
+
+### POST `/api/v1/backoffice/agente/briefing/<uuid:briefing_id>/avaliar`
+
+**Body:** `{ "insight_id": "string", "util": true, "comentario": "" }` (comentário máx. 300 chars). Upsert por `(briefing, insight_id, usuario)`. `403` fora do escopo do briefing.
+
+### Digest SLA (v4.17)
+
+Com `incluir_resumo_no_digest_email=true` e `agente_ativo=true`:
+
+- **Unidade:** bloco HTML/texto **「Radar IA — Síntese da Pasta」** (resumo + top 3 alertas).
+- **Controladoria:** **「Radar IA — Síntese Executiva do Município」**.
+
+Falha ao gerar briefing **não cancela** o envio do Digest.
+
+### NOC — `GET /api/v1/backoffice/admin/saude-infra/` (v4.17)
+
+Objeto adicional `agente_ia`:
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `ativo` | bool | `ConfiguracaoAgenteGestao.agente_ativo` |
+| `tokens_mes_atual` | int | Soma entrada+saída no mês |
+| `orcamento_tokens_mensal` | int | Limite configurado |
+| `percentual_consumo` | float | 0–100+ |
+| `alerta_budget_80` | bool | consumo ≥ 80 % |
+| `budget_esgotado` | bool | consumo ≥ orçamento |
+| `ultimo_briefing_em` | string \| null | ISO8601 do último `BriefingOperacionalIA` |
+
+### Celery Beat
+
+`gerar_briefings_operacionais_diarios_task` — minuto 0, hora = `briefing_hora_geracao` (respeita `agente_ativo` + `briefing_proativo_ativo`); gera controladoria, ouvidoria e unidades com movimento.
 
 ---
 
@@ -2476,7 +2677,8 @@ Chaves ausentes são interpretadas como `false`. O backend **normaliza** legados
   "regras": {
     "exige_unidade": false,
     "acesso_staff": false,
-    "super_admin": false
+    "super_admin": false,
+    "pode_alterar_urgencia": false
   }
 }
 ```
@@ -2522,13 +2724,14 @@ Formato: **`{modulo}.{acao}`**. Apenas combinações com valor `true` no perfil 
 | `configuracoes` | ler, criar, editar, excluir | Unidades, catálogo, sistema |
 | `textos_padrao` | ler, criar, editar, excluir | Textos padrão de despacho |
 | `gestao_usuarios` | ler, criar, editar, excluir | Usuários internos |
-| `regras` | (metadados) | `exige_unidade`, `acesso_staff`, `super_admin` |
+| `regras` | (metadados) | `exige_unidade`, `acesso_staff`, `super_admin`, `pode_alterar_urgencia` (v4.16) |
 
 **`regras` (comportamento):**
 
 - `exige_unidade`: se `true`, o usuário **deve** ter `unidade_id`; se `false`, `unidade_id` deve ser `null`.
 - `acesso_staff`: sincroniza `Usuario.is_staff` no `save()`.
 - `super_admin`: sincroniza `is_staff` + `is_superuser` e libera CRUD de governança.
+- `pode_alterar_urgencia` (v4.16): permite `POST .../protocolos/<id>/urgencia` e trava manual da fila; seed `true` em `ouvidor` e `super_admin`.
 
 **Perfis seed (migração `0006`):** `super_admin`, `ouvidor`, `gestor_setorial`, `operador_campo` — equivalentes aos perfis estáticos da v3.0, agora editáveis exceto exclusão (`sistema=true`).
 
@@ -3699,6 +3902,8 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.17.0** (Nov 26, 2026): Sprint 4.7A — Agente IA proativo (Radar): `ConfiguracaoAgenteGestao`, `BriefingOperacionalIA`, `AvaliacaoInsightIA`; motor determinístico `coletar_fatos_operacionais`; `gerar_briefing_escopo` (LLM + budget cap + fallback); `GET/PATCH /backoffice/configuracoes/agente-gestao`; `GET /backoffice/agente/briefing` (`?forcar=true` + rate-limit 429); `POST …/briefing/<id>/avaliar`; Digest SLA com bloco Radar IA; NOC `agente_ia`; Celery `gerar_briefings_operacionais_diarios_task`; invalidação Redis em protocolo crítico
+- **v4.16.0** (Nov 25, 2026): Sprint 4.6 — Matriz de urgência (`ConfiguracaoMatrizUrgencia`, `Protocolo.urgencia*`); `GET/PATCH /backoffice/configuracoes/matriz-urgencia`; `POST /backoffice/protocolos/<id>/urgencia`; RBAC `pode_alterar_urgencia`; ordenação `-urgencia_peso` + `prazo_sla`; filtros `urgencia` / `apenas_sugestao_urgencia_ia`; `ServicoCatalogo.urgencia_padrao`; SLA/digest `total_criticos_abertos` + `urgencia` em atrasados
 - **v4.15.1** (Nov 25, 2026): Sprint 4.5 — `GET /publico/evidencias/<token>` (contexto operacional LGPD); remoção de push/in-app por turno de chat RAG; `busca`/`search` em `GET /backoffice/unidades` e `GET /backoffice/usuarios`; comando `limpar_notificacoes_chat_rag`
 - **v4.15.0** (Nov 24, 2026): Sprint 4 — janela de reabertura parametrizável (`ConfiguracaoSlaCobranca`, `ServicoCatalogo.prazo_reabertura_dias`); `ReaberturaProtocolo`; `POST /protocolos/<id>/reabrir`; CSAT com `pode_reabrir`/`sugerir_reabertura_csat` e reavaliação pós-reabertura; KPI `taxa_retrabalho_percentual` (eficiência + qualidade + `matriz_servicos`); filtro `apenas_reabertos`; Celery `encerrar_janelas_reabertura_expiradas_task`
 - **v4.14.2** (Nov 24, 2026): Sprint 3.1 — `anexos` resolvidos em objetos de diligência (backoffice/PWA/setorial); `AnexoProtocolo` enriquecido no PWA; `GET /backoffice/setorial/ordens/<id>`; badges de diligência na listagem setorial; RBAC `painel_setorial.criar` para abrir/cancelar diligência na OS da unidade; `pode_abrir_diligencia` considera permissão do usuário

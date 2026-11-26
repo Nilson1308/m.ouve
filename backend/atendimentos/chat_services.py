@@ -195,6 +195,9 @@ def finalizar_sessao_com_protocolo(sessao: SessaoChat) -> Protocolo:
     )
 
     processar_governanca_entrada_protocolo(protocolo)
+    from atendimentos.services.matriz_urgencia_service import classificar_urgencia_entrada
+
+    classificar_urgencia_entrada(protocolo)
     _transferir_anexos_para_protocolo(sessao, protocolo)
 
     set_meta(sessao, fase=FaseChat.CONCLUIDO)

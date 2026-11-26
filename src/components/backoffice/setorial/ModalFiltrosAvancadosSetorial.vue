@@ -140,6 +140,20 @@
                   </button>
                 </div>
               </section>
+
+              <section>
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Triagem de urgência</h3>
+                <label class="flex items-center gap-3 min-h-[44px] cursor-pointer">
+                  <input
+                    v-model="local.apenasSugestaoUrgenciaIa"
+                    type="checkbox"
+                    class="w-4 h-4 rounded text-violet-600 focus:ring-violet-500 dark:focus:ring-violet-400"
+                  />
+                  <span class="text-sm text-gray-700 dark:text-gray-300">
+                    Somente com sugestão de urgência aguardando revisão
+                  </span>
+                </label>
+              </section>
             </div>
 
             <div class="shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col-reverse sm:flex-row gap-2 sm:justify-between bg-gray-50 dark:bg-gray-800/80 sm:rounded-b-modal">
@@ -186,7 +200,8 @@ const local = reactive({
   bairros: [],
   statusLista: [],
   urgenciaLista: [],
-  apenasReabertos: false
+  apenasReabertos: false,
+  apenasSugestaoUrgenciaIa: false
 })
 
 function snapshotFromStore() {
@@ -196,6 +211,7 @@ function snapshotFromStore() {
   local.statusLista = [...(f.statusLista || [])]
   local.urgenciaLista = [...(f.urgenciaLista || [])]
   local.apenasReabertos = Boolean(f.apenasReabertos)
+  local.apenasSugestaoUrgenciaIa = Boolean(f.apenasSugestaoUrgenciaIa)
 }
 
 watch(
@@ -225,7 +241,8 @@ const totalSelecionados = computed(
     local.bairros.length +
     local.statusLista.length +
     local.urgenciaLista.length +
-    (local.apenasReabertos ? 1 : 0)
+    (local.apenasReabertos ? 1 : 0) +
+    (local.apenasSugestaoUrgenciaIa ? 1 : 0)
 )
 
 function toggleItem(arr, value) {
@@ -269,6 +286,7 @@ function limparLocal() {
   local.statusLista = []
   local.urgenciaLista = []
   local.apenasReabertos = false
+  local.apenasSugestaoUrgenciaIa = false
 }
 
 function aplicar() {
@@ -277,7 +295,8 @@ function aplicar() {
     bairros: [...local.bairros],
     statusLista: [...local.statusLista],
     urgenciaLista: [...local.urgenciaLista],
-    apenasReabertos: local.apenasReabertos
+    apenasReabertos: local.apenasReabertos,
+    apenasSugestaoUrgenciaIa: local.apenasSugestaoUrgenciaIa
   })
 }
 </script>

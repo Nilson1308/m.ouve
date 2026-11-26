@@ -105,22 +105,21 @@
                 </div>
               </td>
 
-              <!-- Prioridade -->
+              <!-- Urgência -->
               <td class="px-6 py-4">
-                <span
-                  :class="[
-                    'inline-flex items-center gap-1 px-2.5 py-1 rounded-badge text-xs font-semibold',
-                    ordem.prioridade === 'urgente'
-                      ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                      : ordem.prioridade === 'alta'
-                      ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
-                      : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                  ]"
-                >
-                  <ExclamationCircleIcon v-if="ordem.prioridade === 'urgente'" class="w-3.5 h-3.5" />
-                  <FireIcon v-else-if="ordem.prioridade === 'alta'" class="w-3.5 h-3.5" />
-                  {{ ordem.prioridade === 'urgente' ? 'Urgente' : ordem.prioridade === 'alta' ? 'Alta' : 'Normal' }}
-                </span>
+                <div class="flex flex-col gap-1 items-start">
+                  <UrgenciaBadge
+                    :nivel="ordem.urgencia || ordem.prioridade"
+                    :sugestao-ia-pendente="ordem.sugereIa"
+                    size="sm"
+                  />
+                  <span
+                    v-if="ordem.sugereIa"
+                    class="text-[10px] font-medium text-violet-800 dark:text-violet-200"
+                  >
+                    Revisar: {{ labelUrgencia(ordem.urgenciaSugeridaIa || ordem.urgencia_sugerida_ia) }}
+                  </span>
+                </div>
               </td>
 
               <!-- Status -->
@@ -335,6 +334,8 @@ import CardOrdemKanban from './CardOrdemKanban.vue'
 import BadgeSuperOS from './BadgeSuperOS.vue'
 import BadgeDiligenciaOS from './BadgeDiligenciaOS.vue'
 import BadgeReabertoProtocolo from '@/components/backoffice/protocolo/BadgeReabertoProtocolo.vue'
+import UrgenciaBadge from '@/components/backoffice/common/UrgenciaBadge.vue'
+import { labelUrgencia } from '@/utils/urgenciaHelpers'
 
 const props = defineProps({
   ordens: {

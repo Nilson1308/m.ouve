@@ -108,6 +108,47 @@ class Protocolo(models.Model):
     reabertura_ate = models.DateTimeField(null=True, blank=True, db_index=True)
     encerrado_definitivamente_em = models.DateTimeField(null=True, blank=True)
 
+    class Urgencia(models.TextChoices):
+        BAIXA = "baixa", "Baixa"
+        NORMAL = "normal", "Normal"
+        ALTA = "alta", "Alta"
+        CRITICA = "critica", "Crítica"
+
+    class UrgenciaOrigem(models.TextChoices):
+        CATALOGO = "catalogo", "Catálogo"
+        REGRA = "regra", "Regra de campo"
+        IA = "ia", "Inteligência artificial"
+        SUPER_OS = "super_os", "Super OS"
+        MANUAL = "manual", "Manual"
+
+    class UrgenciaSugestaoStatus(models.TextChoices):
+        PENDENTE = "pendente", "Pendente"
+        ACEITA = "aceita", "Aceita"
+        DESCARTADA = "descartada", "Descartada"
+
+    urgencia = models.CharField(
+        max_length=16,
+        choices=Urgencia.choices,
+        default=Urgencia.NORMAL,
+        db_index=True,
+    )
+    urgencia_peso = models.PositiveSmallIntegerField(default=2, db_index=True)
+    urgencia_origem = models.CharField(
+        max_length=16,
+        choices=UrgenciaOrigem.choices,
+        default=UrgenciaOrigem.CATALOGO,
+    )
+    urgencia_sugerida_ia = models.CharField(max_length=16, blank=True, default="")
+    urgencia_motivo_ia = models.TextField(blank=True, default="")
+    urgencia_confianca_ia = models.FloatField(null=True, blank=True)
+    urgencia_sugestao_status = models.CharField(
+        max_length=16,
+        choices=UrgenciaSugestaoStatus.choices,
+        blank=True,
+        default="",
+    )
+    urgencia_travada_manualmente = models.BooleanField(default=False)
+
     class Meta:
         ordering = ["-data_criacao"]
         indexes = [
@@ -118,6 +159,7 @@ class Protocolo(models.Model):
             models.Index(fields=["nota_satisfacao"]),
             models.Index(fields=["equipamento"]),
             models.Index(fields=["qtd_cobrancas_cidadao"]),
+            models.Index(fields=["-urgencia_peso", "prazo_sla"]),
         ]
 
     def __str__(self):
@@ -891,6 +933,176 @@ class RelatorioSlaEnvio(models.Model):
 
     class Meta:
         ordering = ["-criado_em"]
+
+
+class ConfiguracaoMatrizUrgencia(models.Model):
+    """Parâmetros da matriz de urgência (singleton id=1)."""
+
+    singleton_id = models.PositiveSmallIntegerField(
+        primary_key=True,
+        default=1,
+        editable=False,
+    )
+    matriz_ativa = models.BooleanField(default=True)
+    ia_urgencia_ativa = models.BooleanField(default=True)
+    ia_urgencia_modo = models.CharField(
+        max_length=24,
+        choices=(
+            ("sugerir", "Sugerir na Mesa"),
+            ("aplicar_automatico", "Aplicar automaticamente"),
+        ),
+        default="sugerir",
+    )
+    ia_confianca_minima = models.FloatField(default=0.85)
+    criterios_ia_customizados = models.JSONField(default=dict, blank=True)
+    regras_campo_urgencia = models.JSONField(default=list, blank=True)
+    super_os_escalonamento_ativo = models.BooleanField(default=True)
+    super_os_limite_alta = models.PositiveIntegerField(default=5)
+    super_os_limite_critica = models.PositiveIntegerField(default=15)
+    urgencia_reduz_sla = models.BooleanField(default=False)
+    fator_sla_alta_percentual = models.PositiveIntegerField(default=50)
+    fator_sla_critica_percentual = models.PositiveIntegerField(default=25)
+    sla_minimo_critica_horas = models.PositiveIntegerField(default=24)
+    notificar_gestor_em_alta = models.BooleanField(default=True)
+    notificar_controladoria_em_critica = models.BooleanField(default=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Configuração matriz de urgência"
+        verbose_name_plural = "Configuração matriz de urgência"
+
+    def save(self, *args, **kwargs):
+        self.singleton_id = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> "ConfiguracaoMatrizUrgencia":
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return "Configuração matriz de urgência"
+
+
+class ConfiguracaoAgenteGestao(models.Model):
+    """Agente IA proativo — radar, digest e copiloto (singleton id=1)."""
+
+    singleton_id = models.PositiveSmallIntegerField(
+        primary_key=True,
+        default=1,
+        editable=False,
+    )
+    agente_ativo = models.BooleanField(default=True)
+    briefing_proativo_ativo = models.BooleanField(default=True)
+    briefing_hora_geracao = models.PositiveSmallIntegerField(default=7)
+    incluir_resumo_no_digest_email = models.BooleanField(default=True)
+    copiloto_chat_ativo = models.BooleanField(default=True)
+    limite_perguntas_dia_por_usuario = models.PositiveIntegerField(default=30)
+    orcamento_tokens_mensal = models.PositiveIntegerField(default=2_000_000)
+    anomalia_percentual_minimo = models.PositiveIntegerField(default=50)
+    anomalia_volume_minimo = models.PositiveIntegerField(default=3)
+    dias_parado_triagem_alerta = models.PositiveIntegerField(default=2)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Configuração agente de gestão IA"
+        verbose_name_plural = "Configuração agente de gestão IA"
+
+    def save(self, *args, **kwargs):
+        self.singleton_id = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> "ConfiguracaoAgenteGestao":
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return "Configuração agente de gestão IA"
+
+
+class BriefingOperacionalIA(models.Model):
+    """Briefing diário por escopo (fatos determinísticos + síntese IA/fallback)."""
+
+    class EscopoTipo(models.TextChoices):
+        CONTROLADORIA = "controladoria", "Controladoria"
+        OUVIDORIA = "ouvidoria", "Ouvidoria"
+        UNIDADE = "unidade", "Unidade"
+
+    class ModoGeracao(models.TextChoices):
+        LLM = "llm", "LLM"
+        FALLBACK = "deterministico_fallback", "Determinístico (fallback)"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    escopo_tipo = models.CharField(
+        max_length=24,
+        choices=EscopoTipo.choices,
+        db_index=True,
+    )
+    unidade = models.ForeignKey(
+        "catalogo.UnidadeAdministrativa",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="briefings_operacionais",
+    )
+    data_referencia = models.DateField(db_index=True)
+    fatos_deterministicos = models.JSONField(default=dict, blank=True)
+    conteudo_ia = models.JSONField(default=dict, blank=True)
+    resumo_executivo_email = models.TextField(blank=True, default="")
+    modo_geracao = models.CharField(
+        max_length=32,
+        choices=ModoGeracao.choices,
+        default=ModoGeracao.FALLBACK,
+    )
+    modelo_llm = models.CharField(max_length=80, blank=True, default="")
+    tokens_entrada = models.PositiveIntegerField(default=0)
+    tokens_saida = models.PositiveIntegerField(default=0)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-data_referencia", "-criado_em"]
+        indexes = [
+            models.Index(fields=["escopo_tipo", "data_referencia"]),
+            models.Index(fields=["unidade", "data_referencia"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["escopo_tipo", "unidade", "data_referencia"],
+                name="uniq_briefing_escopo_data",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Briefing {self.escopo_tipo} {self.data_referencia}"
+
+
+class AvaliacaoInsightIA(models.Model):
+    """Feedback do gestor sobre um insight do briefing."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    briefing = models.ForeignKey(
+        BriefingOperacionalIA,
+        on_delete=models.CASCADE,
+        related_name="avaliacoes",
+    )
+    insight_id = models.CharField(max_length=64)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="avaliacoes_insight_ia",
+    )
+    util = models.BooleanField()
+    comentario = models.CharField(blank=True, default="", max_length=300)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["briefing", "insight_id", "usuario"],
+                name="uniq_avaliacao_insight_usuario",
+            ),
+        ]
 
 
 class ConfiguracaoSistema(models.Model):

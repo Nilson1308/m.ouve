@@ -168,9 +168,19 @@
 
             <!-- Urgência -->
             <td class="px-6 py-4 whitespace-nowrap">
-              <span :class="urgenciaBadgeClass(protocolo.urgencia)">
-                {{ urgenciaLabel(protocolo.urgencia) }}
-              </span>
+              <div class="flex flex-col gap-1 items-start">
+                <UrgenciaBadge
+                  :nivel="protocolo.urgencia"
+                  :sugestao-ia-pendente="sugestaoIaPendente(protocolo)"
+                  size="sm"
+                />
+                <span
+                  v-if="sugestaoIaPendente(protocolo)"
+                  class="text-[10px] font-medium text-violet-800 dark:text-violet-200"
+                >
+                  Revisar: {{ labelUrgencia(protocolo.urgenciaSugeridaIa || protocolo.urgencia_sugerida_ia) }}
+                </span>
+              </div>
             </td>
 
             <!-- SLA -->
@@ -291,6 +301,8 @@ import {
   InboxIcon
 } from '@heroicons/vue/24/outline'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
+import UrgenciaBadge from '@/components/backoffice/common/UrgenciaBadge.vue'
+import { labelUrgencia, sugestaoIaPendente } from '@/utils/urgenciaHelpers'
 import TriagemSugeridaIndicador from '@/components/backoffice/protocolo/TriagemSugeridaIndicador.vue'
 import BadgeReabertoProtocolo from '@/components/backoffice/protocolo/BadgeReabertoProtocolo.vue'
 import { useSuperOSStore } from '@/stores/super_os'
@@ -376,7 +388,7 @@ const protocolosOrdenados = computed(() => {
         valorB = b.status
         break
       case 'urgencia':
-        const ordemUrgencia = { baixa: 1, media: 2, alta: 3, critica: 4 }
+        const ordemUrgencia = { baixa: 1, normal: 2, media: 2, alta: 3, critica: 4 }
         valorA = ordemUrgencia[a.urgencia]
         valorB = ordemUrgencia[b.urgencia]
         break
@@ -480,26 +492,6 @@ function slaBarClass(protocolo) {
   if (sla.vencido) return 'bg-danger-500'
   if (sla.horasRestantes <= 24) return 'bg-warning-500'
   return 'bg-success-500'
-}
-
-function urgenciaLabel(urgencia) {
-  const labels = {
-    baixa: 'Baixa',
-    media: 'Média',
-    alta: 'Alta',
-    critica: 'Crítica'
-  }
-  return labels[urgencia] || urgencia
-}
-
-function urgenciaBadgeClass(urgencia) {
-  const classes = {
-    baixa: 'badge bg-success-100 text-success-700 dark:bg-success-900 dark:text-success-300',
-    media: 'badge bg-warning-100 text-warning-700 dark:bg-warning-900 dark:text-warning-300',
-    alta: 'badge bg-danger-100 text-danger-700 dark:bg-danger-900 dark:text-danger-300',
-    critica: 'badge bg-danger-200 text-danger-900 dark:bg-danger-800 dark:text-danger-200 animate-pulse'
-  }
-  return classes[urgencia] || classes.baixa
 }
 
 function getIconeCategoria(categoria) {

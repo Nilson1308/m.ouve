@@ -234,6 +234,20 @@
                   </button>
                 </div>
               </section>
+
+              <section>
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Triagem de urgência</h3>
+                <label class="flex items-center gap-3 min-h-[44px] cursor-pointer">
+                  <input
+                    v-model="local.apenasSugestaoUrgenciaIa"
+                    type="checkbox"
+                    class="w-4 h-4 rounded text-violet-600 focus:ring-violet-500 dark:focus:ring-violet-400"
+                  />
+                  <span class="text-sm text-gray-700 dark:text-gray-300">
+                    Somente com sugestão de urgência aguardando sua revisão
+                  </span>
+                </label>
+              </section>
             </div>
 
             <div class="shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col-reverse sm:flex-row gap-2 sm:justify-between bg-gray-50 dark:bg-gray-800/80 sm:rounded-b-modal">
@@ -295,7 +309,8 @@ const local = reactive({
   equipamentoId: '',
   equipamentoRotulo: '',
   apenasCobrados: false,
-  apenasReabertos: false
+  apenasReabertos: false,
+  apenasSugestaoUrgenciaIa: false
 })
 
 function snapshotFromStore() {
@@ -310,6 +325,7 @@ function snapshotFromStore() {
   buscaEquipamento.value = f.equipamentoRotulo || ''
   local.apenasCobrados = Boolean(f.apenasCobrados)
   local.apenasReabertos = Boolean(f.apenasReabertos)
+  local.apenasSugestaoUrgenciaIa = Boolean(f.apenasSugestaoUrgenciaIa)
 }
 
 async function buscarEquipamentosLookup() {
@@ -400,7 +416,8 @@ const totalSelecionados = computed(
     local.urgenciaLista.length +
     (local.equipamentoId ? 1 : 0) +
     (local.apenasCobrados ? 1 : 0) +
-    (local.apenasReabertos ? 1 : 0)
+    (local.apenasReabertos ? 1 : 0) +
+    (local.apenasSugestaoUrgenciaIa ? 1 : 0)
 )
 
 function toggleItem(arr, value) {
@@ -421,9 +438,9 @@ function chipUrgenciaClass(value) {
     baixa: selected
       ? 'bg-emerald-600 text-white ring-2 ring-emerald-400'
       : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200',
-    media: selected
-      ? 'bg-amber-600 text-white ring-2 ring-amber-400'
-      : 'bg-amber-50 dark:bg-amber-900/30 text-amber-900 dark:text-amber-200',
+    normal: selected
+      ? 'bg-sky-600 text-white ring-2 ring-sky-400'
+      : 'bg-sky-50 dark:bg-sky-900/30 text-sky-900 dark:text-sky-200',
     alta: selected
       ? 'bg-orange-600 text-white ring-2 ring-orange-400'
       : 'bg-orange-50 dark:bg-orange-900/30 text-orange-900 dark:text-orange-200',
@@ -449,6 +466,7 @@ function limparLocal() {
   buscaEquipamento.value = ''
   local.apenasCobrados = false
   local.apenasReabertos = false
+  local.apenasSugestaoUrgenciaIa = false
 }
 
 function aplicar() {
@@ -461,7 +479,8 @@ function aplicar() {
     equipamentoId: local.equipamentoId,
     equipamentoRotulo: local.equipamentoRotulo,
     apenasCobrados: local.apenasCobrados,
-    apenasReabertos: local.apenasReabertos
+    apenasReabertos: local.apenasReabertos,
+    apenasSugestaoUrgenciaIa: local.apenasSugestaoUrgenciaIa
   })
 }
 </script>

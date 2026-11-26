@@ -230,11 +230,16 @@ class SetorialOrdemServicoResumoSerializer(serializers.ModelSerializer):
         return {"lat": loc.y, "lng": loc.x}
 
     def get_prioridade(self, obj):
-        dados = obj.protocolo.dados_dinamicos or {}
+        from atendimentos.urgencia_constants import normalizar_nivel
+
+        p = obj.protocolo
+        if getattr(p, "urgencia", None):
+            return normalizar_nivel(p.urgencia)
+        dados = p.dados_dinamicos or {}
         for chave in ("urgencia", "prioridade", "urgencia_estimada"):
             val = dados.get(chave)
             if val:
-                return str(val).lower()
+                return normalizar_nivel(str(val))
         return "normal"
 
     def get_status(self, obj):

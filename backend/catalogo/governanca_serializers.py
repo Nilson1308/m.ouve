@@ -156,6 +156,7 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
             "exige_localizacao",
             "permite_cluster",
             "prazo_reabertura_dias",
+            "urgencia_padrao",
             "criado_em",
             "atualizado_em",
         )
