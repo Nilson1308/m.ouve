@@ -12,7 +12,12 @@ export function usePerspectivaRadarExecutiva() {
   const authStore = useAuthStore()
   return computed(() => {
     if (authStore.user?.unidade_id) return ''
-    const codigo = (authStore.user?.perfil_acesso?.codigo || authStore.user?.perfil_codigo || '')
+    const codigo = (
+      authStore.user?.perfil?.codigo ||
+      authStore.user?.perfil_acesso?.codigo ||
+      authStore.user?.perfil_codigo ||
+      ''
+    )
       .toString()
       .toLowerCase()
     if (codigo.includes('ouvidor')) return 'ouvidoria'
