@@ -112,35 +112,8 @@ def _persona_instrucao(escopo_tipo: str) -> str:
     return _p(escopo_tipo)
 
 
-def sugestoes_iniciais(escopo_tipo: str, rota: str = "") -> list[str]:
-    base = {
-        "controladoria": [
-            "Qual secretaria concentra mais atraso de SLA nos últimos 30 dias?",
-            "Há picos territoriais ou em equipamentos públicos que exigem ação?",
-            "Como está a taxa de retrabalho e o CSAT no município?",
-        ],
-        "ouvidoria": [
-            "Quais gargalos de SLA e cobranças ao cidadão merecem prioridade?",
-            "Quantas sugestões de urgência da IA ainda aguardam revisão?",
-            "Resumo de inelegibilidade: quais serviços mais bloqueiam cidadãos?",
-        ],
-        "unidade": [
-            "Foto da minha fila: análise parada, revisão e críticos sem OS.",
-            "Liste protocolos vencidos ou com cobrança na minha secretaria.",
-            "Há anomalias recentes por bairro ou equipamento na minha área?",
-        ],
-    }
-    sugs = list(base.get(escopo_tipo, base["controladoria"]))
-    if "mesa-trabalho" in rota:
-        sugs[0] = "Resuma a fila operacional atual da Mesa de Trabalho."
-    elif "eficiencia" in rota:
-        sugs[0] = "Resumo de eficiência e TMA dos últimos 30 dias no meu escopo."
-    elif "inelegibilidade" in rota:
-        sugs[0] = "Por que cidadãos estão sendo barrados no chat e em quais serviços?"
-    return sugs[:3]
-
-
 def config_usuario_payload(usuario, rota: str = "") -> dict[str, Any]:
+    from atendimentos.services.agente_copiloto_sugestoes import obter_sugestoes_iniciais_copiloto
     escopo_tipo, unidade_id = resolver_escopo_briefing_usuario(usuario, {})
     unidade_nome = None
     if unidade_id:
@@ -159,7 +132,10 @@ def config_usuario_payload(usuario, rota: str = "") -> dict[str, Any]:
         "perguntas_hoje": perguntas,
         "limite_diario": int(cfg.limite_perguntas_dia_por_usuario),
         "budget_esgotado": esgotado,
-        "sugestoes_iniciais": sugestoes_iniciais(escopo_tipo, rota),
+        "sugestoes_iniciais": obter_sugestoes_iniciais_copiloto(
+            escopo_tipo,
+            rota=(rota or None),
+        ),
     }
 
 

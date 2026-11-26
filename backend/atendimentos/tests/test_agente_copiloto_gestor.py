@@ -118,6 +118,30 @@ class AgenteCopilotoGestorTests(TestCase):
             origem_localizacao=Protocolo.OrigemLocalizacao.NENHUMA,
         )
 
+    def test_config_usuario_sugestoes_unidade_sem_comparativo_secretarias(self):
+        """Rota municipal na query não deve vazar sugestões comparativas entre secretarias."""
+        client = APIClient()
+        client.force_authenticate(self.gestor_a)
+        rotas = (
+            "/backoffice/dashboard/eficiencia",
+            "/backoffice/relatorios/sla-cobrancas",
+            "/backoffice/dashboard",
+        )
+        for rota in rotas:
+            resp = client.get(
+                "/api/v1/backoffice/agente/copiloto/config-usuario",
+                {"rota": rota},
+            )
+            self.assertEqual(resp.status_code, 200, msg=rota)
+            self.assertEqual(resp.data["perspectiva"], "unidade")
+            sugestoes = resp.data.get("sugestoes_iniciais") or []
+            self.assertEqual(len(sugestoes), 3, msg=rota)
+            for sug in sugestoes:
+                low = (sug or "").lower()
+                self.assertNotIn("secretarias", low, msg=f"{rota}: {sug}")
+                self.assertNotIn("qual secretaria", low, msg=f"{rota}: {sug}")
+                self.assertNotIn("entre secretarias", low, msg=f"{rota}: {sug}")
+
     def test_tool_anti_idor_unidade(self):
         eff_a = executar_tool(
             "obter_resumo_eficiencia",
