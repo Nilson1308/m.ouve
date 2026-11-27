@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from atendimentos.lookup_campos import texto_lookup_nao_catalogado, valor_lookup_nao_catalogado
 from atendimentos.services.equipamento_protocolo import obter_equipamento_ativo
 from catalogo.datasources import LOOKUP_DATASOURCE_EQUIPAMENTOS, LOOKUP_DATASOURCE_UNIDADES
 from catalogo.models import ServicoCatalogo, UnidadeAdministrativa
@@ -41,9 +42,28 @@ def rotulo_campo_schema(prop: dict, chave: str) -> str:
     return (prop.get("title") or chave.replace("_", " ").strip() or chave).strip()
 
 
+def _texto_livre_lookup_para_exibicao(texto: str) -> str:
+    """Remove prefixos de confirmação do chat (✓ Título: valor)."""
+    t = (texto or "").strip()
+    if not t:
+        return ""
+    if t.startswith("✓") or t.startswith("—"):
+        if ": " in t:
+            return t.split(": ", 1)[-1].strip()
+    return t
+
+
 def formatar_valor_campo(prop: dict, valor: Any) -> str:
     if valor is None:
         return "—"
+    if isinstance(valor, dict):
+        if valor_lookup_nao_catalogado(valor):
+            citado = _texto_livre_lookup_para_exibicao(texto_lookup_nao_catalogado(valor))
+            if citado:
+                return citado
+        bruto = (valor.get("texto") or valor.get("nome") or "").strip()
+        if bruto and not valor_lookup_nao_catalogado(valor):
+            return _texto_livre_lookup_para_exibicao(bruto)
     if isinstance(valor, bool):
         return "Sim" if valor else "Não"
     if isinstance(valor, (int, float)):
