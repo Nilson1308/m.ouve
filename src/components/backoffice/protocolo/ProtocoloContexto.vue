@@ -79,6 +79,24 @@
       </dl>
     </section>
 
+    <div
+      v-else-if="equipamentoCitadoNaoCatalogado"
+      class="rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50/90 dark:bg-amber-950/30 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2"
+      role="status"
+    >
+      <p class="text-sm text-amber-950 dark:text-amber-100 flex-1">
+        <span class="font-semibold">Equipamento citado (não cadastrado):</span>
+        {{ equipamentoCitadoNaoCatalogado }}
+      </p>
+      <router-link
+        v-if="podeConfiguracoes"
+        :to="{ path: '/backoffice/configuracoes', query: { aba: 'equipamentos' } }"
+        class="text-sm font-semibold text-primary-700 dark:text-primary-300 underline min-h-[44px] inline-flex items-center px-2"
+      >
+        Cadastrar em Equipamentos
+      </router-link>
+    </div>
+
     <section class="card" aria-labelledby="titulo-demanda">
       <div class="flex items-center gap-3 mb-4">
         <div class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
@@ -264,8 +282,12 @@ import ChatAuditoria from './ChatAuditoria.vue'
 import LocationMap from '@/components/pwa/LocationMap.vue'
 import BackofficeAccordion from '@/components/backoffice/BackofficeAccordion.vue'
 import { labelTipoEquipamento } from '@/constants/equipamentosPublicos'
+import { useRbac } from '@/composables/useRbac'
 
 defineEmits(['abrir-diligencia', 'atualizar-diligencia', 'alterar-urgencia', 'acao-urgencia-ia'])
+
+const { can } = useRbac()
+const podeConfiguracoes = computed(() => can('configuracoes.editar') || can('configuracoes.ler'))
 
 const props = defineProps({
   protocolo: {
@@ -277,6 +299,10 @@ const props = defineProps({
 })
 
 const mapaRef = ref(null)
+
+const equipamentoCitadoNaoCatalogado = computed(() =>
+  (props.protocolo?.equipamentoCitadoNaoCatalogado || props.protocolo?.equipamento_citado_nao_catalogado || '').trim()
+)
 
 function onMapaAccordionToggle(aberto) {
   if (!aberto || !temCoordenadas.value) return

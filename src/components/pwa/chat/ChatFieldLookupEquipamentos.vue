@@ -14,23 +14,24 @@
       v-model="selecionado"
       :required="!opcional"
       :disabled="desabilitado"
-      :filtro="filtroSchema"
+      :filtro-datasource="filtroSchema"
       preload
+      @manual="confirmarManual"
     />
 
     <button
       type="button"
-      class="btn-primary w-full"
+      class="btn-primary w-full min-h-[44px] !text-white font-semibold"
       :disabled="desabilitado || !selecionado || loading || Boolean(erro)"
       @click="confirmar"
     >
-      Confirmar
+      Confirmar da lista
     </button>
 
     <button
       v-if="opcional"
       type="button"
-      class="btn-secondary w-full text-sm"
+      class="btn-secondary w-full text-sm min-h-[44px]"
       :disabled="desabilitado || loading"
       @click="pular"
     >
@@ -65,6 +66,18 @@ function confirmar() {
   emit('confirmar', {
     texto: `✓ ${props.config.titulo || campo}: ${nome}`,
     dados_slot: { [campo]: id }
+  })
+}
+
+function confirmarManual(nomeInformado) {
+  const campo = props.config.campo
+  const texto = (nomeInformado || '').trim()
+  if (!texto) return
+  emit('confirmar', {
+    texto: `✓ ${props.config.titulo || campo}: ${texto}`,
+    dados_slot: {
+      [campo]: { nao_catalogado: true, texto }
+    }
   })
 }
 

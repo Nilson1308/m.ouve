@@ -20,11 +20,25 @@ def _parse_uuid(valor) -> UUID | None:
         return None
 
 
+def valor_lookup_nao_catalogado(valor) -> bool:
+    return isinstance(valor, dict) and bool((valor or {}).get("nao_catalogado"))
+
+
+def texto_lookup_nao_catalogado(valor) -> str:
+    if not valor_lookup_nao_catalogado(valor):
+        return ""
+    return str((valor or {}).get("texto") or "").strip()[:180]
+
+
 def campo_lookup_valido(prop: dict, valor) -> bool:
-    """True só com UUID referenciando registro ativo no datasource."""
+    """UUID ativo, texto não catalogado (equipamento) ou pulo implícito via ausência."""
     if valor in (None, "", []):
         return False
     ds = (prop.get("x-ouvia-datasource") or "").strip()
+    if valor_lookup_nao_catalogado(valor):
+        if ds == LOOKUP_DATASOURCE_EQUIPAMENTOS:
+            return bool(texto_lookup_nao_catalogado(valor))
+        return False
     if not ds:
         return bool(str(valor).strip())
     if not _parse_uuid(valor):
@@ -76,6 +90,9 @@ def limpar_campos_lookup_invalidos(servico: ServicoCatalogo, dados: dict | None)
             continue
         if chave not in out:
             continue
-        if not campo_lookup_valido(prop, out.get(chave)):
+        val = out.get(chave)
+        if valor_lookup_nao_catalogado(val):
+            continue
+        if not campo_lookup_valido(prop, val):
             out.pop(chave, None)
     return out

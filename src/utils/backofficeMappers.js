@@ -100,6 +100,8 @@ export function mapProtocoloBackoffice(api) {
     descricao: api.descricao || '',
     triagemSugerida: api.triagem_sugerida || null,
     equipamento: mapEquipamentoProtocolo(api.equipamento),
+    equipamentoCitadoNaoCatalogado: (api.equipamento_citado_nao_catalogado || '').trim(),
+    requerCuradoriaEquipamento: Boolean(api.requer_curadoria_equipamento),
     qtdCobrancasCidadao: Number(api.qtd_cobrancas_cidadao ?? 0),
     ultimaCobrancaEm: api.ultima_cobranca_em ?? null,
     diasAtraso: Number(api.dias_atraso ?? 0),

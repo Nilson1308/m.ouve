@@ -152,9 +152,15 @@ def finalizar_sessao_com_protocolo(sessao: SessaoChat) -> Protocolo:
     aplicar_equipamento_rede_seguranca_sessao(sessao)
     sessao.refresh_from_db()
 
+    from atendimentos.services.chat_dados_higiene import (
+        extrair_equipamento_citado_sessao,
+        higienizar_dados_para_protocolo,
+    )
+
     servico = sessao.servico_identificado
-    dados_brutos = {k: v for k, v in (sessao.dados_coletados or {}).items() if not str(k).startswith("_")}
+    dados_brutos = higienizar_dados_para_protocolo(sessao.dados_coletados)
     dados_brutos = limpar_campos_lookup_invalidos(servico, dados_brutos)
+    equipamento_citado = extrair_equipamento_citado_sessao(sessao.dados_coletados)
     bloqueio = _avaliar_regras_elegibilidade(servico, dados_brutos)
     if bloqueio:
         raise drf_serializers.ValidationError(
@@ -176,6 +182,7 @@ def finalizar_sessao_com_protocolo(sessao: SessaoChat) -> Protocolo:
         endereco_texto=(loc.get("endereco") or "")[:500],
         resposta_cidadao="",
         observacoes_internas="",
+        equipamento_citado_nao_catalogado=equipamento_citado,
     )
     lat, lng = loc.get("latitude"), loc.get("longitude")
     if lat is not None and lng is not None:
@@ -440,27 +447,36 @@ def executar_processamento_ia(
         try:
             from atendimentos.chat_escolhas import normalizar_dados_slot
 
-            slot = None
-            if dados_slot and sessao.servico_identificado_id:
-                if dados_slot.get("__pular_campo"):
+            slot_payload: dict | None = None
+            if dados_slot:
+                bruto = dict(dados_slot)
+                if bruto.get("__pular_campo"):
                     from atendimentos.chat_estado import registrar_campo_pulado
 
-                    registrar_campo_pulado(
-                        sessao, str(dados_slot.get("__pular_campo")).strip()
+                    registrar_campo_pulado(sessao, str(bruto.get("__pular_campo")).strip())
+                meta_flags = {
+                    k: True
+                    for k in (
+                        "forcar_categoria_atual",
+                        "aceitar_troca_categoria",
+                        "recusar_troca_categoria",
                     )
-                    dados_slot = {
-                        k: v
-                        for k, v in dados_slot.items()
-                        if k != "__pular_campo"
-                    }
-                slot = normalizar_dados_slot(sessao.servico_identificado, dados_slot)
+                    if bruto.pop(k, None)
+                }
+                campo_pular = bruto.pop("__pular_campo", None)
+                if campo_pular:
+                    meta_flags["__pular_campo"] = campo_pular
+                negocio = bruto
+                if negocio and sessao.servico_identificado_id:
+                    negocio = normalizar_dados_slot(sessao.servico_identificado, negocio)
+                slot_payload = {**meta_flags, **(negocio or {})} or meta_flags or None
 
             turno = orchestrator.processar_turno(
                 sessao,
                 texto_usuario=texto,
                 anexos_novos=qtd_anexos,
                 confirmar_protocolo=confirmar_protocolo,
-                dados_slot=slot,
+                dados_slot=slot_payload,
             )
         except ChatOrchestrationError as exc:
             logger.warning("ChatOrchestrationError: %s", exc)
@@ -512,9 +528,11 @@ def executar_processamento_ia(
 
         from atendimentos.chat_estado import get_pending_escolha
 
-        payload_ui = None
+        payload_ui = turno.payload_ui
         if acao_ui == "escolha_campo":
             payload_ui = get_pending_escolha(sessao)
+        elif acao_ui == "sugerir_troca_categoria" and turno.payload_ui:
+            payload_ui = turno.payload_ui
 
         msg_ia = MensagemChat.objects.create(
             sessao=sessao,

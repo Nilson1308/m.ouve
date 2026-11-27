@@ -256,6 +256,8 @@ class BackofficeProtocoloKanbanSerializer(serializers.ModelSerializer):
     dias_atraso = serializers.SerializerMethodField()
     exigir_validacao_ouvidoria = serializers.SerializerMethodField()
     encerramento_direto_secretaria = serializers.SerializerMethodField()
+    equipamento_citado_nao_catalogado = serializers.CharField(read_only=True)
+    requer_curadoria_equipamento = serializers.SerializerMethodField()
 
     class Meta:
         model = Protocolo
@@ -295,7 +297,12 @@ class BackofficeProtocoloKanbanSerializer(serializers.ModelSerializer):
             "dias_atraso",
             "exigir_validacao_ouvidoria",
             "encerramento_direto_secretaria",
+            "equipamento_citado_nao_catalogado",
+            "requer_curadoria_equipamento",
         )
+
+    def get_requer_curadoria_equipamento(self, obj) -> bool:
+        return bool((obj.equipamento_citado_nao_catalogado or "").strip())
 
     def get_exigir_validacao_ouvidoria(self, obj):
         from atendimentos.services.fluxo_governanca_service import (

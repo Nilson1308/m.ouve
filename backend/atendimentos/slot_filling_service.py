@@ -214,7 +214,7 @@ def _validar_valor_campo(prop: dict, valor: Any, confianca: float) -> Any | None
         min_len = int(prop.get("minLength") or 0)
         if min_len > 0 and len(s) < min_len:
             return None
-        if min_len == 0 and len(s) < 8:
+        if min_len == 0 and len(s) < 2:
             return None
         if _INTENCAO_SEM_DETALHE.match(s) and len(s) < 55:
             return None
@@ -280,14 +280,36 @@ def _rotulo_valor_lookup(prop: dict, valor: Any) -> str | None:
     return None
 
 
+def _rotulo_amigavel_campo(prop: dict, chave: str, valor: Any) -> str:
+    """Evita ecoar título cru do schema na confirmação."""
+    from atendimentos.lookup_campos import texto_lookup_nao_catalogado, valor_lookup_nao_catalogado
+
+    if valor_lookup_nao_catalogado(valor):
+        t = texto_lookup_nao_catalogado(valor)
+        return t or "local informado"
+    rotulo_valor = _rotulo_valor_lookup(prop, valor) or _formatar_valor(prop, valor)
+    enums = prop.get("enum") or (prop.get("items") or {}).get("enum")
+    labels = prop.get("enumNames") or (prop.get("items") or {}).get("enumNames") or enums
+    if enums and rotulo_valor in enums:
+        try:
+            idx = list(enums).index(rotulo_valor)
+            rotulo_valor = str(labels[idx]) if labels and idx < len(labels) else rotulo_valor
+        except ValueError:
+            pass
+    titulo = (prop.get("title") or "").strip().lower()
+    if titulo and "?" in titulo:
+        return rotulo_valor
+    if titulo and rotulo_valor.lower() in titulo.lower():
+        return rotulo_valor
+    return rotulo_valor
+
+
 def _rotulos_campos_preenchidos(servico: ServicoCatalogo, campos: dict[str, Any]) -> list[str]:
     props = _schema_props(servico)
     partes: list[str] = []
     for chave, valor in campos.items():
         prop = props.get(chave) or {}
-        titulo = (prop.get("title") or prop.get("x-ouvia-ui-pergunta") or chave).strip()
-        rotulo_valor = _rotulo_valor_lookup(prop, valor) or _formatar_valor(prop, valor)
-        partes.append(f"{titulo}: {rotulo_valor}")
+        partes.append(_rotulo_amigavel_campo(prop, chave, valor))
     return partes
 
 
@@ -296,9 +318,9 @@ def montar_prefixo_confirmacao(servico: ServicoCatalogo, campos: dict[str, Any])
     if not partes:
         return ""
     if len(partes) == 1:
-        return f"Entendi! Já identifiquei {partes[0]} pelo seu relato."
+        return f"Entendi! Já registrei {partes[0]} pelo seu relato."
     corpo = ", ".join(partes[:-1]) + f" e {partes[-1]}"
-    return f"Entendi! Já identifiquei {corpo} pelo seu relato."
+    return f"Entendi! Já registrei {corpo} pelo seu relato."
 
 
 SLOT_FILLING_LLM_SCHEMA = {

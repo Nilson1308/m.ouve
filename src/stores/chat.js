@@ -232,9 +232,12 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function adicionarMensagemLocal(mensagem, arquivos = null) {
+    const autor = mensagem.autor
+    const tipo =
+      autor === 'sistema' && !mensagem.isError ? 'ia' : autor
     const msg = {
       id: mensagem.id,
-      tipo: mensagem.autor,
+      tipo,
       conteudo: mensagem.conteudo_texto,
       localizacao: mensagem.localizacao,
       tipoAcao: mensagem.tipo_acao,
@@ -260,7 +263,8 @@ export const useChatStore = defineStore('chat', () => {
       tipo: 'sistema',
       conteudo: textoErro,
       timestamp: formatarTimestamp(new Date().toISOString()),
-      isError: true
+      isError: true,
+      boasVindas: false
     })
   }
 

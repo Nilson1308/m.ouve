@@ -108,6 +108,19 @@ midia: [arquivo1.jpg, arquivo2.jpg, arquivo3.jpg]
 - `texto` (string, opcional): Mensagem de texto do cidadão
 - `localizacao` (JSON string, opcional): Objeto com latitude, longitude e endereco
 - `midia` (file[], opcional): Array de arquivos (fotos, vídeos, áudio)
+- `dados_slot` (object, opcional): Ações da UI — ver tabela abaixo
+- `confirmar_protocolo` (bool, opcional): Confirma revisão final
+
+**`dados_slot` (v4.19 — resiliência do chat):**
+
+| Chave | Efeito |
+|-------|--------|
+| `__pular_campo` | string — nome do campo opcional a pular (`acao_pular_campo` no PWA) |
+| `aceitar_troca_categoria` | bool — aceita redirecionamento sugerido (`sugerir_troca_categoria`) |
+| `forcar_categoria_atual` | bool — mantém a categoria em que o cidadão entrou |
+| `recusar_troca_categoria` | bool — recusa troca e não repete a mesma sugestão para o mesmo `servico_id` |
+
+Lookup **equipamentos_publicos** na sessão aceita: UUID ativo; objeto `{ "nao_catalogado": true, "texto": "<nome citado>" }` (não valida UUID no JSON Schema); ou campo pulado. O texto citado vai para `Protocolo.equipamento_citado_nao_catalogado` e **não** preenche `protocolo.equipamento`.
 
 ---
 
@@ -208,6 +221,8 @@ O campo `tipo_acao` da `mensagem_resposta` permite ao frontend renderizar compon
 | `solicitar_foto` | IA solicita fotos do problema | Destaca botão de foto no input bar |
 | `quick_reply:Opção1,Opção2,Opção3` | IA oferece opções rápidas | Renderiza chips/botões com as opções separadas por vírgula |
 | `revisao_final` | IA coletou todos os dados e exibe resumo | Renderiza `ChatReviewCard` com os `dados_coletados` |
+| `sugerir_troca_categoria` | Melhor encaixe semântico em outra categoria do catálogo | `payload_ui` com `tipo_acao`, categorias e serviço sugerido; botões aceitar ou continuar na categoria atual (v4.19) |
+| `escolha_campo` | Enum ou lookup (unidades/equipamentos) | Cards `ChatFieldChoices` / lookup; equipamentos permitem **Pular** em campo opcional |
 | `fim_conversa` | Protocolo gerado, conversa encerrada | Frontend exibe mensagem de sucesso e redireciona para `/protocolo/:id` |
 | `null` ou ausente | Mensagem de texto pura | Apenas exibe o balão de texto |
 
@@ -1464,6 +1479,8 @@ Detalhamento **360º** para a tela interna: dados coletados pela IA, histórico 
 | `resposta_cidadao` / `observacoes_internas` | Preenchidos após validação |
 | `triagem_sugerida` | Objeto do motor determinístico (v4.9); `{}` se não aplicável |
 | `equipamento` | `{ id, nome, tipo, bairro }` ou `null` (v4.11) |
+| `equipamento_citado_nao_catalogado` | string (v4.19) — nome informado fora do catálogo (até 180 caracteres) |
+| `requer_curadoria_equipamento` | bool (v4.19) — `true` quando `equipamento_citado_nao_catalogado` não está vazio |
 | `qtd_cobrancas_cidadao` | int (v4.12) |
 | `ultima_cobranca_em` | string \| null (v4.12) |
 | `dias_atraso` | int (v4.12) |
@@ -3600,8 +3617,8 @@ Até lá, combinar **regra por passo** + **regra de protocolo** cobre a maioria 
 | `modo` | Sempre `"sandbox"` |
 | `origem_schema` | `"rascunho"` ou `"publicado"` — schemas usados no turno |
 | `resposta_cidadao` | Texto que o PWA mostraria no balão |
-| `acao_ui` | `escolha_campo`, `solicitar_localizacao`, `solicitar_foto`, `revisao_final`, ou `null` |
-| `payload_ui` | Config de escolha (`opcoes`, `titulo`, `modo`, …) quando `acao_ui=escolha_campo` |
+| `acao_ui` | `escolha_campo`, `solicitar_localizacao`, `solicitar_foto`, `revisao_final`, `sugerir_troca_categoria`, ou `null` |
+| `payload_ui` | Escolha de campo (`opcoes`, `titulo`, …) ou payload de troca de categoria (`tipo_acao`, `categoria_atual`, `categoria_sugerida`, `servico_sugerido`, `motivo`) |
 | `dados_parciais` | Estado acumulado dos slots após o turno |
 | `dados_extraidos_turno` | O que a extração LLM inferiu neste turno |
 | `fluxo_bloqueado` / `mensagem_bloqueio` | Regra de elegibilidade ativada |
@@ -3977,6 +3994,7 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.19.0** (Nov 27, 2026): Chat RAG — campos opcionais («não sei» / Pular / `_campos_pulados`); lookup equipamento não catalogado + `Protocolo.equipamento_citado_nao_catalogado`; `sugerir_troca_categoria` + `dados_slot` de troca; humanização de perguntas; testes `test_chat_rag_resiliencia.py`
 - **v4.18.0** (Nov 26, 2026): Sprint 4.7B — Copiloto Gestor: `SessaoCopilotoGestor`, `MensagemCopilotoGestor`; 6 tools read-only `agente_copiloto_tools.py`; orquestrador `agente_copiloto_service.py` + Celery `processar_pergunta_copiloto_task`; endpoints `GET config-usuario`, `POST perguntar` (202), CRUD sessões; budget compartilhado Radar+Copiloto em `obter_consumo_tokens_mes`; testes `test_agente_copiloto_gestor.py`
 - **v4.17.0** (Nov 26, 2026): Sprint 4.7A — Agente IA proativo (Radar): `ConfiguracaoAgenteGestao`, `BriefingOperacionalIA`, `AvaliacaoInsightIA`; motor determinístico `coletar_fatos_operacionais`; `gerar_briefing_escopo` (LLM + budget cap + fallback); `GET/PATCH /backoffice/configuracoes/agente-gestao`; `GET /backoffice/agente/briefing` (`?forcar=true` + rate-limit 429); `POST …/briefing/<id>/avaliar`; Digest SLA com bloco Radar IA; NOC `agente_ia`; Celery `gerar_briefings_operacionais_diarios_task`; invalidação Redis em protocolo crítico
 - **v4.16.0** (Nov 25, 2026): Sprint 4.6 — Matriz de urgência (`ConfiguracaoMatrizUrgencia`, `Protocolo.urgencia*`); `GET/PATCH /backoffice/configuracoes/matriz-urgencia`; `POST /backoffice/protocolos/<id>/urgencia`; RBAC `pode_alterar_urgencia`; ordenação `-urgencia_peso` + `prazo_sla`; filtros `urgencia` / `apenas_sugestao_urgencia_ia`; `ServicoCatalogo.urgencia_padrao`; SLA/digest `total_criticos_abertos` + `urgencia` em atrasados

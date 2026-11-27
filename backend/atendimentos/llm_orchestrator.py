@@ -29,6 +29,7 @@ from atendimentos.chat_estado import (
     set_meta,
     usuario_declina_informacao_campo,
 )
+from atendimentos.chat_intencao import detectar_intencao_pular_ou_nao_sei
 from atendimentos.llm_schemas import (
     ACOES_UI_ENUM,
     CLASSIFICACAO_INTENCAO_SCHEMA,
@@ -65,6 +66,7 @@ Regras anti-alucinação:
 ACOES_UI_VALIDAS = set(ACOES_UI_ENUM)
 
 MSG_REVISAO = "Aqui está o resumo. Confira os dados e confirme para gerar o protocolo."
+MSG_CAMPO_PULADO = "Sem problemas, vamos seguir adiante."
 
 _INSTRUCOES_POR_TOM_IA: dict[str, str] = {
     UnidadeAdministrativa.TomIA.INSTITUCIONAL: (
@@ -148,6 +150,7 @@ class TurnResult:
     limpar_config_escolha: bool = False
     fluxo_bloqueado: bool = False
     motivo_inelegibilidade: str | None = None
+    payload_ui: dict | None = None
 
 
 def _tipo_ui_campo(prop: dict) -> str:
@@ -203,12 +206,17 @@ def _sanitizar_extraidos_campos_especiais(
     servico: ServicoCatalogo,
     extraidos: dict | None,
     sessao: SessaoChat | None,
+    *,
+    texto_usuario: str = "",
 ) -> dict:
     """Texto livre não satisfaz campo de mapa/foto — evita pular para revisão sem GPS."""
     if not extraidos:
         return {}
     limpos = dict(_filtrar_extraidos(extraidos))
     schema = _schema_sem_metadados(servico.schema_formulario)
+    from atendimentos.lookup_campos import valor_lookup_nao_catalogado
+    from atendimentos.services.chat_equipamento_lookup import tentar_resolver_equipamento
+
     for chave in list(limpos.keys()):
         prop = (schema.get("properties") or {}).get(chave) or {}
         tipo = _tipo_ui_campo(prop)
@@ -218,7 +226,26 @@ def _sanitizar_extraidos_campos_especiais(
         if tipo == "image" and sessao and _qtd_anexos(sessao) < 1:
             limpos.pop(chave, None)
         if property_tem_lookup_datasource(prop):
-            if not campo_lookup_valido(prop, limpos.get(chave)):
+            val = limpos.get(chave)
+            if valor_lookup_nao_catalogado(val):
+                continue
+            if not campo_lookup_valido(prop, val) and sessao:
+                resolvido = tentar_resolver_equipamento(
+                    sessao,
+                    servico,
+                    chave,
+                    val,
+                    texto_livre=texto_usuario or (str(val) if isinstance(val, str) else ""),
+                )
+                if resolvido is not None:
+                    limpos[chave] = resolvido
+                    from atendimentos.chat_sandbox import is_sessao_sandbox
+
+                    if not is_sessao_sandbox(sessao):
+                        sessao.save(update_fields=["dados_coletados", "atualizado_em"])
+                else:
+                    limpos.pop(chave, None)
+            elif not campo_lookup_valido(prop, val):
                 limpos.pop(chave, None)
     return limpos
 
@@ -372,13 +399,58 @@ def _montar_config_escolha(servico: ServicoCatalogo, campo: str) -> dict | None:
     }
 
 
-def _texto_pergunta_campo(prop: dict, campo: str) -> str:
-    """Pergunta exibida ao cidadão (configurada no gestor de serviços)."""
-    pergunta = (prop.get("x-ouvia-ui-pergunta") or prop.get("description") or prop.get("title") or "").strip()
+def _titulo_apenas_cru(prop: dict) -> bool:
+    titulo = (prop.get("title") or "").strip()
+    pergunta = (prop.get("x-ouvia-ui-pergunta") or prop.get("description") or "").strip()
     if pergunta:
-        return pergunta
+        return False
+    if not titulo:
+        return False
+    cru = {
+        "observações adicionais",
+        "observacoes adicionais",
+        "enviar foto",
+        "enviar imagem",
+        "descreva sua manifestação",
+        "descreva sua manifestacao",
+    }
+    return titulo.lower() in cru or titulo == titulo.upper()
+
+
+def _pergunta_humanizada_fallback(prop: dict, campo: str, *, opcional: bool) -> str:
+    tipo_ui = _tipo_ui_campo(prop)
+    if tipo_ui == "image":
+        if opcional:
+            return (
+                "Você gostaria de enviar alguma foto para ajudar a equipe a visualizar o problema? "
+                "Se não tiver agora, pode tocar em Pular."
+            )
+        return "Se puder, envie uma foto pelo botão de anexo — isso ajuda muito a equipe em campo."
+    if (prop.get("format") or "").lower() == "textarea" or "observ" in campo.lower():
+        if opcional:
+            return (
+                "Deseja acrescentar mais algum detalhe ou observação? "
+                "Se já estiver tudo completo, pode responder «não» ou tocar em Pular."
+            )
+        return "Pode me contar com mais detalhes o que aconteceu para registrarmos sua manifestação?"
+    if tipo_ui == "geolocation":
+        return "Para localizar o problema, marque o ponto no mapa abaixo."
+    if property_tem_lookup_datasource(prop):
+        return "Se souber, escolha o local na lista ou digite o nome; se não achar, descreva em texto."
     titulo = (prop.get("title") or campo.replace("_", " ")).strip()
+    if opcional:
+        return f"Se quiser, pode informar {titulo.lower()} — ou toque em Pular para seguir."
     return f"Pode me contar sobre {titulo.lower()}?"
+
+
+def _texto_pergunta_campo(prop: dict, campo: str, *, opcional: bool = False) -> str:
+    """Pergunta exibida ao cidadão (configurada no gestor de serviços)."""
+    pergunta = (prop.get("x-ouvia-ui-pergunta") or prop.get("description") or "").strip()
+    if pergunta and not _titulo_apenas_cru(prop):
+        return pergunta
+    if (prop.get("title") or "").strip() and not _titulo_apenas_cru(prop) and not pergunta:
+        return (prop.get("title") or "").strip()
+    return _pergunta_humanizada_fallback(prop, campo, opcional=opcional)
 
 
 def _ia_metadados_campo(servico: ServicoCatalogo, campo: str, prop: dict) -> tuple[str, str]:
@@ -546,13 +618,27 @@ def _pular_opcional_se_declinio(
     servico: ServicoCatalogo,
     campo: str | None,
     texto_usuario: str,
+    *,
+    intencao_pular_llm: bool = False,
 ) -> bool:
     """Se o cidadão declina informação em campo opcional, marca como pulado."""
     if not campo or not _campo_e_opcional(servico, campo):
         return False
-    if not usuario_declina_informacao_campo(texto_usuario):
+    if not (
+        usuario_declina_informacao_campo(texto_usuario)
+        or detectar_intencao_pular_ou_nao_sei(
+            texto_usuario,
+            campo=campo,
+            obrigatorio=False,
+            extracao_llm={"intencao_pular": intencao_pular_llm} if intencao_pular_llm else None,
+        )
+    ):
         return False
     registrar_campo_pulado(sessao, campo)
+    meta = dict(get_meta(sessao))
+    tentativas = dict(meta.get("tentativas_campo") or {})
+    tentativas.pop(campo, None)
+    set_meta(sessao, tentativas_campo=tentativas)
     return True
 
 
@@ -579,14 +665,27 @@ def _deve_repescar_campo(
     campo_foco: str | None,
     texto_usuario: str,
     extraidos_limpos: dict | None,
+    sessao: SessaoChat | None = None,
 ) -> bool:
     """Repescagem quando o cidadão respondeu mas o slot esperado não foi preenchido ou é inválido."""
     if not campo_foco or not _deve_extrair_texto(texto_usuario):
         return False
-    if _campo_e_opcional(servico, campo_foco) and usuario_declina_informacao_campo(texto_usuario):
+    if _campo_e_opcional(servico, campo_foco) and (
+        usuario_declina_informacao_campo(texto_usuario)
+        or detectar_intencao_pular_ou_nao_sei(texto_usuario, campo=campo_foco, obrigatorio=False)
+    ):
         return False
+    if sessao and _campo_e_opcional(servico, campo_foco):
+        tentativas = dict(get_meta(sessao).get("tentativas_campo") or {})
+        if int(tentativas.get(campo_foco) or 0) >= 1:
+            registrar_campo_pulado(sessao, campo_foco)
+            return False
     limpos = extraidos_limpos or {}
     if campo_foco not in limpos:
+        if sessao and _campo_e_opcional(servico, campo_foco):
+            tentativas = dict(get_meta(sessao).get("tentativas_campo") or {})
+            tentativas[campo_foco] = int(tentativas.get(campo_foco) or 0) + 1
+            set_meta(sessao, tentativas_campo=tentativas)
         return True
     return not _valor_campo_extraido_valido(servico, campo_foco, limpos.get(campo_foco))
 
@@ -599,7 +698,8 @@ def _pergunta_para_campo(
     historico_resumo: list[str] | None = None,
 ) -> str:
     prop = _propriedade_campo(servico, campo)
-    base = _texto_pergunta_campo(prop, campo)
+    opcional = _campo_e_opcional(servico, campo)
+    base = _texto_pergunta_campo(prop, campo, opcional=opcional)
     ia_extract, ia_reprompt = _ia_metadados_campo(servico, campo, prop)
 
     if repescagem:
@@ -746,6 +846,41 @@ def _servicos_candidatos(sessao: SessaoChat) -> list[ServicoCatalogo]:
     return list(qs)
 
 
+def _servicos_outras_categorias(sessao: SessaoChat, *, limite: int = 48) -> list[ServicoCatalogo]:
+    na_categoria = {str(s.id) for s in _servicos_candidatos(sessao)}
+    qs = (
+        ServicoCatalogo.objects.filter(ativo=True, is_template=False)
+        .select_related("categoria")
+        .order_by("nome")
+    )
+    return [s for s in qs if str(s.id) not in na_categoria][:limite]
+
+
+def _montar_payload_troca_categoria(
+    sessao: SessaoChat,
+    servico: ServicoCatalogo,
+    *,
+    mensagem_original: str,
+    motivo: str,
+) -> dict:
+    cat_atual = (sessao.categoria_inicial or "").strip()
+    cat_sug = servico.categoria
+    return {
+        "tipo_acao": "sugerir_troca_categoria",
+        "categoria_atual": {
+            "slug": (cat_atual or "geral").lower().replace(" ", "-"),
+            "nome": cat_atual or "categoria atual",
+        },
+        "categoria_sugerida": {
+            "slug": (getattr(cat_sug, "slug", None) or "").strip(),
+            "nome": (getattr(cat_sug, "nome", None) or "").strip(),
+        },
+        "servico_sugerido": {"id": str(servico.id), "nome": servico.nome},
+        "mensagem_original": (mensagem_original or "")[:600],
+        "motivo": (motivo or "").strip()[:400],
+    }
+
+
 def _catalogo_para_prompt(servicos: list[ServicoCatalogo]) -> str:
     itens = [
         {
@@ -870,7 +1005,6 @@ def _campos_faltantes(
     faltantes = []
     campos_ordem = _ordem_campos_schema(servico)
     pulados = _campos_pulados(sessao)
-    required_set = set(schema.get("required") or [])
     for campo in campos_ordem:
         if campo in pulados:
             continue
@@ -878,14 +1012,13 @@ def _campos_faltantes(
         if _campo_ainda_falta(servico, campo, prop, dados, sessao):
             faltantes.append(campo)
 
-    def _prioridade(campo: str) -> tuple[int, int]:
+    def _posicao_ordem(campo: str) -> int:
         try:
-            pos = campos_ordem.index(campo)
+            return campos_ordem.index(campo)
         except ValueError:
-            pos = 999
-        return (0 if campo in required_set else 1, pos)
+            return 999
 
-    faltantes.sort(key=_prioridade)
+    faltantes.sort(key=_posicao_ordem)
     return faltantes
 
 
@@ -1124,6 +1257,46 @@ class LLMOrchestrator:
     ) -> TurnResult:
         from atendimentos.chat_estado import usuario_pediu_confirmar_protocolo
 
+        if dados_slot:
+            if dados_slot.get("forcar_categoria_atual"):
+                set_meta(sessao, forcar_categoria_atual=True, troca_categoria_pendente=None)
+                sessao.save(update_fields=["dados_coletados", "atualizado_em"])
+            if dados_slot.get("recusar_troca_categoria"):
+                pend = get_meta(sessao).get("troca_categoria_pendente") or {}
+                sid = (pend.get("servico_sugerido") or {}).get("id")
+                set_meta(
+                    sessao,
+                    troca_categoria_pendente=None,
+                    forcar_categoria_atual=True,
+                    troca_categoria_recusada=str(sid) if sid else None,
+                )
+                sessao.save(update_fields=["dados_coletados", "atualizado_em"])
+            if dados_slot.get("aceitar_troca_categoria"):
+                pend = get_meta(sessao).get("troca_categoria_pendente") or {}
+                sid_raw = (pend.get("servico_sugerido") or {}).get("id")
+                if sid_raw:
+                    try:
+                        sid = UUID(str(sid_raw))
+                        cat_nome = (pend.get("categoria_sugerida") or {}).get("nome") or ""
+                        if cat_nome:
+                            sessao.categoria_inicial = cat_nome
+                        set_meta(
+                            sessao,
+                            troca_categoria_pendente=None,
+                            forcar_categoria_atual=None,
+                        )
+                        sessao.save(
+                            update_fields=["categoria_inicial", "dados_coletados", "atualizado_em"]
+                        )
+                        return TurnResult(
+                            resposta_cidadao="Ótimo, vamos seguir com o serviço mais adequado ao seu relato.",
+                            acao_ui="confirmar_servico",
+                            servico_pendente_id=sid,
+                            confirmar_servico=True,
+                        )
+                    except (TypeError, ValueError):
+                        pass
+
         fase = get_fase(sessao)
         pendente = servico_pendente_id(sessao)
 
@@ -1244,6 +1417,8 @@ class LLMOrchestrator:
             )
 
         permitidos = {str(s.id) for s in candidatos}
+        externos = _servicos_outras_categorias(sessao)
+        todos_permitidos = {str(s.id) for s in ServicoCatalogo.objects.filter(ativo=True, is_template=False)}
         mensagens = _prepend_tom_llm(
             [
                 {"role": "system", "content": SYSTEM_PROMPT_BASE},
@@ -1251,10 +1426,13 @@ class LLMOrchestrator:
                     "role": "system",
                     "content": (
                         "Etapa A — Classificação.\n"
-                        f"Categoria: {sessao.categoria_inicial}.\n"
-                        f"Serviços: {_catalogo_para_prompt(candidatos)}\n"
-                        "Se confiança >= 0.7, retorne servico_id e acao_ui=confirmar_servico "
-                        "(pedindo confirmação ao cidadão)."
+                        f"Categoria inicial do cidadão: {sessao.categoria_inicial}.\n"
+                        f"Serviços desta categoria: {_catalogo_para_prompt(candidatos)}\n"
+                        f"Serviços de outras categorias (se o relato indicar outro tipo de demanda): "
+                        f"{_catalogo_para_prompt(externos)}\n"
+                        "Se o melhor encaixe for desta categoria e confiança >= 0.7, retorne servico_id "
+                        "e acao_ui=confirmar_servico. Se o melhor encaixe for de outra categoria, "
+                        "retorne o servico_id correto com confiança >= 0.8 e explique na resposta_cidadao."
                     ),
                 },
                 *_historico(sessao),
@@ -1270,10 +1448,48 @@ class LLMOrchestrator:
             strict=True,
         )
 
-        servico_id = _validar_servico_id(parsed.get("servico_id", ""), permitidos)
+        raw_sid = (parsed.get("servico_id") or "").strip()
+        servico_id = _validar_servico_id(raw_sid, permitidos)
+        servico_fora = _validar_servico_id(raw_sid, todos_permitidos) if raw_sid else None
         confianca = float(parsed.get("confianca") or 0)
         acao = _normalizar_acao(parsed.get("acao_ui"))
         resposta = (parsed.get("resposta_cidadao") or "").strip()
+        meta = get_meta(sessao)
+
+        if (
+            not servico_id
+            and servico_fora
+            and confianca >= 0.8
+            and not meta.get("forcar_categoria_atual")
+            and meta.get("troca_categoria_recusada") != servico_fora
+        ):
+            try:
+                srv_ext = ServicoCatalogo.objects.select_related("categoria").get(
+                    pk=servico_fora, ativo=True, is_template=False
+                )
+            except ServicoCatalogo.DoesNotExist:
+                srv_ext = None
+            if srv_ext:
+                motivo = resposta or (
+                    f"Pelo que você descreveu, parece combinar mais com «{srv_ext.nome}» "
+                    f"({srv_ext.categoria.nome if srv_ext.categoria_id else 'outra área'})."
+                )
+                payload = _montar_payload_troca_categoria(
+                    sessao,
+                    srv_ext,
+                    mensagem_original=texto_usuario,
+                    motivo=motivo,
+                )
+                set_meta(sessao, troca_categoria_pendente=payload)
+                texto_ui = (
+                    f"{motivo}\n\n"
+                    "Posso direcionar para o serviço mais adequado, ou você pode continuar na categoria atual."
+                )
+                return TurnResult(
+                    resposta_cidadao=texto_ui,
+                    acao_ui="sugerir_troca_categoria",
+                    payload_ui=payload,
+                )
 
         if servico_id and confianca >= 0.7:
             return TurnResult(
@@ -1294,8 +1510,10 @@ class LLMOrchestrator:
         servico: ServicoCatalogo,
         texto_usuario: str,
         dados_atuais: dict,
-    ) -> dict:
-        faltantes = _campos_faltantes(servico, dados_atuais)
+    ) -> tuple[dict, bool]:
+        faltantes = _campos_faltantes(servico, dados_atuais, sessao)
+        campo_foco = faltantes[0] if faltantes else None
+        opcional_foco = campo_foco and _campo_e_opcional(servico, campo_foco)
         schema_txt = _schema_resumido_para_prompt(servico.schema_formulario)
         mensagens = [
             {
@@ -1303,7 +1521,8 @@ class LLMOrchestrator:
                 "content": (
                     "Você é um extrator de dados. Extraia da mensagem do usuário apenas "
                     "valores que correspondam ao schema do formulário. "
-                    "Retorne JSON com dados_extraidos. "
+                    "Retorne JSON com dados_extraidos e intencao_pular (boolean). "
+                    "intencao_pular=true quando o cidadão não sabe / não tem / quer pular campo opcional. "
                     "Não gere texto conversacional. "
                     "Para enums, use os valores canônicos do schema (ex.: pequeno, medio, grande). "
                     "Se o usuário responder com rótulo amigável, mapeie para o valor enum. "
@@ -1316,6 +1535,11 @@ class LLMOrchestrator:
                     f"Schema: {schema_txt}\n"
                     f"Dados já coletados: {json.dumps(dados_atuais, ensure_ascii=False)}\n"
                     f"Campos ainda faltantes (priorize estes): {faltantes}"
+                    + (
+                        f"\nCampo em foco agora: {campo_foco} ({'opcional' if opcional_foco else 'obrigatório'})."
+                        if campo_foco
+                        else ""
+                    )
                 ),
             },
             {"role": "user", "content": texto_usuario},
@@ -1327,7 +1551,8 @@ class LLMOrchestrator:
             strict=False,
         )
         bruto = parsed.get("dados_extraidos") if isinstance(parsed.get("dados_extraidos"), dict) else {}
-        return _filtrar_extraidos(bruto)
+        intencao_pular = bool(parsed.get("intencao_pular")) and bool(opcional_foco)
+        return _filtrar_extraidos(bruto), intencao_pular
 
     def passo_deterministico_preenchimento(
         self,
@@ -1457,30 +1682,95 @@ class LLMOrchestrator:
                     sessao, servico, campo_foco, texto_usuario
                 ):
                     sessao.refresh_from_db()
-                    return self.passo_deterministico_preenchimento(
+                    turno = self.passo_deterministico_preenchimento(
                         sessao,
                         anexos_novos=anexos_novos,
                     )
+                    if turno.resposta_cidadao:
+                        turno.resposta_cidadao = (
+                            f"{MSG_CAMPO_PULADO}\n\n{turno.resposta_cidadao}"
+                        )
+                    else:
+                        turno.resposta_cidadao = MSG_CAMPO_PULADO
+                    return turno
+                from atendimentos.services.chat_equipamento_lookup import (
+                    aplicar_equipamento_em_texto_usuario,
+                )
+
                 prop0 = _propriedade_campo(servico, campo_foco)
+                ds = (prop0.get("x-ouvia-datasource") or "").strip()
+                if ds == LOOKUP_DATASOURCE_EQUIPAMENTOS and texto_usuario.strip():
+                    eq_extra = aplicar_equipamento_em_texto_usuario(
+                        sessao, servico, texto_usuario
+                    )
+                    if eq_extra:
+                        extraidos.update(eq_extra)
+                        from atendimentos.lookup_campos import texto_lookup_nao_catalogado
+
+                        for val in eq_extra.values():
+                            nome_eq = texto_lookup_nao_catalogado(val) or ""
+                            if nome_eq:
+                                msg_eq = (
+                                    f"Anotei {nome_eq} na sua solicitação para "
+                                    "encaminhamento interno."
+                                )
+                                turno = self.passo_deterministico_preenchimento(
+                                    sessao,
+                                    dados_extraidos=eq_extra,
+                                    anexos_novos=anexos_novos,
+                                )
+                                turno.resposta_cidadao = (
+                                    f"{msg_eq}\n\n{turno.resposta_cidadao or ''}"
+                                ).strip()
+                                return turno
+                intencao_pular = False
                 if not extraidos and _tipo_ui_campo(prop0) not in ("geolocation", "image"):
                     try:
-                        extraidos = self._extrair_dados_mensagem(
+                        extraidos, intencao_pular = self._extrair_dados_mensagem(
                             sessao, servico, texto_usuario, dados_atuais
                         )
                     except ChatOrchestrationError:
                         logger.warning("Falha na extração; seguindo com dados atuais apenas.")
                         extraidos = {}
+                        intencao_pular = False
+                    if _pular_opcional_se_declinio(
+                        sessao,
+                        servico,
+                        campo_foco,
+                        texto_usuario,
+                        intencao_pular_llm=intencao_pular,
+                    ):
+                        sessao.refresh_from_db()
+                        turno = self.passo_deterministico_preenchimento(
+                            sessao,
+                            anexos_novos=anexos_novos,
+                        )
+                        turno.resposta_cidadao = (
+                            f"{MSG_CAMPO_PULADO}\n\n{turno.resposta_cidadao or ''}"
+                        ).strip()
+                        return turno
                     extraidos = _remover_declinio_disfarcado_extraidos(sessao, servico, extraidos)
                     extraidos_limpos = _sanitizar_extraidos_campos_especiais(
-                        servico, extraidos, sessao
+                        servico,
+                        extraidos,
+                        sessao,
+                        texto_usuario=texto_usuario,
                     )
                     repescagem = _deve_repescar_campo(
-                        servico, campo_foco, texto_usuario, extraidos_limpos
+                        servico,
+                        campo_foco,
+                        texto_usuario,
+                        extraidos_limpos,
+                        sessao,
                     )
                     extraidos = extraidos_limpos
-            extraidos = _sanitizar_extraidos_campos_especiais(servico, extraidos, sessao)
+            extraidos = _sanitizar_extraidos_campos_especiais(
+                servico, extraidos, sessao, texto_usuario=texto_usuario
+            )
         elif extraidos:
-            extraidos = _sanitizar_extraidos_campos_especiais(servico, extraidos, sessao)
+            extraidos = _sanitizar_extraidos_campos_especiais(
+                servico, extraidos, sessao, texto_usuario=texto_usuario
+            )
 
         return self.passo_deterministico_preenchimento(
             sessao,
@@ -1528,7 +1818,7 @@ class LLMOrchestrator:
                 prop0 = _propriedade_campo(servico, campo_foco)
                 if not extraidos and _tipo_ui_campo(prop0) not in ("geolocation", "image"):
                     try:
-                        extraidos = self._extrair_dados_mensagem(
+                        extraidos, _ = self._extrair_dados_mensagem(
                             sessao_sandbox, servico, texto_usuario, dados_atuais
                         )
                     except ChatOrchestrationError:
@@ -1537,15 +1827,26 @@ class LLMOrchestrator:
                         sessao_sandbox, servico, extraidos
                     )
                     extraidos_limpos = _sanitizar_extraidos_campos_especiais(
-                        servico, extraidos, sessao_sandbox
+                        servico,
+                        extraidos,
+                        sessao_sandbox,
+                        texto_usuario=texto_usuario,
                     )
                     repescagem = _deve_repescar_campo(
-                        servico, campo_foco, texto_usuario, extraidos_limpos
+                        servico,
+                        campo_foco,
+                        texto_usuario,
+                        extraidos_limpos,
+                        sessao_sandbox,
                     )
                     extraidos = extraidos_limpos
-            extraidos = _sanitizar_extraidos_campos_especiais(servico, extraidos, sessao_sandbox)
+            extraidos = _sanitizar_extraidos_campos_especiais(
+                servico, extraidos, sessao_sandbox, texto_usuario=texto_usuario
+            )
         elif extraidos:
-            extraidos = _sanitizar_extraidos_campos_especiais(servico, extraidos, sessao_sandbox)
+            extraidos = _sanitizar_extraidos_campos_especiais(
+                servico, extraidos, sessao_sandbox, texto_usuario=texto_usuario
+            )
 
         turno = self.passo_deterministico_preenchimento(
             sessao_sandbox,
@@ -1566,13 +1867,19 @@ class LLMOrchestrator:
             dados_atuais = _dados_negocio(sessao)
             repescagem = False
             try:
-                extraidos = self._extrair_dados_mensagem(sessao, servico, texto, dados_atuais)
+                extraidos, _ = self._extrair_dados_mensagem(
+                    sessao, servico, texto, dados_atuais
+                )
             except ChatOrchestrationError:
                 extraidos = {}
-            extraidos = _sanitizar_extraidos_campos_especiais(servico, extraidos, sessao)
+            extraidos = _sanitizar_extraidos_campos_especiais(
+                servico, extraidos, sessao, texto_usuario=texto
+            )
             faltantes = _campos_faltantes(servico, dados_atuais, sessao)
             if faltantes:
-                repescagem = _deve_repescar_campo(servico, faltantes[0], texto, extraidos)
+                repescagem = _deve_repescar_campo(
+                    servico, faltantes[0], texto, extraidos, sessao
+                )
             passo = self.passo_deterministico_preenchimento(
                 sessao,
                 dados_extraidos=extraidos,

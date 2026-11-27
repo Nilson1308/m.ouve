@@ -8,6 +8,8 @@ ACOES_UI_ENUM = [
     "solicitar_foto",
     "revisao_final",
     "pesquisa_satisfacao",
+    "sugerir_troca_categoria",
+    "acao_pular_campo",
 ]
 
 CLASSIFICACAO_INTENCAO_SCHEMA = {
@@ -32,6 +34,10 @@ CLASSIFICACAO_INTENCAO_SCHEMA = {
 EXTRACAO_DADOS_SCHEMA = {
     "type": "object",
     "properties": {
+        "intencao_pular": {
+            "type": "boolean",
+            "description": "True se o cidadão declina responder o campo opcional em foco.",
+        },
         "dados_extraidos": {
             "type": "object",
             "properties": {},

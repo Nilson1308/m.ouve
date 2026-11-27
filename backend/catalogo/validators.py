@@ -11,6 +11,10 @@ from catalogo.models import EquipamentoPublico, UnidadeAdministrativa
 from catalogo.schema_props import property_tem_lookup_datasource
 
 
+def _valor_nao_catalogado(valor) -> bool:
+    return isinstance(valor, dict) and bool((valor or {}).get("nao_catalogado"))
+
+
 def _validar_uuids_lookup(schema: dict, dados: dict) -> None:
     props = (schema or {}).get("properties") or {}
     for chave, prop in props.items():
@@ -18,8 +22,16 @@ def _validar_uuids_lookup(schema: dict, dados: dict) -> None:
             continue
         if chave not in dados or dados.get(chave) in (None, ""):
             continue
-        valor = str(dados[chave]).strip()
         ds = (prop.get("x-ouvia-datasource") or "").strip()
+        bruto = dados[chave]
+        if _valor_nao_catalogado(bruto):
+            texto = str((bruto or {}).get("texto") or "").strip()
+            if ds == LOOKUP_DATASOURCE_EQUIPAMENTOS and len(texto) >= 2:
+                continue
+            raise serializers.ValidationError(
+                {chave: "Informe o nome do local em texto ou selecione na lista."}
+            )
+        valor = str(bruto).strip()
         try:
             uid = uuid_lib.UUID(valor)
         except (ValueError, AttributeError) as exc:
@@ -52,8 +64,14 @@ def validar_dados_dinamicos(schema: dict, dados: dict) -> dict:
     if not schema:
         return dados or {}
 
-    instance = dados if dados is not None else {}
+    instance = dict(dados if dados is not None else {})
+    instance.pop("equipamento_texto_livre", None)
     _validar_uuids_lookup(schema, instance)
+    props = (schema or {}).get("properties") or {}
+    for chave in list(instance.keys()):
+        prop = props.get(chave) or {}
+        if property_tem_lookup_datasource(prop) and _valor_nao_catalogado(instance.get(chave)):
+            instance.pop(chave, None)
     try:
         validator = Draft202012Validator(schema)
         validator.validate(instance)

@@ -68,10 +68,15 @@
             <SparklesIcon class="w-4 h-4 text-white high-contrast:text-black" aria-hidden="true" />
           </div>
           <div class="flex-1">
-            <div class="bg-white dark:bg-gray-800 high-contrast:bg-gray-900 high-contrast:border high-contrast:border-yellow-300 rounded-bubble-left px-4 py-3 shadow-soft">
-              <p class="text-sm text-gray-900 dark:text-white high-contrast:text-white high-contrast:font-bold leading-relaxed whitespace-pre-wrap">
-                {{ mensagem.conteudo }}
-              </p>
+            <div
+              class="rounded-bubble-left px-4 py-3 shadow-soft"
+              :class="classeBalaoIa(mensagem)"
+            >
+              <p
+                class="text-sm leading-relaxed chat-markdown-ia"
+                :class="mensagem.boasVindas ? 'text-blue-950 dark:text-blue-50 high-contrast:text-white high-contrast:font-bold' : 'text-gray-900 dark:text-white high-contrast:text-white high-contrast:font-bold'"
+                v-html="htmlConteudoAssistente(mensagem)"
+              />
             </div>
             <span class="text-xs text-gray-500 dark:text-gray-500 high-contrast:text-white high-contrast:font-bold ml-2 mt-1 inline-block">
               {{ mensagem.timestamp }}
@@ -90,6 +95,14 @@
                 v-if="mensagem.tipoAcao === 'confirmar_servico'"
                 @confirmar="handleConfirmarServico"
                 :disabled="chatStore.isTyping"
+              />
+
+              <ChatTrocaCategoriaCard
+                v-else-if="mensagem.tipoAcao === 'sugerir_troca_categoria'"
+                :config="configEscolhaMensagem(mensagem)"
+                :desabilitado="chatStore.isTyping"
+                @ir-categoria-sugerida="() => handleIrCategoriaSugerida(mensagem)"
+                @continuar-categoria-atual="handleContinuarCategoriaAtual"
               />
 
               <!-- Seletor de Localização Híbrido -->
@@ -146,6 +159,16 @@
                 @confirmar="handleQuickReply"
                 :disabled="chatStore.isTyping"
               />
+
+              <div
+                v-if="campoPularEtapa(mensagem)"
+                class="mt-3 ml-10"
+              >
+                <ChatPularEtapaChip
+                  :desabilitado="chatStore.isTyping"
+                  @pular="() => handlePularEtapa(campoPularEtapa(mensagem))"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -194,10 +217,29 @@
 
         <!-- Mensagem de Sistema/Erro -->
         <div v-else-if="mensagem.tipo === 'sistema'" class="flex justify-center">
-          <div class="card bg-red-50 dark:bg-red-900/20 high-contrast:bg-transparent border-red-200 dark:border-red-800 high-contrast:border-red-500 px-4 py-2 max-w-md">
+          <div
+            class="card px-4 py-3 max-w-md"
+            :class="
+              mensagem.isError
+                ? 'bg-red-50 dark:bg-red-900/20 high-contrast:bg-transparent border-red-200 dark:border-red-800 high-contrast:border-red-500'
+                : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 high-contrast:border-yellow-300'
+            "
+          >
             <div class="flex items-center gap-2">
-              <ExclamationCircleIcon class="w-5 h-5 text-red-600 dark:text-red-400 high-contrast:text-red-300 flex-shrink-0" aria-hidden="true" />
-              <p class="text-xs text-red-800 dark:text-red-200 high-contrast:text-white high-contrast:font-bold">
+              <ExclamationCircleIcon
+                v-if="mensagem.isError"
+                class="w-5 h-5 text-red-600 dark:text-red-400 high-contrast:text-red-300 flex-shrink-0"
+                aria-hidden="true"
+              />
+              <SparklesIcon
+                v-else
+                class="w-5 h-5 text-emerald-600 dark:text-emerald-400 high-contrast:text-yellow-300 flex-shrink-0"
+                aria-hidden="true"
+              />
+              <p
+                class="text-xs high-contrast:text-white high-contrast:font-bold"
+                :class="mensagem.isError ? 'text-red-800 dark:text-red-200' : 'text-emerald-900 dark:text-emerald-100'"
+              >
                 {{ mensagem.conteudo }}
               </p>
             </div>
@@ -426,7 +468,12 @@ import ChatSatisfacao from '@/components/pwa/chat/ChatSatisfacao.vue'
 import ChatFieldChoices from '@/components/pwa/chat/ChatFieldChoices.vue'
 import ChatFieldLookupUnidades from '@/components/pwa/chat/ChatFieldLookupUnidades.vue'
 import ChatFieldLookupEquipamentos from '@/components/pwa/chat/ChatFieldLookupEquipamentos.vue'
+import ChatTrocaCategoriaCard from '@/components/pwa/chat/ChatTrocaCategoriaCard.vue'
+import ChatPularEtapaChip from '@/components/pwa/chat/ChatPularEtapaChip.vue'
 import { LOOKUP_DATASOURCE_EQUIPAMENTOS, LOOKUP_DATASOURCE_UNIDADES } from '@/constants/fluxoTramitacao'
+import { formatarConteudoAssistente } from '@/utils/chatTextoAssistente'
+
+const CHAT_RELATO_REDIRECT_KEY = 'ouve_chat_relato_redirect'
 import ChatInelegibilidadeAcoes from '@/components/pwa/chat/ChatInelegibilidadeAcoes.vue'
 import ThemeToggle from '@/components/shared/ThemeToggle.vue'
 import PwaA11yMenu from '@/components/pwa/PwaA11yMenu.vue'
@@ -580,9 +627,24 @@ async function handleQuickReply(valor) {
   await chatStore.enviarMensagem({ texto: valor })
 }
 
-function escolhaUiAtiva(mensagem) {
+function acaoUiAtiva(mensagem) {
   const ultimaIa = [...chatStore.mensagens].reverse().find((m) => m.tipo === 'ia')
   return ultimaIa?.id === mensagem.id
+}
+
+function escolhaUiAtiva(mensagem) {
+  return acaoUiAtiva(mensagem)
+}
+
+function htmlConteudoAssistente(mensagem) {
+  return formatarConteudoAssistente(mensagem.conteudo)
+}
+
+function classeBalaoIa(mensagem) {
+  if (mensagem.boasVindas) {
+    return 'bg-gradient-to-br from-blue-50 to-slate-50 dark:from-blue-950/50 dark:to-gray-900 border border-blue-100 dark:border-blue-800/50 high-contrast:bg-gray-900 high-contrast:border high-contrast:border-yellow-300'
+  }
+  return 'bg-white dark:bg-gray-800 high-contrast:bg-gray-900 high-contrast:border high-contrast:border-yellow-300'
 }
 
 function escolhaLookupUnidadesAtiva(mensagem) {
@@ -615,6 +677,60 @@ function configEscolhaMensagem(mensagem) {
 
 async function handleEscolhaCampo({ texto, dados_slot }) {
   await chatStore.enviarMensagem({ texto, dados_slot })
+}
+
+function campoPularEtapa(mensagem) {
+  if (!acaoUiAtiva(mensagem)) return null
+  if (mensagem.tipoAcao === 'sugerir_troca_categoria') return null
+  if (mensagem.tipoAcao === 'revisao_final' || mensagem.tipoAcao === 'confirmar_servico') return null
+  if (mensagem.tipoAcao === 'escolha_campo' && escolhaLookupEquipamentosAtiva(mensagem)) return null
+  const cfg = configEscolhaMensagem(mensagem)
+  if (mensagem.tipoAcao === 'escolha_campo' && escolhaCampoAtiva(mensagem) && cfg?.opcional && cfg?.campo) {
+    return cfg.campo
+  }
+  if (cfg?.opcional && cfg?.campo && !mensagem.tipoAcao) return cfg.campo
+  const pending = chatStore.sessaoAtual?.pending_escolha
+  if (pending?.opcional && pending?.campo) {
+    if (mensagem.tipoAcao === 'solicitar_localizacao' || mensagem.tipoAcao === 'solicitar_foto') {
+      return pending.campo
+    }
+    if (!mensagem.tipoAcao) return pending.campo
+  }
+  return null
+}
+
+async function handlePularEtapa(campo) {
+  if (!campo) return
+  await chatStore.enviarMensagem({
+    texto: 'Prefiro pular esta etapa.',
+    dados_slot: { __pular_campo: campo },
+  })
+}
+
+async function handleContinuarCategoriaAtual() {
+  await chatStore.enviarMensagem({
+    texto: 'Prefiro continuar nesta categoria.',
+    dados_slot: { forcar_categoria_atual: true },
+  })
+}
+
+function handleIrCategoriaSugerida(mensagem) {
+  const cfg = configEscolhaMensagem(mensagem) || {}
+  const nomeDestino = cfg.categoria_sugerida?.nome || cfg.categoria_sugerida?.slug
+  if (!nomeDestino) return
+  const relato = (cfg.mensagem_original || '').trim()
+  if (relato) {
+    sessionStorage.setItem(
+      CHAT_RELATO_REDIRECT_KEY,
+      JSON.stringify({ texto: relato, categoria: nomeDestino })
+    )
+  }
+  chatStore.pararPolling({ desligarTyping: true })
+  chatStore.resetar()
+  router.push({
+    name: 'pwa-chat-solicitacao',
+    params: { categoriaNome: nomeDestino },
+  })
 }
 
 // Handler: Confirmar Protocolo (Revisão Final)
@@ -889,11 +1005,33 @@ async function voltar() {
 
 // Inicialização
 onMounted(async () => {
-  // Reseta store anterior
   chatStore.resetar()
-  
-  // Inicia nova sessão
-  await chatStore.iniciarSessao(categoriaNome.value)
+
+  const resultado = await chatStore.iniciarSessao(categoriaNome.value)
+  if (resultado.success && chatStore.mensagens[0]?.tipo === 'ia') {
+    chatStore.mensagens[0].boasVindas = true
+  }
+
+  let relatoPendente = null
+  try {
+    const raw = sessionStorage.getItem(CHAT_RELATO_REDIRECT_KEY)
+    if (raw) {
+      sessionStorage.removeItem(CHAT_RELATO_REDIRECT_KEY)
+      const parsed = JSON.parse(raw)
+      if (
+        parsed?.texto &&
+        (!parsed.categoria || parsed.categoria === categoriaNome.value)
+      ) {
+        relatoPendente = String(parsed.texto).trim()
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  if (relatoPendente && chatStore.sessaoAtual?.id) {
+    await chatStore.enviarMensagem({ texto: relatoPendente })
+  }
 })
 
 // Cleanup

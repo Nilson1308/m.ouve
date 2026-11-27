@@ -226,6 +226,14 @@ def usuario_declina_informacao_campo(texto: str) -> bool:
         "nao consigo foto",
         "não posso enviar foto",
         "nao posso enviar foto",
+        "sem observação",
+        "sem observacao",
+        "nada a acrescentar",
+        "dispenso",
+        "só isso",
+        "so isso",
+        "não se aplica",
+        "nao se aplica",
     )
     if any(f in t for f in frases):
         return True

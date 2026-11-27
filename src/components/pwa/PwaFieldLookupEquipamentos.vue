@@ -13,7 +13,7 @@
       :id="inputIdBusca"
       v-model="termoBusca"
       type="search"
-      class="input text-base min-h-[44px]"
+      class="input text-base min-h-[44px] w-full min-w-0 text-sm sm:text-base placeholder:text-sm sm:placeholder:text-base"
       :placeholder="placeholderBusca"
       :disabled="disabled"
       :aria-controls="listaId"
@@ -72,6 +72,41 @@
         </li>
       </ul>
 
+      <button
+        type="button"
+        class="w-full text-left text-sm font-medium text-primary-700 dark:text-primary-300 underline min-h-[44px] px-1 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-lg"
+        :disabled="disabled"
+        @click="abrirModoManual"
+      >
+        Não encontrei na lista — informar manualmente
+      </button>
+
+      <div
+        v-if="modoManual"
+        class="rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 p-3 space-y-2"
+      >
+        <label :for="inputManualId" class="text-sm font-semibold text-gray-800 dark:text-gray-200">
+          Nome do equipamento ou local
+        </label>
+        <input
+          :id="inputManualId"
+          v-model="textoManual"
+          type="text"
+          maxlength="180"
+          class="input min-h-[44px] w-full"
+          placeholder="Ex.: UBS Jardim Maricá"
+          :disabled="disabled"
+        />
+        <button
+          type="button"
+          class="btn-primary w-full min-h-[44px] !text-white font-semibold"
+          :disabled="disabled || textoManual.trim().length < 2"
+          @click="confirmarManual"
+        >
+          Usar este nome e continuar
+        </button>
+      </div>
+
       <input
         v-if="required"
         :id="inputId"
@@ -101,18 +136,19 @@ const props = defineProps({
   filtroDatasource: { type: Object, default: () => ({}) }
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'manual'])
 
 const { equipamentos, loading, erro, carregarEquipamentos } = useCatalogoLookup()
 const termoBusca = ref('')
 const listaAberta = ref(false)
+const modoManual = ref(false)
+const textoManual = ref('')
 let debounceTimer = null
 
 const inputIdBusca = computed(() => `${props.inputId}-busca`)
+const inputManualId = computed(() => `${props.inputId}-manual`)
 const listaId = computed(() => `${props.inputId}-lista`)
-const placeholderBusca = computed(() =>
-  props.placeholder?.includes('...') ? 'Buscar equipamento por nome...' : props.placeholder
-)
+const placeholderBusca = computed(() => 'Buscar equipamento...')
 
 const opcoesExibidas = computed(() => equipamentos.value)
 
@@ -152,6 +188,19 @@ function selecionar(eq) {
   emit('update:modelValue', eq.id)
   termoBusca.value = eq.nome
   listaAberta.value = false
+  modoManual.value = false
+}
+
+function abrirModoManual() {
+  modoManual.value = true
+  textoManual.value = termoBusca.value.trim()
+}
+
+function confirmarManual() {
+  const t = textoManual.value.trim()
+  if (t.length < 2) return
+  emit('manual', t)
+  modoManual.value = false
 }
 
 async function recarregar() {

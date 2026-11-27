@@ -106,6 +106,13 @@ class Protocolo(models.Model):
         blank=True,
         related_name="protocolos",
     )
+    equipamento_citado_nao_catalogado = models.CharField(
+        max_length=180,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Nome de equipamento citado pelo cidadão, ainda não cadastrado na base.",
+    )
     qtd_cobrancas_cidadao = models.PositiveIntegerField(default=0, db_index=True)
     ultima_cobranca_em = models.DateTimeField(null=True, blank=True)
     ultimo_alerta_sla_nivel = models.CharField(max_length=32, blank=True, default="")
