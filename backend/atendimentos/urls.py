@@ -51,6 +51,7 @@ from atendimentos.diligencia_views import (
     BackofficeAbrirDiligenciaView,
     BackofficeCancelarDiligenciaView,
 )
+from atendimentos.configuracao_atendimento_pwa_views import ConfiguracaoAtendimentoPwaView
 from atendimentos.sla_cobranca_views import (
     ConfiguracaoSlaCobrancaView,
     RelatorioSlaAtrasadosExportarView,
@@ -184,6 +185,14 @@ urlpatterns = [
     path(
         "backoffice/admin/configuracao-sistema",
         ConfiguracaoSistemaAdminView.as_view(),
+    ),
+    path(
+        "backoffice/configuracoes/atendimento-pwa",
+        ConfiguracaoAtendimentoPwaView.as_view(),
+    ),
+    path(
+        "backoffice/configuracoes/atendimento-pwa/",
+        ConfiguracaoAtendimentoPwaView.as_view(),
     ),
     path(
         "backoffice/configuracoes/sla-cobranca",

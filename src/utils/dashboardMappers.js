@@ -178,7 +178,8 @@ export function mapDashboardEficiencia(api) {
     meta_tma_dias: 5,
     ranking_unidades: ranking,
     funil_status: api.funil_status || [],
-    protocolos_concluidos_tma: api.tma_geral?.protocolos_concluidos ?? 0
+    protocolos_concluidos_tma: api.tma_geral?.protocolos_concluidos ?? 0,
+    origem_abertura_resumo: api.origem_abertura_resumo || null
   }
 }
 

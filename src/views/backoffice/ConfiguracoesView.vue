@@ -50,6 +50,7 @@
           <GestaoPerfis v-else-if="secaoAtiva === 'perfis'" />
           <GestaoCatalogo v-else-if="secaoAtiva === 'servicos'" />
           <GestaoEquipamentos v-else-if="secaoAtiva === 'equipamentos'" />
+          <GestaoAberturaPwa v-else-if="secaoAtiva === 'abertura-pwa'" />
           <GestaoSlaCobranca v-else-if="secaoAtiva === 'sla-cobranca'" />
           <GestaoMatrizUrgencia v-else-if="secaoAtiva === 'matriz-urgencia'" />
           <GestaoAgenteIA v-else-if="secaoAtiva === 'agente-ia'" />
@@ -97,7 +98,8 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon,
   ExclamationTriangleIcon,
-  SparklesIcon
+  SparklesIcon,
+  DevicePhoneMobileIcon
 } from '@heroicons/vue/24/outline'
 import GestaoUnidades from '@/components/backoffice/admin/GestaoUnidades.vue'
 import GestaoUsuarios from '@/components/backoffice/admin/GestaoUsuarios.vue'
@@ -105,6 +107,7 @@ import GestaoPerfis from '@/components/backoffice/admin/GestaoPerfis.vue'
 import GestaoCatalogo from '@/components/backoffice/catalogo/GestaoCatalogo.vue'
 import GestaoSaudeInfra from '@/components/backoffice/admin/GestaoSaudeInfra.vue'
 import GestaoEquipamentos from '@/components/backoffice/admin/GestaoEquipamentos.vue'
+import GestaoAberturaPwa from '@/components/backoffice/admin/GestaoAberturaPwa.vue'
 import GestaoSlaCobranca from '@/components/backoffice/admin/GestaoSlaCobranca.vue'
 import GestaoMatrizUrgencia from '@/components/backoffice/admin/GestaoMatrizUrgencia.vue'
 import GestaoAgenteIA from '@/components/backoffice/admin/GestaoAgenteIA.vue'
@@ -128,6 +131,7 @@ const SECOES_VALIDAS = [
   'perfis',
   'servicos',
   'equipamentos',
+  'abertura-pwa',
   'sla-cobranca',
   'matriz-urgencia',
   'agente-ia',
@@ -169,6 +173,13 @@ const secoes = computed(() => [
     nome: 'Equipamentos Públicos',
     icon: BuildingStorefrontIcon,
     badge: totalEquipamentos.value > 0 ? totalEquipamentos.value : null,
+    visible: () => can('configuracoes.ler') || isSuperAdmin.value
+  },
+  {
+    id: 'abertura-pwa',
+    nome: 'Abertura no App',
+    icon: DevicePhoneMobileIcon,
+    badge: null,
     visible: () => can('configuracoes.ler') || isSuperAdmin.value
   },
   {

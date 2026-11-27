@@ -436,7 +436,9 @@ export function mapServicoCatalogo(api) {
       api.prazo_reabertura_dias === null || api.prazo_reabertura_dias === undefined
         ? null
         : Number(api.prazo_reabertura_dias),
-    urgencia_padrao: api.urgencia_padrao || 'normal'
+    urgencia_padrao: api.urgencia_padrao || 'normal',
+    visivel_catalogo_pwa: api.visivel_catalogo_pwa !== false,
+    ordem_exibicao_pwa: Number(api.ordem_exibicao_pwa ?? 100)
   }
 }
 
@@ -506,6 +508,8 @@ export function payloadServicoCatalogo(form, requisitos, regrasProtocolo = [], o
         ? null
         : Number(form.prazo_reabertura_dias),
     urgencia_padrao: form.urgencia_padrao || 'normal',
+    visivel_catalogo_pwa: form.visivel_catalogo_pwa !== false,
+    ordem_exibicao_pwa: Number(form.ordem_exibicao_pwa ?? 100),
     formulario_schema: schemaLista,
     schema_formulario: buildSchemaFormularioRequisitos(requisitos, regrasProtocolo)
   }

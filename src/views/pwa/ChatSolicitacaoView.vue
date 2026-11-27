@@ -15,8 +15,14 @@
           </div>
           <div class="flex-1 min-w-0">
             <h1 class="text-base font-bold text-gray-900 dark:text-white high-contrast:text-yellow-300 truncate">
-              {{ categoriaNome }}
+              {{ tituloCabecalho }}
             </h1>
+            <p
+              v-if="nomeServicoPreselecionado"
+              class="text-[11px] text-primary-700 dark:text-primary-300 high-contrast:text-yellow-300 truncate"
+            >
+              Serviço: {{ nomeServicoPreselecionado }}
+            </p>
             <p class="text-xs text-gray-600 dark:text-gray-400 high-contrast:text-white high-contrast:font-bold flex items-center gap-1">
               <span v-if="!chatStore.loading" class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
               <span v-else class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
@@ -28,6 +34,14 @@
         <!-- Ações do Header -->
         <PwaA11yMenu class="flex-shrink-0" />
         <ThemeToggle surface="light" class="flex-shrink-0" />
+        <button
+          v-if="nomeServicoPreselecionado"
+          type="button"
+          class="text-xs font-semibold text-primary-600 dark:text-primary-400 high-contrast:text-yellow-300 px-2 py-1 min-h-[44px] rounded-lg hover:bg-primary-50 dark:hover:bg-primary-950/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 high-contrast:focus-visible:outline-yellow-300 shrink-0"
+          @click="confirmarTrocarServico"
+        >
+          Trocar serviço
+        </button>
         <button
           type="button"
           class="btn-icon flex-shrink-0"
@@ -523,9 +537,36 @@ function deveExibirAcoesInelegibilidade(index) {
   return atendimentoBloqueadoInelegivel.value && index === indiceUltimaMensagemIa.value
 }
 
+function slugCategoriaAtual() {
+  const cat = chatStore.sessaoAtual?.categoria_inicial || categoriaNome.value
+  return String(cat).trim()
+}
+
 function irEscolherOutroServico() {
   chatStore.pararPolling?.()
-  router.push({ name: 'pwa-nova-solicitacao' })
+  irListaServicosCategoria()
+}
+
+function irListaServicosCategoria() {
+  const slug = slugCategoriaAtual().replace(/\s+/g, '_').toLowerCase()
+  router.push({
+    name: 'pwa-nova-solicitacao-categoria',
+    params: { categoriaSlug: slug }
+  })
+}
+
+async function confirmarTrocarServico() {
+  const msgsCidadao = chatStore.mensagens.filter((m) => m.tipo === 'cidadao').length
+  if (msgsCidadao > 0) {
+    const ok = await dialog.confirm(
+      'Você já enviou informações neste atendimento. Ao trocar o serviço, o progresso desta conversa será perdido.',
+      'Trocar serviço?',
+      { confirmText: 'Trocar serviço', cancelText: 'Continuar aqui' }
+    )
+    if (!ok) return
+  }
+  chatStore.resetar()
+  irListaServicosCategoria()
 }
 
 function irInicioPwa() {
@@ -535,6 +576,21 @@ function irInicioPwa() {
 const dialog = useDialog()
 
 const categoriaNome = computed(() => route.params.categoriaNome)
+const servicoIdRota = computed(() => {
+  const q = route.query.servico_id
+  return q ? String(q) : null
+})
+
+const nomeServicoPreselecionado = computed(() => {
+  const s = chatStore.sessaoAtual?.servico_identificado
+  if (!s) return ''
+  return s.nome || ''
+})
+
+const tituloCabecalho = computed(() => {
+  if (nomeServicoPreselecionado.value) return nomeServicoPreselecionado.value
+  return categoriaNome.value
+})
 const messagesContainer = ref(null)
 const textareaRef = ref(null)
 const cameraInputRef = ref(null)
@@ -999,7 +1055,7 @@ async function voltar() {
   )
   if (sair) {
     chatStore.resetar()
-    router.push('/nova-solicitacao')
+    router.push({ name: 'pwa-nova-solicitacao' })
   }
 }
 
@@ -1007,9 +1063,14 @@ async function voltar() {
 onMounted(async () => {
   chatStore.resetar()
 
-  const resultado = await chatStore.iniciarSessao(categoriaNome.value)
-  if (resultado.success && chatStore.mensagens[0]?.tipo === 'ia') {
+  const resultado = await chatStore.iniciarSessao(categoriaNome.value, servicoIdRota.value)
+  const aberturaCatalogo = Boolean(servicoIdRota.value) || Boolean(chatStore.sessaoAtual?.servico_identificado)
+  if (resultado.success && chatStore.mensagens[0]?.tipo === 'ia' && !aberturaCatalogo) {
     chatStore.mensagens[0].boasVindas = true
+  }
+  if (resultado.success) {
+    await nextTick()
+    scrollToBottom()
   }
 
   let relatoPendente = null

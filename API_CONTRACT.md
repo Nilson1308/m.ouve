@@ -23,9 +23,23 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "categoria_inicial": "Zeladoria Urbana"
+  "categoria_inicial": "Zeladoria Urbana",
+  "servico_id": "550e8400-e29b-41d4-a716-446655440001"
 }
 ```
+
+| Campo | Obrigatório | Descrição |
+|-------|-------------|-----------|
+| `categoria_inicial` | Sim | Slug/nome da categoria (compatível com filtros do catálogo) |
+| `servico_id` | Não (v4.20) | UUID do serviço — abertura **catálogo guiado**: pula Estágio 1 e inicia no preenchimento |
+
+**Modo global** (`ConfiguracaoSistema.modo_abertura_pwa`, exposto em `GET /catalogo/config-pwa`):
+
+- `hibrido` (padrão): sem `servico_id` → chat IA (Estágio 1); com `servico_id` → Estágio 2.
+- `chat_ia`: comportamento legado (sempre boas-vindas IA).
+- `catalogo_guiado`: exige `servico_id` se a categoria tiver 2+ serviços visíveis; com 1 serviço visível, auto-seleção. Erro `400` `servico_obrigatorio_modo_guiado`.
+
+**Telemetria (v4.20):** `sessao.origem_abertura` ∈ `chat_ia` \| `catalogo_guiado`; propagado para `Protocolo.origem_abertura` na geração do protocolo.
 
 **Response (201 Created):**
 ```json
@@ -3485,7 +3499,36 @@ Cada item define um campo renderizado no app:
 
 #### API pública (cidadão)
 
-`GET /api/v1/catalogo-servicos` inclui `formulario_schema`, `schema_formulario`, `icone` e `fluxo_tramitacao` para o PWA montar o formulário e rotular o fluxo.
+**`GET /api/v1/catalogo/config-pwa`** (`AllowAny`, cache Redis ~5 min, invalidado ao salvar `ConfiguracaoSistema` ou `ServicoCatalogo`):
+
+```json
+{
+  "modo_abertura_pwa": "hibrido",
+  "categorias": [
+    {
+      "slug": "zeladoria",
+      "nome": "Zeladoria",
+      "descricao": "…",
+      "total_servicos_visiveis": 6,
+      "servico_unico_id": null
+    }
+  ]
+}
+```
+
+`total_servicos_visiveis` considera apenas serviços `ativo`, publicados (`publicado_em`), `visivel_catalogo_pwa=true`, `is_template=false`. Quando `== 1`, `servico_unico_id` traz o UUID para atalho no PWA.
+
+**`GET /api/v1/catalogo/servicos`** (alias de `catalogo-servicos`):
+
+| Query | Descrição |
+|-------|-----------|
+| `categoria` | slug/nome/legado |
+| `apenas_visiveis_pwa=true` | vitrine PWA ordenada por `ordem_exibicao_pwa`, `nome` |
+| `busca` | texto em `nome`/`descricao` (case/acento insensível) |
+
+Com `apenas_visiveis_pwa`, cada item expõe: `id`, `nome`, `descricao_curta`, `categoria`, `prazo_sla_horas`.
+
+`GET /api/v1/catalogo-servicos` inclui `formulario_schema`, `schema_formulario`, `icone` e `fluxo_tramitacao` para o PWA montar o formulário e rotular o fluxo (comportamento legado sem filtro PWA).
 
 ---
 
@@ -3737,6 +3780,22 @@ Métricas agregadas no banco (ORM) para o painel de eficiência: **TMA**, **funi
     "no_prazo": 264,
     "taxa_cumprimento": 64.08
   },
+  "origem_abertura_resumo": {
+    "chat_ia": {
+      "rotulo": "Assistente IA",
+      "total_protocolos": 980,
+      "percentual": 72.4,
+      "tma_horas": 48.1,
+      "media_csat": 4.2
+    },
+    "catalogo_guiado": {
+      "rotulo": "Catálogo Guiado",
+      "total_protocolos": 374,
+      "percentual": 27.6,
+      "tma_horas": 41.0,
+      "media_csat": 4.5
+    }
+  },
   "totais": {
     "protocolos": 1354,
     "itens_mesa": 412
@@ -3747,6 +3806,7 @@ Métricas agregadas no banco (ORM) para o painel de eficiência: **TMA**, **funi
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
 | `escopo` | `municipio` \| `unidade` | Visão aplicada ao usuário |
+| `origem_abertura_resumo` (v4.20) | object | Telemetria de adoção — `chat_ia` vs `catalogo_guiado` no escopo/período do dashboard |
 | `unidade_id` | UUID \| null | Preenchido quando `escopo=unidade` |
 | `tma_geral.horas` | number \| null | TMA médio em horas (2 casas); base = só `resolvido` |
 | `tma_geral.protocolos_concluidos` | int | Quantidade de `resolvido` na base do TMA (exclui `rejeitado`) |
@@ -3994,6 +4054,7 @@ Cruzamento **taxa de SLA cumprido** vs **média de satisfação** por secretaria
 
 ### Changelog
 
+- **v4.20.0** (Nov 27, 2026): Sprint 4.9 — Modo abertura PWA (`modo_abertura_pwa` híbrido / `chat_ia` / `catalogo_guiado`); `GET /catalogo/config-pwa` (Redis); `visivel_catalogo_pwa` + `ordem_exibicao_pwa`; `GET /catalogo/servicos?apenas_visiveis_pwa&busca`; `POST /chat/sessao` com `servico_id` (Estágio 2 direto); `origem_abertura` em `SessaoChat`/`Protocolo`; `GET/PATCH /backoffice/configuracoes/atendimento-pwa`; dashboard eficiência `origem_abertura_resumo`; testes `test_modo_abertura_hibrido_pwa.py`
 - **v4.19.0** (Nov 27, 2026): Chat RAG — campos opcionais («não sei» / Pular / `_campos_pulados`); lookup equipamento não catalogado + `Protocolo.equipamento_citado_nao_catalogado`; `sugerir_troca_categoria` + `dados_slot` de troca; humanização de perguntas; testes `test_chat_rag_resiliencia.py`
 - **v4.18.0** (Nov 26, 2026): Sprint 4.7B — Copiloto Gestor: `SessaoCopilotoGestor`, `MensagemCopilotoGestor`; 6 tools read-only `agente_copiloto_tools.py`; orquestrador `agente_copiloto_service.py` + Celery `processar_pergunta_copiloto_task`; endpoints `GET config-usuario`, `POST perguntar` (202), CRUD sessões; budget compartilhado Radar+Copiloto em `obter_consumo_tokens_mes`; testes `test_agente_copiloto_gestor.py`
 - **v4.17.0** (Nov 26, 2026): Sprint 4.7A — Agente IA proativo (Radar): `ConfiguracaoAgenteGestao`, `BriefingOperacionalIA`, `AvaliacaoInsightIA`; motor determinístico `coletar_fatos_operacionais`; `gerar_briefing_escopo` (LLM + budget cap + fallback); `GET/PATCH /backoffice/configuracoes/agente-gestao`; `GET /backoffice/agente/briefing` (`?forcar=true` + rate-limit 429); `POST …/briefing/<id>/avaliar`; Digest SLA com bloco Radar IA; NOC `agente_ia`; Celery `gerar_briefings_operacionais_diarios_task`; invalidação Redis em protocolo crítico

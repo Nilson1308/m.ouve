@@ -11,6 +11,7 @@ from catalogo.governanca_roteamento_views import (
 )
 from catalogo.governanca_equipamentos_views import EquipamentoPublicoGovernancaViewSet
 from catalogo.lookup_views import CatalogoLookupEquipamentosView, CatalogoLookupUnidadesView
+from catalogo.config_pwa_views import CatalogoConfigPwaView
 from catalogo.views import CategoriaCatalogoListView, ServicoCatalogoListView
 
 governanca_router = DefaultRouter(trailing_slash=False)
@@ -49,6 +50,10 @@ urlpatterns = [
     ),
     path("catalogo-categorias", CategoriaCatalogoListView.as_view()),
     path("catalogo-servicos", ServicoCatalogoListView.as_view()),
+    path("catalogo/servicos", ServicoCatalogoListView.as_view()),
+    path("catalogo/servicos/", ServicoCatalogoListView.as_view()),
+    path("catalogo/config-pwa", CatalogoConfigPwaView.as_view()),
+    path("catalogo/config-pwa/", CatalogoConfigPwaView.as_view()),
     path("catalogo/lookup/unidades", CatalogoLookupUnidadesView.as_view()),
     path("catalogo/lookup/unidades/", CatalogoLookupUnidadesView.as_view()),
     path("catalogo/lookup/equipamentos", CatalogoLookupEquipamentosView.as_view()),

@@ -67,6 +67,7 @@ class SessaoChatSerializer(serializers.ModelSerializer):
             "categoria_inicial",
             "status",
             "fase",
+            "origem_abertura",
             "servico_identificado",
             "dados_coletados",
             "pending_escolha",
@@ -140,6 +141,7 @@ class AvaliarAberturaChatSerializer(serializers.Serializer):
 
 class CriarSessaoChatSerializer(serializers.Serializer):
     categoria_inicial = serializers.CharField(max_length=80)
+    servico_id = serializers.UUIDField(required=False, allow_null=True)
 
 
 class InteragirChatSerializer(serializers.Serializer):

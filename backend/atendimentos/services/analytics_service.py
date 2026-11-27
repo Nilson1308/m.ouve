@@ -24,6 +24,7 @@ from django.utils import timezone
 
 from atendimentos.kanban_services import montar_kanban_unificado
 from atendimentos.models import OrdemServico, Protocolo, SuperOS
+from atendimentos.pwa_abertura import ORIGEM_ABERTURA_CATALOGO_GUIADO, ORIGEM_ABERTURA_CHAT_IA
 from atendimentos.services.dashboard_filters import aplicar_filtro_bairro
 from atendimentos.services.csat_service import calcular_resumo_csat
 from atendimentos.services.escopo_dados import escopo_dashboard, queryset_protocolos_escopo
@@ -377,6 +378,30 @@ def calcular_resumo_sla_mesa(user, qs_escopo=None) -> dict[str, Any]:
     }
 
 
+def calcular_origem_abertura_resumo(qs) -> dict[str, Any]:
+    """Telemetria de adoção — abertura via IA vs catálogo guiado (escopo já filtrado)."""
+    total = qs.count()
+    saida: dict[str, Any] = {}
+    for codigo, rotulo in (
+        (ORIGEM_ABERTURA_CHAT_IA, "Assistente IA"),
+        (ORIGEM_ABERTURA_CATALOGO_GUIADO, "Catálogo Guiado"),
+    ):
+        sub = qs.filter(origem_abertura=codigo)
+        tot = sub.count()
+        pct = round(100.0 * tot / total, 2) if total else 0.0
+        resolvidos = sub.filter(status__in=STATUS_TMA)
+        tma = calcular_tma_geral(resolvidos)
+        csat = calcular_resumo_csat(sub)
+        saida[codigo] = {
+            "rotulo": rotulo,
+            "total_protocolos": tot,
+            "percentual": pct,
+            "tma_horas": tma.get("horas"),
+            "media_csat": csat.get("media_satisfacao"),
+        }
+    return saida
+
+
 def dashboard_eficiencia(user, query_params=None) -> dict[str, Any]:
     """Payload completo do dashboard de eficiência."""
     escopo = escopo_dashboard(user)
@@ -386,6 +411,7 @@ def dashboard_eficiencia(user, query_params=None) -> dict[str, Any]:
     qs_kpi = _aplicar_filtro_periodo_conclusao(qs, params)
     resumo_mesa = calcular_resumo_sla_mesa(user, qs_escopo=qs)
     kpi_retrabalho = calcular_kpi_retrabalho(qs_kpi)
+    origem_resumo = calcular_origem_abertura_resumo(qs_kpi)
 
     filtros_aplicados: dict[str, Any] = {}
     if bairro:
@@ -405,6 +431,7 @@ def dashboard_eficiencia(user, query_params=None) -> dict[str, Any]:
         "ranking_sla_unidades": calcular_ranking_gargalos_mesa(user, qs_escopo=qs),
         "resumo_sla_mesa": resumo_mesa,
         "resumo_executivo": kpi_retrabalho,
+        "origem_abertura_resumo": origem_resumo,
         "totais": {
             "protocolos": qs.count(),
             "itens_mesa": resumo_mesa["total_itens"],

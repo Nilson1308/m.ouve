@@ -29,8 +29,10 @@ export const useCatalogoStore = defineStore('catalogo', () => {
   const duplicandoServicoId = ref(null)
   const erro = ref(null)
   const servicoSelecionado = ref(null)
+  const configPwa = ref(null)
+  const loadingConfigPwa = ref(false)
 
-  const loading = computed(() => loadingPwa.value)
+  const loading = computed(() => loadingPwa.value || loadingConfigPwa.value)
   const error = computed(() => erro.value)
 
   const totalServicos = computed(() => servicos.value.length)
@@ -88,6 +90,33 @@ export const useCatalogoStore = defineStore('catalogo', () => {
     } finally {
       loadingPwa.value = false
     }
+  }
+
+  async function carregarConfigPwa() {
+    loadingConfigPwa.value = true
+    try {
+      const data = await catalogoService.getConfigPwa()
+      configPwa.value = data
+      return { success: true, data }
+    } catch (err) {
+      console.warn('Config PWA indisponível, usando modo híbrido:', err)
+      configPwa.value = { modo_abertura_pwa: 'hibrido', categorias: [] }
+      return { success: false }
+    } finally {
+      loadingConfigPwa.value = false
+    }
+  }
+
+  function configCategoriaPorRef(ref) {
+    const raw = (ref || '').trim()
+    if (!raw) return null
+    const lista = configPwa.value?.categorias || []
+    const legado = raw.toLowerCase()
+    return (
+      lista.find((c) => (c.slug || '').toLowerCase() === legado.replace(/\s+/g, '_')) ||
+      lista.find((c) => (c.nome || '').toLowerCase() === raw.toLowerCase()) ||
+      lista.find((c) => (c.slug || '').toLowerCase() === raw.toLowerCase())
+    )
   }
 
   async function carregarCategoriasCatalogo() {
@@ -395,12 +424,15 @@ export const useCatalogoStore = defineStore('catalogo', () => {
     erro,
     error,
     servicoSelecionado,
+    configPwa,
     totalServicos,
     servicosAtivos,
     servicosPorCategoria,
     getServicoPorId,
     selecionarServico,
     carregarCatalogo,
+    carregarConfigPwa,
+    configCategoriaPorRef,
     carregarCategoriasCatalogo,
     criarCategoriaCatalogo,
     atualizarCategoriaCatalogo,

@@ -271,6 +271,14 @@ class ServicoCatalogo(models.Model):
         help_text="Última publicação dos schemas para produção (PWA/chat).",
     )
     ativo = models.BooleanField(default=True)
+    visivel_catalogo_pwa = models.BooleanField(
+        default=True,
+        help_text="Exibe o serviço na vitrine do catálogo do PWA (pode permanecer ativo no backoffice).",
+    )
+    ordem_exibicao_pwa = models.PositiveSmallIntegerField(
+        default=100,
+        help_text="Ordem na lista pública de serviços por categoria no PWA.",
+    )
     is_template = models.BooleanField(
         default=False,
         help_text=(

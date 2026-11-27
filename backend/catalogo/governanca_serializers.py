@@ -157,6 +157,8 @@ class ServicoCatalogoGovernancaSerializer(serializers.ModelSerializer):
             "permite_cluster",
             "prazo_reabertura_dias",
             "urgencia_padrao",
+            "visivel_catalogo_pwa",
+            "ordem_exibicao_pwa",
             "criado_em",
             "atualizado_em",
         )

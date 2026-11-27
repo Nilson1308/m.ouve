@@ -58,11 +58,13 @@ class ServicoCatalogoAdmin(admin.ModelAdmin):
         "unidade_responsavel",
         "sla_horas",
         "is_template",
+        "visivel_catalogo_pwa",
+        "ordem_exibicao_pwa",
         "ativo",
     )
     inlines = (MatrizRoteamentoTematicoInline,)
     autocomplete_fields = ("categoria", "unidade_responsavel")
-    list_filter = ("ativo", "is_template", "categoria")
+    list_filter = ("ativo", "visivel_catalogo_pwa", "is_template", "categoria")
     search_fields = ("nome",)
     readonly_fields = ("id", "criado_em", "atualizado_em")
     fieldsets = (
@@ -77,6 +79,8 @@ class ServicoCatalogoAdmin(admin.ModelAdmin):
                     "sla_horas",
                     "fluxo_tramitacao",
                     "unidade_responsavel",
+                    "visivel_catalogo_pwa",
+                    "ordem_exibicao_pwa",
                     "is_template",
                     "ativo",
                 )

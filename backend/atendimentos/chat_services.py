@@ -183,6 +183,7 @@ def finalizar_sessao_com_protocolo(sessao: SessaoChat) -> Protocolo:
         resposta_cidadao="",
         observacoes_internas="",
         equipamento_citado_nao_catalogado=equipamento_citado,
+        origem_abertura=sessao.origem_abertura,
     )
     lat, lng = loc.get("latitude"), loc.get("longitude")
     if lat is not None and lng is not None:

@@ -167,14 +167,14 @@ export const useChatStore = defineStore('chat', () => {
     })
   }
 
-  async function iniciarSessao(categoria) {
+  async function iniciarSessao(categoria, servicoId = null) {
     loading.value = true
     error.value = null
     mensagens.value = []
     pararPolling()
 
     try {
-      const data = await chatService.iniciarSessao(categoria)
+      const data = await chatService.iniciarSessao(categoria, servicoId)
       sessaoAtual.value = data.sessao
       if (data.mensagem) {
         adicionarMensagemLocal(data.mensagem)

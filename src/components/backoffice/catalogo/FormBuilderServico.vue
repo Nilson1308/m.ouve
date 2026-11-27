@@ -163,6 +163,49 @@
                   />
                 </div>
 
+                <div class="md:col-span-2 flex flex-col sm:flex-row sm:items-end gap-4">
+                  <div class="flex-1 flex items-start gap-3 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                    <button
+                      type="button"
+                      role="switch"
+                      class="relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+                      :class="formulario.visivel_catalogo_pwa ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'"
+                      :aria-checked="formulario.visivel_catalogo_pwa"
+                      aria-label="Exibir na lista direta de serviços do aplicativo"
+                      @click="formulario.visivel_catalogo_pwa = !formulario.visivel_catalogo_pwa"
+                    >
+                      <span
+                        class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition"
+                        :class="formulario.visivel_catalogo_pwa ? 'translate-x-5' : 'translate-x-0'"
+                      />
+                    </button>
+                    <div>
+                      <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                        Exibir na lista direta de serviços do aplicativo
+                      </p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Quando desligado, o serviço não aparece na vitrine por categoria no PWA.
+                      </p>
+                    </div>
+                  </div>
+                  <div class="shrink-0 w-full sm:w-36">
+                    <label
+                      for="ordem-exibicao-pwa"
+                      class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
+                    >
+                      Ordem de exibição na lista
+                    </label>
+                    <input
+                      id="ordem-exibicao-pwa"
+                      v-model.number="formulario.ordem_exibicao_pwa"
+                      type="number"
+                      min="0"
+                      max="999"
+                      class="input w-full"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <SlaUnidadeInput v-model="formulario.sla_padrao_horas" label="SLA *" />
                 </div>
@@ -637,7 +680,9 @@ const formulario = reactive({
   ativo: true,
   permite_cluster: true,
   icone: '',
-  prazo_reabertura_dias: null
+  prazo_reabertura_dias: null,
+  visivel_catalogo_pwa: true,
+  ordem_exibicao_pwa: 100
 })
 
 const prazoReaberturaServicoInput = computed({
@@ -748,6 +793,8 @@ function preencherFormulario(servico) {
   formulario.ativo = servico?.ativo !== false
   formulario.permite_cluster = servico?.permite_cluster !== false
   formulario.icone = servico?.icone || ''
+  formulario.visivel_catalogo_pwa = servico?.visivel_catalogo_pwa !== false
+  formulario.ordem_exibicao_pwa = Number(servico?.ordem_exibicao_pwa ?? 100)
 
   const schemaLista = formularioSchemaParaEdicao(servico)
   requisitos.value = requisitosFromFormularioSchema(schemaLista)
@@ -824,7 +871,9 @@ function payloadForm() {
     unidade_responsavel_id: formulario.unidade_responsavel_id,
     ativo: formulario.ativo,
     permite_cluster: formulario.permite_cluster,
-    prazo_reabertura_dias: formulario.prazo_reabertura_dias
+    prazo_reabertura_dias: formulario.prazo_reabertura_dias,
+    visivel_catalogo_pwa: formulario.visivel_catalogo_pwa,
+    ordem_exibicao_pwa: formulario.ordem_exibicao_pwa
   }
 }
 

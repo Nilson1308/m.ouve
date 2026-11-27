@@ -40,7 +40,7 @@ from atendimentos.lookup_campos import campo_lookup_valido, higienizar_lookup_na
 from catalogo.datasources import LOOKUP_DATASOURCE_EQUIPAMENTOS
 from catalogo.schema_props import property_tem_lookup_datasource
 from catalogo.models import ServicoCatalogo, UnidadeAdministrativa
-from catalogo.views import _filtrar_servicos_por_categoria
+from catalogo.catalogo_queries import filtrar_servicos_por_categoria
 
 logger = logging.getLogger(__name__)
 
@@ -850,7 +850,7 @@ def _servicos_candidatos(sessao: SessaoChat) -> list[ServicoCatalogo]:
         "categoria"
     )
     if sessao.categoria_inicial:
-        qs = _filtrar_servicos_por_categoria(qs, sessao.categoria_inicial)
+        qs = filtrar_servicos_por_categoria(qs, sessao.categoria_inicial)
     return list(qs)
 
 

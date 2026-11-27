@@ -220,6 +220,7 @@ class ConfiguracaoMatrizUrgenciaAdmin(admin.ModelAdmin):
 class ConfiguracaoSistemaAdmin(admin.ModelAdmin):
     list_display = (
         "singleton_id",
+        "modo_abertura_pwa",
         "dias_busca_cluster_ia",
         "notificar_novos_despachos",
         "notificar_sla_vencido",
@@ -227,6 +228,7 @@ class ConfiguracaoSistemaAdmin(admin.ModelAdmin):
         "atualizado_em",
     )
     fields = (
+        "modo_abertura_pwa",
         "dias_busca_cluster_ia",
         "notificar_novos_despachos",
         "notificar_sla_vencido",
@@ -251,8 +253,16 @@ class SuperOSAdmin(admin.ModelAdmin):
 
 @admin.register(Protocolo)
 class ProtocoloAdmin(admin.ModelAdmin):
-    list_display = ("codigo", "servico", "status", "super_os", "usuario", "data_criacao")
-    list_filter = ("status", "servico__categoria")
+    list_display = (
+        "codigo",
+        "servico",
+        "status",
+        "origem_abertura",
+        "super_os",
+        "usuario",
+        "data_criacao",
+    )
+    list_filter = ("status", "origem_abertura", "servico__categoria")
     raw_id_fields = ("servico", "usuario", "super_os")
     search_fields = ("codigo", "descricao")
 
@@ -305,11 +315,12 @@ class SessaoChatAdmin(admin.ModelAdmin):
         "id",
         "usuario",
         "categoria_inicial",
+        "origem_abertura",
         "servico_identificado",
         "status",
         "atualizado_em",
     )
-    list_filter = ("status", "categoria_inicial")
+    list_filter = ("status", "origem_abertura", "categoria_inicial")
     search_fields = ("id", "usuario__cpf", "categoria_inicial")
     raw_id_fields = ("usuario", "servico_identificado", "protocolo_final")
     inlines = [MensagemChatInline]

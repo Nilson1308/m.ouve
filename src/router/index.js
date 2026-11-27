@@ -65,6 +65,13 @@ const router = createRouter({
           meta: { pwaHideShellHeader: true }
         },
         {
+          path: 'nova-solicitacao/:categoriaSlug',
+          name: 'pwa-nova-solicitacao-categoria',
+          component: () => import('@/views/pwa/NovaSolicitacaoCategoriaView.vue'),
+          props: true,
+          meta: { pwaHideShellHeader: true }
+        },
+        {
           path: 'chat/:categoriaNome',
           name: 'pwa-chat-solicitacao',
           component: () => import('@/views/pwa/ChatSolicitacaoView.vue'),

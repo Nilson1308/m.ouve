@@ -47,6 +47,8 @@ def clonar_servico_catalogo_de_template(
         permite_cluster=template.permite_cluster,
         fluxo_tramitacao=template.fluxo_tramitacao,
         triagem_ia_ativa=template.triagem_ia_ativa,
+        visivel_catalogo_pwa=template.visivel_catalogo_pwa,
+        ordem_exibicao_pwa=template.ordem_exibicao_pwa,
         ativo=True,
         is_template=False,
     )
@@ -79,6 +81,8 @@ def duplicar_servico_catalogo(
         permite_cluster=origem.permite_cluster,
         fluxo_tramitacao=origem.fluxo_tramitacao,
         triagem_ia_ativa=origem.triagem_ia_ativa,
+        visivel_catalogo_pwa=origem.visivel_catalogo_pwa,
+        ordem_exibicao_pwa=origem.ordem_exibicao_pwa,
         ativo=False,
         is_template=False,
     )

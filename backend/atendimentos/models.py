@@ -3,6 +3,14 @@
 import uuid
 
 from django.conf import settings
+
+from atendimentos.pwa_abertura import (
+    MODO_ABERTURA_CATALOGO_GUIADO,
+    MODO_ABERTURA_HIBRIDO,
+    MODO_ABERTURA_PWA_CHOICES,
+    ORIGEM_ABERTURA_CHAT_IA,
+    ORIGEM_ABERTURA_CHOICES,
+)
 from django.contrib.gis.db import models as gis_models
 from django.db import models
 from pgvector.django import VectorField
@@ -116,6 +124,13 @@ class Protocolo(models.Model):
     qtd_cobrancas_cidadao = models.PositiveIntegerField(default=0, db_index=True)
     ultima_cobranca_em = models.DateTimeField(null=True, blank=True)
     ultimo_alerta_sla_nivel = models.CharField(max_length=32, blank=True, default="")
+    origem_abertura = models.CharField(
+        max_length=24,
+        choices=ORIGEM_ABERTURA_CHOICES,
+        default=ORIGEM_ABERTURA_CHAT_IA,
+        db_index=True,
+        help_text="Canal pelo qual o cidadão iniciou a solicitação no PWA.",
+    )
     prazo_sla = models.DateTimeField(
         null=True,
         blank=True,
@@ -594,6 +609,13 @@ class SessaoChat(models.Model):
         blank=True,
         db_index=True,
         help_text="Rótulo da regra que bloqueou o atendimento (métricas / escudo político).",
+    )
+    origem_abertura = models.CharField(
+        max_length=24,
+        choices=ORIGEM_ABERTURA_CHOICES,
+        default=ORIGEM_ABERTURA_CHAT_IA,
+        db_index=True,
+        help_text="Assistente IA ou catálogo guiado no fluxo de abertura do PWA.",
     )
     nota_abertura = models.PositiveSmallIntegerField(
         null=True,
@@ -1235,6 +1257,12 @@ class ConfiguracaoSistema(models.Model):
     notificar_novas_super_os = models.BooleanField(
         default=True,
         help_text="Dispara notificações ao despachar ordens de uma Super OS.",
+    )
+    modo_abertura_pwa = models.CharField(
+        max_length=24,
+        choices=MODO_ABERTURA_PWA_CHOICES,
+        default=MODO_ABERTURA_HIBRIDO,
+        help_text="Como o cidadão inicia atendimentos no PWA (híbrido, só IA ou catálogo guiado).",
     )
     atualizado_em = models.DateTimeField(auto_now=True)
 

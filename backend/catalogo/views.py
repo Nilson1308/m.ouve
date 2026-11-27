@@ -4,27 +4,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from catalogo.models import CategoriaCatalogo, ServicoCatalogo
+from catalogo.catalogo_queries import filtrar_servicos_por_categoria
+from catalogo.pwa_catalogo import filtrar_servicos_busca_pwa, queryset_servicos_pwa_publicados
 from catalogo.serializers import (
     CategoriaCatalogoSerializer,
+    ServicoCatalogoPwaSerializer,
     ServicoCatalogoSerializer,
 )
-
-
-def _filtrar_servicos_por_categoria(qs, valor: str):
-    """Aceita slug, nome ou alias legado ``ouvidoria`` / ``zeladoria``."""
-    raw = (valor or "").strip()
-    if not raw:
-        return qs
-
-    legado = raw.lower()
-    if legado in ("ouvidoria", "zeladoria"):
-        return qs.filter(categoria__tipo_legado=legado)
-
-    slug = legado.replace(" ", "_")
-    return qs.filter(
-        Q(categoria__slug__iexact=slug)
-        | Q(categoria__nome__iexact=raw)
-    )
 
 
 class CategoriaCatalogoListView(APIView):
@@ -47,19 +33,38 @@ class CategoriaCatalogoListView(APIView):
         return Response({"categorias": serializer.data})
 
 
+def _parse_bool_query(val) -> bool:
+    if val is None:
+        return False
+    return str(val).lower() in ("1", "true", "yes", "sim")
+
+
 class ServicoCatalogoListView(APIView):
     """Lista serviços ativos do catálogo (com JSON Schema para formulários dinâmicos)."""
 
     permission_classes = [AllowAny]
 
     def get(self, request):
-        qs = ServicoCatalogo.objects.filter(
-            ativo=True,
-            is_template=False,
-        ).select_related("categoria")
+        apenas_pwa = _parse_bool_query(request.query_params.get("apenas_visiveis_pwa"))
+        if apenas_pwa:
+            qs = queryset_servicos_pwa_publicados()
+        else:
+            qs = ServicoCatalogo.objects.filter(
+                ativo=True,
+                is_template=False,
+            ).select_related("categoria")
+
         categoria = request.query_params.get("categoria")
         if categoria:
-            qs = _filtrar_servicos_por_categoria(qs, categoria)
+            qs = filtrar_servicos_por_categoria(qs, categoria)
 
-        serializer = ServicoCatalogoSerializer(qs, many=True)
+        busca = request.query_params.get("busca")
+        if busca:
+            qs = filtrar_servicos_busca_pwa(qs, busca)
+
+        if apenas_pwa:
+            qs = qs.order_by("ordem_exibicao_pwa", "nome")
+            serializer = ServicoCatalogoPwaSerializer(qs, many=True)
+        else:
+            serializer = ServicoCatalogoSerializer(qs, many=True)
         return Response({"servicos": serializer.data})

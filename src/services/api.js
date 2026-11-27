@@ -397,6 +397,60 @@ export const catalogoService = {
     }
 
     return response.json()
+  },
+
+  /** Configuração de abertura no PWA (modo híbrido / catálogo). */
+  async getConfigPwa() {
+    const baseURL = (api.defaults.baseURL || '').replace(/\/$/, '')
+    const url = `${baseURL}/catalogo/config-pwa`
+    const headers = { Accept: 'application/json' }
+    const token = localStorage.getItem('sinapse_token')
+    if (token) headers.Authorization = `Bearer ${token}`
+    const response = await fetch(url, { method: 'GET', headers, credentials: 'omit' })
+    if (!response.ok) {
+      const err = new Error(`Config PWA indisponível (${response.status})`)
+      err.response = { status: response.status }
+      throw err
+    }
+    return response.json()
+  },
+
+  /**
+   * Vitrine PWA por categoria (publicados + visíveis).
+   * @param {{ categoria?: string, busca?: string }} params
+   */
+  async listPwaVisiveis(params = {}) {
+    const baseURL = (api.defaults.baseURL || '').replace(/\/$/, '')
+    const url = new URL(`${baseURL}/catalogo/servicos`)
+    url.searchParams.set('apenas_visiveis_pwa', 'true')
+    Object.entries(params).forEach(([key, value]) => {
+      if (value != null && String(value).trim() !== '') {
+        url.searchParams.set(key, String(value).trim())
+      }
+    })
+    const headers = { Accept: 'application/json' }
+    const token = localStorage.getItem('sinapse_token')
+    if (token) headers.Authorization = `Bearer ${token}`
+    const response = await fetch(url.toString(), { method: 'GET', headers, credentials: 'omit' })
+    if (!response.ok) {
+      const err = new Error(`Lista PWA indisponível (${response.status})`)
+      err.response = { status: response.status }
+      throw err
+    }
+    return response.json()
+  }
+}
+
+export const atendimentoPwaService = {
+  async obter() {
+    const response = await api.get('/backoffice/configuracoes/atendimento-pwa')
+    return response.data
+  },
+  async salvar(modoAberturaPwa) {
+    const response = await api.patch('/backoffice/configuracoes/atendimento-pwa', {
+      modo_abertura_pwa: modoAberturaPwa
+    })
+    return response.data
   }
 }
 
@@ -601,10 +655,10 @@ export const chatService = {
    * @param {string} categoriaInicial - Nome da categoria (ex: "Zeladoria Urbana")
    * @returns {Promise<{sessao: Object, mensagem: Object}>}
    */
-  async iniciarSessao(categoriaInicial) {
-    const response = await api.post('/chat/sessao', {
-      categoria_inicial: categoriaInicial
-    })
+  async iniciarSessao(categoriaInicial, servicoId = null) {
+    const body = { categoria_inicial: categoriaInicial }
+    if (servicoId) body.servico_id = servicoId
+    const response = await api.post('/chat/sessao', body)
     return response.data
   },
 

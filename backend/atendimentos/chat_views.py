@@ -18,7 +18,8 @@ from atendimentos.chat_serializers import (
     SessaoChatSerializer,
 )
 from atendimentos.chat_estado import get_meta, set_meta
-from atendimentos.chat_services import criar_sessao_com_boas_vindas, registrar_mensagem_cidadao
+from atendimentos.chat_abertura_pwa import criar_sessao_chat_pwa
+from atendimentos.chat_services import registrar_mensagem_cidadao
 from atendimentos.models import MensagemChat, SessaoChat
 from atendimentos.tasks import processar_mensagem_ia
 
@@ -72,9 +73,11 @@ class CriarSessaoChatView(APIView):
         serializer = CriarSessaoChatSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        sessao, mensagem = criar_sessao_com_boas_vindas(
+        data = serializer.validated_data
+        sessao, mensagem = criar_sessao_chat_pwa(
             request.user,
-            serializer.validated_data["categoria_inicial"],
+            categoria_inicial=data["categoria_inicial"],
+            servico_id=data.get("servico_id"),
         )
 
         return Response(

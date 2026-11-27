@@ -7,6 +7,7 @@ class ConfiguracaoSistemaSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConfiguracaoSistema
         fields = (
+            "modo_abertura_pwa",
             "dias_busca_cluster_ia",
             "notificar_novos_despachos",
             "notificar_sla_vencido",

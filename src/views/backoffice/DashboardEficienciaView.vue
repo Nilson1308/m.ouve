@@ -120,6 +120,12 @@
         class="mb-8"
       />
 
+      <OrigemAberturaResumoCard
+        v-if="!carregando && dados"
+        :resumo="dados.origem_abertura_resumo"
+        class="mb-8"
+      />
+
       <!-- Alerta de erro API -->
       <div
         v-if="!carregando && erro"
@@ -379,6 +385,7 @@ import SkeletonKpi from '@/components/backoffice/dashboard/SkeletonKpi.vue'
 import RankingGargalos from '@/components/backoffice/dashboard/RankingGargalos.vue'
 import MatrizQualidade from '@/components/backoffice/dashboard/MatrizQualidade.vue'
 import RadarOperacionalCard from '@/components/backoffice/agente/RadarOperacionalCard.vue'
+import OrigemAberturaResumoCard from '@/components/backoffice/dashboard/OrigemAberturaResumoCard.vue'
 import { usePerspectivaRadarExecutiva } from '@/composables/useRadarBriefingPerspectiva'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAdminToast } from '@/composables/useAdminToast'

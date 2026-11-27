@@ -51,8 +51,11 @@
         </button>
       </div>
 
-      <!-- Info Card -->
-      <div class="card bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/10 high-contrast:bg-transparent border-blue-200 dark:border-blue-800 high-contrast:border-yellow-300 mb-6 animate-slide-up">
+      <!-- Info Card (modo com assistente IA) -->
+      <div
+        v-if="exibirDestaqueIa"
+        class="card bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/10 high-contrast:bg-transparent border-blue-200 dark:border-blue-800 high-contrast:border-yellow-300 mb-6 animate-slide-up"
+      >
         <div class="flex items-start gap-3">
           <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 high-contrast:from-yellow-300 high-contrast:to-yellow-400 rounded-full flex items-center justify-center shadow-button">
             <SparklesIcon class="w-6 h-6 text-white high-contrast:text-black" aria-hidden="true" />
@@ -77,9 +80,9 @@
           v-for="categoria in categorias"
           :key="categoria.nome"
           type="button"
-          @click="abrirChat(categoria)"
-          class="group card card-interactive text-left p-6 min-h-[44px] hover:scale-105 active:scale-95 motion-reduce:hover:scale-100 motion-reduce:active:scale-100 transition-all animate-scale-in motion-reduce:animate-none"
-          :aria-label="`Iniciar conversa na categoria ${categoria.nome}. ${categoria.descricao}`"
+          @click="abrirCategoria(categoria)"
+          class="group card card-interactive text-left p-6 min-h-[44px] hover:scale-105 active:scale-95 motion-reduce:hover:scale-100 motion-reduce:active:scale-100 transition-all animate-scale-in motion-reduce:animate-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 high-contrast:focus-visible:outline-yellow-300"
+          :aria-label="rotuloAriaCategoria(categoria)"
         >
           <!-- Ícone da Categoria -->
           <div class="flex items-start gap-4 mb-4">
@@ -102,11 +105,14 @@
               <div class="flex items-center gap-3 text-xs">
                 <span class="inline-flex items-center gap-1 text-gray-600 dark:text-gray-400 high-contrast:text-white high-contrast:font-bold">
                   <TagIcon class="w-4 h-4" aria-hidden="true" />
-                  {{ categoria.quantidade }} {{ categoria.quantidade === 1 ? 'serviço' : 'serviços' }}
+                  {{ categoria.quantidadeVisivel }} {{ categoria.quantidadeVisivel === 1 ? 'serviço' : 'serviços' }}
                 </span>
-                <span class="inline-flex items-center gap-1 text-primary-600 dark:text-primary-400 high-contrast:text-yellow-300 font-semibold">
-                  <ChatBubbleLeftEllipsisIcon class="w-4 h-4" aria-hidden="true" />
-                  Chat com IA
+                <span
+                  v-if="categoria.rotuloModo"
+                  class="inline-flex items-center gap-1 text-primary-600 dark:text-primary-400 high-contrast:text-yellow-300 font-semibold"
+                >
+                  <component :is="categoria.iconeModo" class="w-4 h-4" aria-hidden="true" />
+                  {{ categoria.rotuloModo }}
                 </span>
               </div>
             </div>
@@ -115,7 +121,7 @@
           <!-- Seta -->
           <div class="flex items-center justify-end">
             <div class="flex items-center gap-2 text-sm font-semibold text-primary-600 dark:text-primary-400 high-contrast:text-yellow-300">
-              <span>Iniciar Conversa</span>
+              <span>{{ categoria.cta }}</span>
               <ChevronRightIcon class="w-5 h-5 group-hover:translate-x-1 transition-transform motion-reduce:transition-none" aria-hidden="true" />
             </div>
           </div>
@@ -151,38 +157,84 @@ import {
   InboxIcon,
   SparklesIcon,
   TagIcon,
-  ChatBubbleLeftEllipsisIcon
+  ChatBubbleLeftEllipsisIcon,
+  ListBulletIcon
 } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
 const catalogoStore = useCatalogoStore()
 
+const modoAbertura = computed(
+  () => catalogoStore.configPwa?.modo_abertura_pwa || 'hibrido'
+)
+const exibirDestaqueIa = computed(
+  () => modoAbertura.value === 'hibrido' || modoAbertura.value === 'chat_ia'
+)
+
 const categorias = computed(() => {
   const grupos = catalogoStore.servicosPorCategoria || []
+  const modo = modoAbertura.value
 
-  return grupos.map((grupo) => ({
-    nome: grupo.nome,
-    quantidade: grupo.servicos.length,
-    descricao: (grupo.descricao || '').trim() || 'Serviços públicos desta área',
-    icon: componenteIconeCategoria(grupo.icone),
-    iconClass: classeGradienteIconeCategoria(grupo.icone)
-  }))
+  return grupos.map((grupo) => {
+    const ref = grupo.slug || grupo.nome
+    const cfg = catalogoStore.configCategoriaPorRef(ref)
+    const qtdVisivel =
+      cfg?.total_servicos_visiveis != null ? cfg.total_servicos_visiveis : grupo.servicos.length
+  const catalogoGuiado = modo === 'catalogo_guiado'
+    return {
+      nome: grupo.nome,
+      slug: cfg?.slug || grupo.slug || '',
+      refChat: cfg?.slug || cfg?.nome || grupo.nome,
+      servicoUnicoId: cfg?.servico_unico_id || null,
+      quantidadeVisivel: qtdVisivel,
+      descricao: (cfg?.descricao || grupo.descricao || '').trim() || 'Serviços públicos desta área',
+      icon: componenteIconeCategoria(grupo.icone),
+      iconClass: classeGradienteIconeCategoria(grupo.icone),
+      rotuloModo: catalogoGuiado ? 'Lista de serviços' : 'Chat com IA',
+      iconeModo: catalogoGuiado ? ListBulletIcon : ChatBubbleLeftEllipsisIcon,
+      cta: catalogoGuiado ? 'Ver serviços' : 'Iniciar atendimento'
+    }
+  })
 })
 
-onMounted(() => {
-  catalogoStore.carregarCatalogo()
+onMounted(async () => {
+  await Promise.all([catalogoStore.carregarCatalogo(), catalogoStore.carregarConfigPwa()])
 })
+
+function rotuloAriaCategoria(categoria) {
+  return `${categoria.cta} na categoria ${categoria.nome}. ${categoria.descricao}`
+}
+
+function irChat(categoria, servicoId = null) {
+  const query = servicoId ? { servico_id: servicoId } : {}
+  router.push({
+    name: 'pwa-chat-solicitacao',
+    params: { categoriaNome: categoria.refChat },
+    query
+  })
+}
+
+function abrirCategoria(categoria) {
+  const modo = modoAbertura.value
+  if (modo === 'chat_ia') {
+    irChat(categoria)
+    return
+  }
+  if (categoria.servicoUnicoId && categoria.quantidadeVisivel === 1) {
+    irChat(categoria, categoria.servicoUnicoId)
+    return
+  }
+  const slug = categoria.slug || categoria.refChat
+  router.push({
+    name: 'pwa-nova-solicitacao-categoria',
+    params: { categoriaSlug: slug }
+  })
+}
 
 function voltar() {
   router.push('/app/dashboard')
 }
 
-function abrirChat(categoria) {
-  router.push({
-    name: 'pwa-chat-solicitacao',
-    params: { categoriaNome: categoria.nome }
-  })
-}
 </script>
 
 <style scoped>

@@ -12,7 +12,16 @@ def contract_exception_handler(exc, context):
         return response
 
     details = response.data
-    if isinstance(details, dict) and "detail" in details:
+    if (
+        isinstance(details, dict)
+        and "code" in details
+        and "detail" in details
+        and set(details.keys()) <= {"code", "detail"}
+    ):
+        code = str(details["code"])
+        message = str(details["detail"])
+        details = None
+    elif isinstance(details, dict) and "detail" in details:
         message = str(details["detail"])
         details = None
         code = "API_ERROR"

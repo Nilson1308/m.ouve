@@ -3,7 +3,7 @@
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
-from atendimentos.models import Protocolo, ProtocoloHistorico, SuperOS
+from atendimentos.models import ConfiguracaoSistema, Protocolo, ProtocoloHistorico, SuperOS
 from atendimentos.super_os_services import propagar_status_super_os_para_filhos
 from atendimentos.tasks import enviar_push_notification
 from ia_orchestrator.tasks import gerar_embedding_solicitacao
@@ -104,3 +104,10 @@ def super_os_status_propagado(sender, instance, created, **kwargs):
     if anterior is None or anterior == instance.status:
         return
     propagar_status_super_os_para_filhos(instance)
+
+
+@receiver(post_save, sender=ConfiguracaoSistema)
+def configuracao_sistema_invalida_config_pwa(sender, instance, **kwargs):
+    from catalogo.pwa_catalogo import invalidar_cache_config_pwa
+
+    invalidar_cache_config_pwa()
