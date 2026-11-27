@@ -68,6 +68,14 @@ ACOES_UI_VALIDAS = set(ACOES_UI_ENUM)
 MSG_REVISAO = "Aqui está o resumo. Confira os dados e confirme para gerar o protocolo."
 MSG_CAMPO_PULADO = "Sem problemas, vamos seguir adiante."
 
+
+def _prefixar_resposta_campo_pulado(turno: TurnResult) -> TurnResult:
+    if turno.resposta_cidadao:
+        turno.resposta_cidadao = f"{MSG_CAMPO_PULADO}\n\n{turno.resposta_cidadao}".strip()
+    else:
+        turno.resposta_cidadao = MSG_CAMPO_PULADO
+    return turno
+
 _INSTRUCOES_POR_TOM_IA: dict[str, str] = {
     UnidadeAdministrativa.TomIA.INSTITUCIONAL: (
         "Tom institucional: cordial, claro e padronizado. Use linguagem respeitosa e neutra, "
@@ -1795,8 +1803,21 @@ class LLMOrchestrator:
         extraidos: dict = dict(_filtrar_extraidos(dados_slot))
 
         if dados_slot:
-            slot = normalizar_dados_slot(servico, dados_slot)
-            extraidos = dict(_filtrar_extraidos(slot))
+            if dados_slot.get("__pular_campo"):
+                from atendimentos.chat_estado import registrar_campo_pulado
+
+                registrar_campo_pulado(sessao_sandbox, str(dados_slot.get("__pular_campo")).strip())
+            slot_bruto = {k: v for k, v in dados_slot.items() if k != "__pular_campo"}
+            if slot_bruto:
+                slot = normalizar_dados_slot(servico, slot_bruto)
+                extraidos = dict(_filtrar_extraidos(slot))
+            elif dados_slot.get("__pular_campo"):
+                turno = self.passo_deterministico_preenchimento(
+                    sessao_sandbox,
+                    anexos_novos=anexos_novos,
+                )
+                turno = _prefixar_resposta_campo_pulado(turno)
+                return turno
 
         repescagem = False
         if not extraidos and _deve_extrair_texto(texto_usuario):
@@ -1811,18 +1832,43 @@ class LLMOrchestrator:
                 elif _pular_opcional_se_declinio(
                     sessao_sandbox, servico, campo_foco, texto_usuario
                 ):
-                    return self.passo_deterministico_preenchimento(
+                    turno = self.passo_deterministico_preenchimento(
                         sessao_sandbox,
                         anexos_novos=anexos_novos,
                     )
+                    return _prefixar_resposta_campo_pulado(turno)
                 prop0 = _propriedade_campo(servico, campo_foco)
-                if not extraidos and _tipo_ui_campo(prop0) not in ("geolocation", "image"):
+                tipo_ui_foco = _tipo_ui_campo(prop0)
+                if not extraidos and tipo_ui_foco == "image":
+                    if _pular_opcional_se_declinio(
+                        sessao_sandbox, servico, campo_foco, texto_usuario
+                    ):
+                        turno = self.passo_deterministico_preenchimento(
+                            sessao_sandbox,
+                            anexos_novos=anexos_novos,
+                        )
+                        return _prefixar_resposta_campo_pulado(turno)
+                if not extraidos and tipo_ui_foco not in ("geolocation", "image"):
+                    intencao_pular = False
                     try:
-                        extraidos, _ = self._extrair_dados_mensagem(
+                        extraidos, intencao_pular = self._extrair_dados_mensagem(
                             sessao_sandbox, servico, texto_usuario, dados_atuais
                         )
                     except ChatOrchestrationError:
                         extraidos = {}
+                        intencao_pular = False
+                    if _pular_opcional_se_declinio(
+                        sessao_sandbox,
+                        servico,
+                        campo_foco,
+                        texto_usuario,
+                        intencao_pular_llm=intencao_pular,
+                    ):
+                        turno = self.passo_deterministico_preenchimento(
+                            sessao_sandbox,
+                            anexos_novos=anexos_novos,
+                        )
+                        return _prefixar_resposta_campo_pulado(turno)
                     extraidos = _remover_declinio_disfarcado_extraidos(
                         sessao_sandbox, servico, extraidos
                     )

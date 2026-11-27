@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from atendimentos.chat_sandbox import (
+    exportar_dados_parciais_sandbox,
     montar_sessao_sandbox,
     turno_sandbox_para_resposta,
 )
@@ -75,13 +76,14 @@ def executar_sandbox_servico_catalogo(
     servico_efetivo, origem_schema = servico_sandbox_com_origem(
         servico, usar_rascunho=usar_rascunho
     )
+    parciais = dict(dados_parciais or {})
+    parciais.pop("equipamento_texto_livre", None)
     ctx = montar_sessao_sandbox(
         servico_efetivo,
-        dados_parciais=dados_parciais,
+        dados_parciais=parciais,
         localizacao_ok=localizacao_ok,
         localizacao=localizacao,
-        anexos_count=int(dados_parciais.get("_anexos_count", 0) if dados_parciais else 0)
-        + anexos_novos,
+        anexos_count=int(parciais.get("_anexos_count", 0)) + max(0, int(anexos_novos or 0)),
         historico=historico,
     )
     texto = (mensagem or "").strip()
@@ -105,12 +107,15 @@ def executar_sandbox_servico_catalogo(
             "resposta_cidadao": str(exc),
             "acao_ui": None,
             "payload_ui": None,
-            "dados_parciais": {
-                k: v for k, v in (ctx.dados_coletados or {}).items() if not str(k).startswith("_")
-            },
+            "dados_parciais": exportar_dados_parciais_sandbox(ctx.dados_coletados),
             "servico_id": str(servico.id),
             "servico_nome": servico.nome,
         }
+
+    if ctx.sandbox_qtd_anexos > 0:
+        dados_ctx = dict(ctx.dados_coletados or {})
+        dados_ctx["_anexos_count"] = ctx.sandbox_qtd_anexos
+        ctx.dados_coletados = dados_ctx
 
     resposta = turno_sandbox_para_resposta(turno, ctx.dados_coletados)
     resposta["origem_schema"] = origem_schema

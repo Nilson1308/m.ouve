@@ -39,6 +39,33 @@ class SessaoSandbox:
         """No-op — sem registro no banco."""
 
 
+CHAVES_ESTADO_SANDBOX = (
+    "_campos_pulados",
+    "_meta",
+    "_localizacao",
+    "_anexos_count",
+)
+
+
+def exportar_dados_parciais_sandbox(dados: dict | None) -> dict[str, Any]:
+    """
+    Slots visíveis + chaves internas necessárias para o próximo turno do sandbox
+  (mesma máquina de estados do PWA, sem SessaoChat persistida).
+    """
+    bruto = dict(dados or {})
+    out = {k: v for k, v in bruto.items() if not str(k).startswith("_")}
+    for chave in CHAVES_ESTADO_SANDBOX:
+        val = bruto.get(chave)
+        if val is None:
+            continue
+        if chave == "_campos_pulados" and not val:
+            continue
+        if chave == "_meta" and not val:
+            continue
+        out[chave] = val
+    return out
+
+
 def montar_sessao_sandbox(
     servico: ServicoCatalogo,
     *,
@@ -56,10 +83,13 @@ def montar_sessao_sandbox(
             loc.setdefault("longitude", -46.6)
             loc.setdefault("endereco", loc.get("endereco") or "Local simulado (sandbox)")
         dados["_localizacao"] = loc
+    qtd_anexos = max(0, int(anexos_count or 0))
+    if qtd_anexos:
+        dados["_anexos_count"] = qtd_anexos
     return SessaoSandbox(
         servico=servico,
         dados_coletados=dados,
-        sandbox_qtd_anexos=max(0, int(anexos_count or 0)),
+        sandbox_qtd_anexos=qtd_anexos,
         historico=list(historico or []),
     )
 
@@ -80,7 +110,7 @@ def turno_sandbox_para_resposta(turno, dados: dict) -> dict[str, Any]:
 
     if not isinstance(turno, TurnResult):
         raise TypeError("turno deve ser TurnResult")
-    slots = {k: v for k, v in (dados or {}).items() if not str(k).startswith("_")}
+    slots = exportar_dados_parciais_sandbox(dados)
     payload_ui = turno.config_escolha
     out = {
         "modo": "sandbox",

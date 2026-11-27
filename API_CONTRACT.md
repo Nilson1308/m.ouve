@@ -3619,7 +3619,7 @@ Até lá, combinar **regra por passo** + **regra de protocolo** cobre a maioria 
 | `resposta_cidadao` | Texto que o PWA mostraria no balão |
 | `acao_ui` | `escolha_campo`, `solicitar_localizacao`, `solicitar_foto`, `revisao_final`, `sugerir_troca_categoria`, ou `null` |
 | `payload_ui` | Escolha de campo (`opcoes`, `titulo`, …) ou payload de troca de categoria (`tipo_acao`, `categoria_atual`, `categoria_sugerida`, `servico_sugerido`, `motivo`) |
-| `dados_parciais` | Estado acumulado dos slots após o turno |
+| `dados_parciais` | Estado acumulado dos slots após o turno (sandbox: inclui `_campos_pulados`, `_meta`, `_localizacao`, `_anexos_count` para round-trip entre turnos) |
 | `dados_extraidos_turno` | O que a extração LLM inferiu neste turno |
 | `fluxo_bloqueado` / `mensagem_bloqueio` | Regra de elegibilidade ativada |
 | `ir_para_revisao` | Campos obrigatórios satisfeitos |
